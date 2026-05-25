@@ -34,6 +34,12 @@ Run services locally (separate terminals):
 
 Development tenant header: `x-tenant-id: tenant_dev` (non-production only).
 
+## Documentation
+
+- **[Current features & workflows](docs/CURRENT_FEATURES_AND_WORKFLOWS.md)** — what ships today, role map, end-to-end flows
+- **[Deploy Hospital OS on Vercel](docs/DEPLOY_VERCEL.md)** — live UI hosting
+- **[Role module plans](docs/ROLE_MODULES/README.md)** — per-role depth (Reception, Doctor, Nurse, …)
+
 ## Layout
 
 - `apps/` — Hospital OS (Vite), patient app, control-plane (Next.js shells)
