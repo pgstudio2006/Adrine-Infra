@@ -1,0 +1,36 @@
+# Local dev stack — set DATABASE_URL, JWT_DEV_SECRET in .env
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: adrine
+      POSTGRES_PASSWORD: adrine
+      POSTGRES_DB: adrine
+    ports:
+      - '5432:5432'
+
+  domain-api:
+    build:
+      context: ..
+      dockerfile: services/domain-api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://adrine:adrine@postgres:5432/adrine
+      PORT: 3002
+      LOG_JSON: 'true'
+    ports:
+      - '3002:3002'
+    depends_on:
+      - postgres
+
+  kernel-api:
+    build:
+      context: ..
+      dockerfile: services/kernel-api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://adrine:adrine@postgres:5432/adrine
+      PORT: 3001
+      LOG_JSON: 'true'
+    ports:
+      - '3001:3001'
+    depends_on:
+      - postgres

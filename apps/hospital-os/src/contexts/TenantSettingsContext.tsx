@@ -1,0 +1,186 @@
+import React, { useEffect, useState } from 'react';
+import { ROLE_TABS } from '@/config/roleNavigation';
+import { mergeOperationalTabs } from '@/operations/merge-navigation';
+import {
+  DEFAULT_TENANT_SETTINGS,
+  TenantBranding,
+  TenantFeatureFlag,
+  TenantFormTemplateConfig,
+  TenantFormTemplateKey,
+  TenantNavigationItemConfig,
+  TenantRegistrationConfig,
+  TenantRoleConfig,
+  TenantSettings,
+  coerceTenantSettings,
+} from '@/config/tenantSettings';
+import { TenantSettingsContext, TenantSettingsContextType } from '@/contexts/tenantSettingsStore';
+import { UserRole } from '@/types/roles';
+
+const STORAGE_KEY = 'adrine_tenant_settings';
+
+export function TenantSettingsProvider({ children }: { children: React.ReactNode }) {
+  const [settings, setSettings] = useState<TenantSettings>(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? coerceTenantSettings(JSON.parse(stored)) : DEFAULT_TENANT_SETTINGS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    document.title = settings.featureFlags.whiteLabelMode
+      ? settings.branding.organizationName
+      : settings.branding.platformName;
+  }, [settings]);
+
+  function updateBranding(patch: Partial<TenantBranding>) {
+    setSettings((current) => ({
+      ...current,
+      branding: {
+        ...current.branding,
+        ...patch,
+      },
+    }));
+  }
+
+  function updateRole(role: UserRole, patch: Partial<TenantRoleConfig>) {
+    setSettings((current) => ({
+      ...current,
+      roles: {
+        ...current.roles,
+        [role]: {
+          ...current.roles[role],
+          ...patch,
+        },
+      },
+    }));
+  }
+
+  function updateNavigation(role: UserRole, tabKey: string, patch: Partial<TenantNavigationItemConfig>) {
+    setSettings((current) => ({
+      ...current,
+      navigation: {
+        ...current.navigation,
+        [role]: {
+          ...current.navigation[role],
+          [tabKey]: {
+            ...current.navigation[role][tabKey],
+            ...patch,
+          },
+        },
+      },
+    }));
+  }
+
+  function updateFeatureFlag(flag: TenantFeatureFlag, value: boolean) {
+    setSettings((current) => ({
+      ...current,
+      featureFlags: {
+        ...current.featureFlags,
+        [flag]: value,
+      },
+    }));
+  }
+
+  function updateRegistration(patch: Partial<TenantRegistrationConfig>) {
+    setSettings((current) => ({
+      ...current,
+      registration: {
+        ...current.registration,
+        ...patch,
+      },
+    }));
+  }
+
+  function updateFormTemplate(templateKey: TenantFormTemplateKey, patch: Partial<TenantFormTemplateConfig>) {
+    setSettings((current) => ({
+      ...current,
+      forms: {
+        ...current.forms,
+        [templateKey]: {
+          ...current.forms[templateKey],
+          ...patch,
+        },
+      },
+    }));
+  }
+
+  function replaceSettings(next: unknown) {
+    setSettings(coerceTenantSettings(next));
+  }
+
+  function resetSettings() {
+    setSettings(DEFAULT_TENANT_SETTINGS);
+  }
+
+  function getRoleLabel(role: UserRole) {
+    return settings.roles[role].label;
+  }
+
+  function getRoleDescription(role: UserRole) {
+    return settings.roles[role].description;
+  }
+
+  function getAvailableRoles() {
+    return (Object.keys(settings.roles) as UserRole[]).filter((role) => {
+      if (!settings.roles[role].enabled) {
+        return false;
+      }
+
+      if (role === 'crm_manager' && !settings.featureFlags.patientRelationsEnabled) {
+        return false;
+      }
+
+      return true;
+    });
+  }
+
+  function getTabsForRole(role: UserRole) {
+    const roleTabs = mergeOperationalTabs(role);
+    if (!roleTabs.length) {
+      console.error(`No tabs found for role: ${role}`);
+      return [];
+    }
+    return roleTabs
+      .filter((tab) => {
+        const tabSettings = settings.navigation[role][tab.key];
+        if (!tabSettings?.visible) {
+          return false;
+        }
+
+        if (tab.key === 'teleconsult' && !settings.featureFlags.telemedicineEnabled) {
+          return false;
+        }
+
+        if ((role === 'crm_manager' || tab.path.startsWith('/crm') || tab.path === '/admin/crm') && !settings.featureFlags.patientRelationsEnabled) {
+          return false;
+        }
+
+        return true;
+      })
+      .map((tab) => ({
+        ...tab,
+        label: settings.navigation[role][tab.key]?.label ?? tab.label,
+      }));
+  }
+
+  return (
+    <TenantSettingsContext.Provider
+      value={{
+        settings,
+        updateBranding,
+        updateRole,
+        updateNavigation,
+        updateFeatureFlag,
+        updateRegistration,
+        updateFormTemplate,
+        replaceSettings,
+        resetSettings,
+        getRoleLabel,
+        getRoleDescription,
+        getAvailableRoles,
+        getTabsForRole,
+      }}
+    >
+      {children}
+    </TenantSettingsContext.Provider>
+  );
+}

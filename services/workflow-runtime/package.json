@@ -1,0 +1,26 @@
+{
+  "name": "@adrine/workflow-runtime",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/worker.ts",
+    "start": "node dist/worker.js",
+    "lint": "eslint \"src/**/*.ts\" --max-warnings 0",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node -e \"process.exit(0)\""
+  },
+  "dependencies": {
+    "@temporalio/activity": "^1.11.3",
+    "@temporalio/worker": "^1.11.3",
+    "@temporalio/workflow": "^1.11.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.16.0",
+    "@types/node": "^22.10.2",
+    "eslint": "^9.16.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.0"
+  }
+}

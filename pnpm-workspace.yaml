@@ -1,0 +1,7 @@
+packages:
+  - "apps/*"
+  - "services/kernel-api"
+  - "services/domain-api"
+  - "services/workflow-runtime"
+  - "packages/*"
+  - "tools/*"

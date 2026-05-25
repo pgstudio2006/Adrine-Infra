@@ -1,0 +1,1305 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Patient {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  mrn       String?
+  fullName  String   @map("full_name")
+  dob       DateTime?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  encounters   Encounter[]
+  appointments Appointment[]
+  crmLeads           CrmLead[]
+  crmLifecycleEvents CrmLifecycleEvent[]
+  schedulingWaitlist SchedulingWaitlistEntry[]
+  invoices     Invoice[]
+  opdVisits            OpdVisit[]
+  labOrders            LabDiagnosticOrder[]
+  radiologyOrders      RadiologyStudyOrder[]
+  pharmacyFulfillments PharmacyFulfillment[]
+  ipdAdmissions        IpdAdmission[]
+  nursingTasks         NursingTask[]
+  nursingVitalRounds   NursingVitalRound[]
+  nursingNotes         NursingNote[]
+  medicationSchedules  MedicationSchedule[]
+  dischargeOrchestrations DischargeOrchestration[]
+  insuranceAuthorizations InsuranceAuthorization[]
+  otCases               OtCase[]
+  dialysisSessions      DialysisSession[]
+
+  @@index([tenantId, createdAt])
+  @@map("patients")
+}
+
+/// Authoritative OPD operational state machine instance.
+model OpdVisit {
+  id                String    @id @default(cuid())
+  tenantId          String    @map("tenant_id")
+  branchId          String    @map("branch_id")
+  patientId         String    @map("patient_id")
+  encounterId       String?   @map("encounter_id")
+  appointmentId     String?   @map("appointment_id")
+  state             String    @default("intent")
+  previousState     String?   @map("previous_state")
+  department        String?
+  assignedDoctor    String?   @map("assigned_doctor")
+  tokenNumber       Int?      @map("token_number")
+  complaint         String?
+  escalationLevel   Int       @default(0) @map("escalation_level")
+  escalationReason  String?   @map("escalation_reason")
+  metadata          Json?
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  completedAt       DateTime? @map("completed_at")
+
+  patient     Patient              @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  transitions OpdVisitTransition[]
+
+  @@index([tenantId, branchId, state])
+  @@index([tenantId, patientId, createdAt])
+  @@map("opd_visits")
+}
+
+model OpdVisitTransition {
+  id         String   @id @default(cuid())
+  tenantId   String   @map("tenant_id")
+  opdVisitId String   @map("opd_visit_id")
+  action     String
+  fromState  String   @map("from_state")
+  toState    String   @map("to_state")
+  actorId    String?  @map("actor_id")
+  actorRole  String?  @map("actor_role")
+  reason     String?
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  visit OpdVisit @relation(fields: [opdVisitId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, opdVisitId, createdAt])
+  @@map("opd_visit_transitions")
+}
+
+/// Persisted platform events (outbox / audit / metering source).
+model PlatformEvent {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  branchId     String?  @map("branch_id")
+  eventName    String   @map("event_name")
+  payload      Json
+  actorId      String?  @map("actor_id")
+  actorRole    String?  @map("actor_role")
+  resourceType String?  @map("resource_type")
+  resourceId   String?  @map("resource_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, eventName, createdAt])
+  @@index([tenantId, resourceType, resourceId])
+  @@map("platform_events")
+}
+
+model Encounter {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  patientId String   @map("patient_id")
+  type      String
+  status    String   @default("open")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  patient Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  notes   ClinicalNote[]
+
+  @@index([tenantId, patientId])
+  @@map("encounters")
+}
+
+model ClinicalNote {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  encounterId String   @map("encounter_id")
+  body        String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, encounterId])
+  @@map("clinical_notes")
+}
+
+model Appointment {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  patientId     String   @map("patient_id")
+  startAt       DateTime @map("start_at")
+  endAt         DateTime @map("end_at")
+  resourceLabel String   @map("resource_label")
+  status        String   @default("scheduled")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  waitlistEntries SchedulingWaitlistEntry[]
+
+  @@index([tenantId, startAt])
+  @@map("appointments")
+}
+
+/// Bookable doctors, rooms, and equipment for central scheduling.
+model SchedulingResource {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  branchId     String   @map("branch_id")
+  code         String
+  label        String
+  resourceType String   @default("doctor") @map("resource_type")
+  department   String?
+  isActive     Boolean  @default(true) @map("is_active")
+  metadata     Json?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, branchId, code])
+  @@index([tenantId, branchId, isActive])
+  @@map("scheduling_resources")
+}
+
+/// Queue for slots when calendar is full — may link to booked appointment.
+model SchedulingWaitlistEntry {
+  id              String    @id @default(cuid())
+  tenantId        String    @map("tenant_id")
+  branchId        String    @map("branch_id")
+  patientId       String    @map("patient_id")
+  resourceLabel   String    @map("resource_label")
+  preferredStart  DateTime? @map("preferred_start")
+  status          String    @default("waiting")
+  priority        String    @default("routine")
+  appointmentId   String?   @map("appointment_id")
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  patient     Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, branchId, status])
+  @@map("scheduling_waitlist")
+}
+
+/// CRM lead pipeline — persisted on domain (not local-only).
+model CrmLead {
+  id           String    @id @default(cuid())
+  tenantId     String    @map("tenant_id")
+  branchId     String    @map("branch_id")
+  patientId    String?   @map("patient_id")
+  fullName     String    @map("full_name")
+  phone        String?
+  email        String?
+  stage        String    @default("new_inquiry")
+  specialty    String?
+  packageName  String?   @map("package_name")
+  ownerLabel   String?   @map("owner_label")
+  channel      String?
+  valueCents   Int?      @map("value_cents")
+  priority     String    @default("medium")
+  status       String    @default("open")
+  notes        String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  patient Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, branchId, stage])
+  @@index([tenantId, status])
+  @@map("crm_leads")
+}
+
+/// Care journey / campaign definitions.
+model CrmCampaign {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  branchId    String   @map("branch_id")
+  name        String
+  segment     String?
+  channel     String?
+  status      String   @default("draft")
+  reachCount  Int      @default(0) @map("reach_count")
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId, branchId, status])
+  @@map("crm_campaigns")
+}
+
+/// Patient lifecycle touchpoints for CRM retention views.
+model CrmLifecycleEvent {
+  id         String   @id @default(cuid())
+  tenantId   String   @map("tenant_id")
+  branchId   String   @map("branch_id")
+  patientId  String   @map("patient_id")
+  eventType  String   @map("event_type")
+  journey    String?
+  ownerLabel String?  @map("owner_label")
+  riskLevel  String?  @map("risk_level")
+  nextStep   String?  @map("next_step")
+  detail     String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, patientId, createdAt])
+  @@map("crm_lifecycle_events")
+}
+
+model Invoice {
+  id             String    @id @default(cuid())
+  tenantId       String    @map("tenant_id")
+  branchId       String    @map("branch_id")
+  patientId      String    @map("patient_id")
+  encounterId    String?   @map("encounter_id")
+  opdVisitId       String?   @map("opd_visit_id")
+  ipdAdmissionId   String?   @map("ipd_admission_id")
+  amountCents    Int       @map("amount_cents")
+  paidCents      Int       @default(0) @map("paid_cents")
+  currency       String    @default("INR")
+  gstRateBps     Int       @default(0) @map("gst_rate_bps")
+  status         String    @default("draft")
+  lineItems      Json      @default("[]") @map("line_items")
+  paymentMethod  String?   @map("payment_method")
+  receiptNumber  String?   @unique @map("receipt_number")
+  version        Int       @default(0)
+  corporatePayer Boolean   @default(false) @map("corporate_payer")
+  insuranceMode  String    @default("self") @map("insurance_mode")
+  requiresApproval Boolean @default(false) @map("requires_approval")
+  settledAt      DateTime? @map("settled_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  patient     Patient              @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  transitions InvoiceTransition[]
+  payments    PaymentRecord[]
+  chargeLines InvoiceChargeLine[]
+
+  ipdAdmission IpdAdmission? @relation(fields: [ipdAdmissionId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, opdVisitId])
+  @@index([tenantId, ipdAdmissionId])
+  @@index([tenantId, createdAt])
+  @@map("invoices")
+}
+
+/// Idempotent operational charge lines — live financial layer during patient journey.
+model InvoiceChargeLine {
+  id              String    @id @default(cuid())
+  tenantId        String    @map("tenant_id")
+  invoiceId       String    @map("invoice_id")
+  idempotencyKey  String    @map("idempotency_key")
+  chargeCode      String?   @map("charge_code")
+  description     String
+  amountCents     Int       @map("amount_cents")
+  status          String    @default("active")
+  sourceModule    String    @map("source_module")
+  sourceAction    String    @map("source_action")
+  sourceRefId     String?   @map("source_ref_id")
+  metadata        Json?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  reversedAt      DateTime? @map("reversed_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([invoiceId, status])
+  @@map("invoice_charge_lines")
+}
+
+model InvoiceTransition {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  invoiceId String   @map("invoice_id")
+  action    String
+  fromState String   @map("from_state")
+  toState   String   @map("to_state")
+  actorId   String?  @map("actor_id")
+  actorRole String?  @map("actor_role")
+  reason    String?
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, invoiceId, createdAt])
+  @@map("invoice_transitions")
+}
+
+model PaymentRecord {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  invoiceId    String   @map("invoice_id")
+  kind         String
+  amountCents  Int      @map("amount_cents")
+  method       String
+  reference    String?
+  reason       String?
+  actorId      String?  @map("actor_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, invoiceId])
+  @@map("payment_records")
+}
+
+/// Authoritative Lab/LIMS diagnostic order lifecycle.
+model LabDiagnosticOrder {
+  id               String    @id @default(cuid())
+  tenantId         String    @map("tenant_id")
+  branchId         String    @map("branch_id")
+  patientId        String    @map("patient_id")
+  encounterId      String?   @map("encounter_id")
+  opdVisitId       String?   @map("opd_visit_id")
+  externalRef      String?   @map("external_ref")
+  tests            String
+  category         String    @default("General")
+  priority         String    @default("Routine")
+  orderingDoctor   String    @map("ordering_doctor")
+  state            String    @default("ordered")
+  sampleId         String?   @map("sample_id")
+  sampleBarcode    String?   @map("sample_barcode")
+  isCritical       Boolean   @default(false) @map("is_critical")
+  criticalAckAt    DateTime? @map("critical_ack_at")
+  results          Json?
+  amountCents      Int       @default(0) @map("amount_cents")
+  billingChargeKey String?   @map("billing_charge_key")
+  version          Int       @default(0)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  completedAt      DateTime? @map("completed_at")
+
+  patient     Patient                 @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  transitions LabOrderTransition[]
+
+  @@index([tenantId, opdVisitId, state])
+  @@index([tenantId, patientId, createdAt])
+  @@map("lab_diagnostic_orders")
+}
+
+model LabOrderTransition {
+  id         String   @id @default(cuid())
+  tenantId   String   @map("tenant_id")
+  labOrderId String   @map("lab_order_id")
+  action     String
+  fromState  String   @map("from_state")
+  toState    String   @map("to_state")
+  actorId    String?  @map("actor_id")
+  actorRole  String?  @map("actor_role")
+  reason     String?
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  order LabDiagnosticOrder @relation(fields: [labOrderId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, labOrderId, createdAt])
+  @@map("lab_order_transitions")
+}
+
+/// Authoritative radiology study order lifecycle.
+model RadiologyStudyOrder {
+  id               String    @id @default(cuid())
+  tenantId         String    @map("tenant_id")
+  branchId         String    @map("branch_id")
+  patientId        String    @map("patient_id")
+  encounterId      String?   @map("encounter_id")
+  opdVisitId       String?   @map("opd_visit_id")
+  externalRef      String?   @map("external_ref")
+  study            String
+  modality         String    @default("X-Ray")
+  priority         String    @default("Routine")
+  orderingDoctor   String    @map("ordering_doctor")
+  state            String    @default("ordered")
+  isCritical       Boolean   @default(false) @map("is_critical")
+  criticalAckAt    DateTime? @map("critical_ack_at")
+  report           Json?
+  amountCents      Int       @default(0) @map("amount_cents")
+  billingChargeKey String?   @map("billing_charge_key")
+  version          Int       @default(0)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  completedAt      DateTime? @map("completed_at")
+
+  patient     Patient                    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  transitions RadiologyOrderTransition[]
+
+  @@index([tenantId, opdVisitId, state])
+  @@index([tenantId, patientId, createdAt])
+  @@map("radiology_study_orders")
+}
+
+model RadiologyOrderTransition {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  radiologyOrderId String  @map("radiology_order_id")
+  action          String
+  fromState       String   @map("from_state")
+  toState         String   @map("to_state")
+  actorId         String?  @map("actor_id")
+  actorRole       String?  @map("actor_role")
+  reason          String?
+  metadata        Json?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  order RadiologyStudyOrder @relation(fields: [radiologyOrderId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, radiologyOrderId, createdAt])
+  @@map("radiology_order_transitions")
+}
+
+/// Branch pharmacy stock (authoritative for reservations).
+model PharmacyStockItem {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  branchId     String   @map("branch_id")
+  drug         String
+  generic      String   @default("")
+  batch        String
+  expiry       DateTime
+  qtyOnHand    Int      @map("qty_on_hand")
+  qtyReserved  Int      @default(0) @map("qty_reserved")
+  isControlled Boolean  @default(false) @map("is_controlled")
+  unitPriceCents Int    @default(12000) @map("unit_price_cents")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  reservations PharmacyInventoryReservation[]
+
+  @@index([tenantId, branchId, drug])
+  @@map("pharmacy_stock_items")
+}
+
+/// Authoritative pharmacy prescription fulfillment lifecycle.
+model PharmacyFulfillment {
+  id                  String    @id @default(cuid())
+  tenantId            String    @map("tenant_id")
+  branchId            String    @map("branch_id")
+  patientId           String    @map("patient_id")
+  encounterId         String?   @map("encounter_id")
+  opdVisitId          String?   @map("opd_visit_id")
+  externalRef         String?   @map("external_ref")
+  prescribingDoctor   String    @map("prescribing_doctor")
+  department          String    @default("")
+  priority            String    @default("Routine")
+  medications         Json
+  state               String    @default("prescribed")
+  isControlled        Boolean   @default(false) @map("is_controlled")
+  controlledApproved  Boolean   @default(false) @map("controlled_approved")
+  dispensedSnapshot   Json?     @map("dispensed_snapshot")
+  amountCents         Int       @default(0) @map("amount_cents")
+  billingChargeKey    String?   @map("billing_charge_key")
+  version             Int       @default(0)
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  completedAt         DateTime? @map("completed_at")
+
+  patient      Patient                        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  transitions  PharmacyFulfillmentTransition[]
+  reservations PharmacyInventoryReservation[]
+
+  @@index([tenantId, opdVisitId, state])
+  @@index([tenantId, patientId, createdAt])
+  @@map("pharmacy_fulfillments")
+}
+
+model PharmacyFulfillmentTransition {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  fulfillmentId String   @map("fulfillment_id")
+  action        String
+  fromState     String   @map("from_state")
+  toState       String   @map("to_state")
+  actorId       String?  @map("actor_id")
+  actorRole     String?  @map("actor_role")
+  reason        String?
+  metadata      Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  fulfillment PharmacyFulfillment @relation(fields: [fulfillmentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, fulfillmentId, createdAt])
+  @@map("pharmacy_fulfillment_transitions")
+}
+
+model PharmacyInventoryReservation {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  fulfillmentId String   @map("fulfillment_id")
+  stockItemId   String   @map("stock_item_id")
+  qtyReserved   Int      @map("qty_reserved")
+  status        String   @default("active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  releasedAt    DateTime? @map("released_at")
+
+  fulfillment PharmacyFulfillment @relation(fields: [fulfillmentId], references: [id], onDelete: Cascade)
+  stockItem   PharmacyStockItem   @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, fulfillmentId, status])
+  @@map("pharmacy_inventory_reservations")
+}
+
+/// Ward / unit grouping for bed inventory.
+model BedUnit {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  branchId  String   @map("branch_id")
+  name      String
+  wardType  String   @default("general") @map("ward_type")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  beds Bed[]
+
+  @@index([tenantId, branchId])
+  @@map("bed_units")
+}
+
+/// Authoritative bed occupancy lifecycle.
+model Bed {
+  id              String    @id @default(cuid())
+  tenantId        String    @map("tenant_id")
+  branchId        String    @map("branch_id")
+  bedUnitId       String    @map("bed_unit_id")
+  label           String
+  state           String    @default("available")
+  currentAdmissionId String? @map("current_admission_id")
+  version         Int       @default(0)
+  metadata        Json?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  bedUnit     BedUnit          @relation(fields: [bedUnitId], references: [id], onDelete: Cascade)
+  transitions BedTransition[]
+  admissions  IpdAdmission[]   @relation("AdmissionBed")
+
+  @@unique([tenantId, branchId, label])
+  @@index([tenantId, branchId, state])
+  @@map("beds")
+}
+
+model BedTransition {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  bedId     String   @map("bed_id")
+  action    String
+  fromState String   @map("from_state")
+  toState   String   @map("to_state")
+  actorId   String?  @map("actor_id")
+  actorRole String?  @map("actor_role")
+  reason    String?
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  bed Bed @relation(fields: [bedId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, bedId, createdAt])
+  @@map("bed_transitions")
+}
+
+/// Authoritative IPD admission lifecycle.
+model IpdAdmission {
+  id                String    @id @default(cuid())
+  tenantId          String    @map("tenant_id")
+  branchId          String    @map("branch_id")
+  patientId         String    @map("patient_id")
+  encounterId       String?   @map("encounter_id")
+  opdVisitId        String?   @map("opd_visit_id")
+  bedId             String?   @map("bed_id")
+  state             String    @default("admission_requested")
+  previousState     String?   @map("previous_state")
+  ward              String?
+  attendingDoctor   String?   @map("attending_doctor")
+  admissionSource   String?   @map("admission_source")
+  primaryDiagnosis  String?   @map("primary_diagnosis")
+  insuranceMode     String    @default("self") @map("insurance_mode")
+  depositPaid       Boolean   @default(false) @map("deposit_paid")
+  externalRef       String?   @map("external_ref")
+  metadata          Json?
+  version           Int       @default(0)
+  admittedAt        DateTime? @map("admitted_at")
+  dischargedAt      DateTime? @map("discharged_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  patient     Patient                  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  bed         Bed?                     @relation("AdmissionBed", fields: [bedId], references: [id], onDelete: SetNull)
+  transitions IpdAdmissionTransition[]
+  nursingTasks         NursingTask[]
+  nursingVitalRounds   NursingVitalRound[]
+  nursingNotes         NursingNote[]
+  medicationSchedules  MedicationSchedule[]
+  discharge   DischargeOrchestration?
+  insurance   InsuranceAuthorization?
+  invoices    Invoice[]
+  otCases     OtCase[]
+  dialysisSessions DialysisSession[]
+
+  @@index([tenantId, branchId, state])
+  @@index([tenantId, patientId, createdAt])
+  @@map("ipd_admissions")
+}
+
+model IpdAdmissionTransition {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  admissionId String   @map("admission_id")
+  action      String
+  fromState   String   @map("from_state")
+  toState     String   @map("to_state")
+  actorId     String?  @map("actor_id")
+  actorRole   String?  @map("actor_role")
+  reason      String?
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  admission IpdAdmission @relation(fields: [admissionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, admissionId, createdAt])
+  @@map("ipd_admission_transitions")
+}
+
+/// Nursing task lifecycle for inpatient care.
+model NursingTask {
+  id          String    @id @default(cuid())
+  tenantId    String    @map("tenant_id")
+  branchId    String    @map("branch_id")
+  admissionId String    @map("admission_id")
+  patientId   String    @map("patient_id")
+  taskType    String    @map("task_type")
+  description String
+  assignedTo  String?   @map("assigned_to")
+  state       String    @default("scheduled")
+  priority    String    @default("medium")
+  dueAt       DateTime? @map("due_at")
+  version     Int       @default(0)
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  admission   IpdAdmission            @relation(fields: [admissionId], references: [id], onDelete: Cascade)
+  patient     Patient                 @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  transitions NursingTaskTransition[]
+
+  @@index([tenantId, admissionId, state])
+  @@map("nursing_tasks")
+}
+
+model NursingTaskTransition {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  nursingTaskId String   @map("nursing_task_id")
+  action        String
+  fromState     String   @map("from_state")
+  toState       String   @map("to_state")
+  actorId       String?  @map("actor_id")
+  actorRole     String?  @map("actor_role")
+  reason        String?
+  metadata      Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  task NursingTask @relation(fields: [nursingTaskId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, nursingTaskId, createdAt])
+  @@map("nursing_task_transitions")
+}
+
+/// Inpatient vital signs round (nursing documentation).
+model NursingVitalRound {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  branchId    String   @map("branch_id")
+  admissionId String   @map("admission_id")
+  patientId   String   @map("patient_id")
+  nurse       String
+  shift       String   @default("Morning")
+  bp          String
+  pulse       Int
+  temp        Float
+  spo2        Int
+  painScore   Int      @map("pain_score")
+  notes       String?
+  recordedAt  DateTime @default(now()) @map("recorded_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  admission IpdAdmission @relation(fields: [admissionId], references: [id], onDelete: Cascade)
+  patient   Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, admissionId, recordedAt])
+  @@map("nursing_vital_rounds")
+}
+
+/// Nursing progress / handover / incident notes.
+model NursingNote {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  branchId    String   @map("branch_id")
+  admissionId String   @map("admission_id")
+  patientId   String   @map("patient_id")
+  nurse       String
+  noteType    String   @map("note_type")
+  body        String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  admission IpdAdmission @relation(fields: [admissionId], references: [id], onDelete: Cascade)
+  patient   Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, admissionId, createdAt])
+  @@map("nursing_notes")
+}
+
+/// Medication administration record (MAR) schedule per inpatient admission.
+model MedicationSchedule {
+  id             String    @id @default(cuid())
+  tenantId       String    @map("tenant_id")
+  branchId       String    @map("branch_id")
+  admissionId    String    @map("admission_id")
+  patientId      String    @map("patient_id")
+  drug           String
+  dosage         String    @default("")
+  route          String    @default("PO")
+  frequency      String    @default("")
+  scheduledAt    DateTime? @map("scheduled_at")
+  state          String    @default("scheduled")
+  orderedBy      String?   @map("ordered_by")
+  nursingTaskId  String?   @map("nursing_task_id")
+  notes          String?
+  version        Int       @default(0)
+  administeredAt DateTime? @map("administered_at")
+  heldAt         DateTime? @map("held_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  admission   IpdAdmission               @relation(fields: [admissionId], references: [id], onDelete: Cascade)
+  patient     Patient                    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  transitions MedicationAdminTransition[]
+
+  @@unique([tenantId, nursingTaskId])
+  @@index([tenantId, admissionId, state])
+  @@map("medication_schedules")
+}
+
+model MedicationAdminTransition {
+  id                   String   @id @default(cuid())
+  tenantId             String   @map("tenant_id")
+  medicationScheduleId String   @map("medication_schedule_id")
+  action               String
+  fromState            String   @map("from_state")
+  toState              String   @map("to_state")
+  actorId              String?  @map("actor_id")
+  actorRole            String?  @map("actor_role")
+  reason               String?
+  metadata             Json?
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  schedule MedicationSchedule @relation(fields: [medicationScheduleId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, medicationScheduleId, createdAt])
+  @@map("medication_admin_transitions")
+}
+
+/// Multi-department discharge orchestration.
+model DischargeOrchestration {
+  id                    String    @id @default(cuid())
+  tenantId              String    @map("tenant_id")
+  branchId              String    @map("branch_id")
+  admissionId           String    @unique @map("admission_id")
+  patientId             String    @map("patient_id")
+  state                 String    @default("initiated")
+  clinicalClearedAt     DateTime? @map("clinical_cleared_at")
+  billingClearedAt      DateTime? @map("billing_cleared_at")
+  pharmacyClearedAt     DateTime? @map("pharmacy_cleared_at")
+  nursingClearedAt      DateTime? @map("nursing_cleared_at")
+  insuranceClearedAt    DateTime? @map("insurance_cleared_at")
+  readyAt               DateTime? @map("ready_at")
+  version               Int       @default(0)
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  admission   IpdAdmission         @relation(fields: [admissionId], references: [id], onDelete: Cascade)
+  patient     Patient              @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  transitions DischargeTransition[]
+
+  @@index([tenantId, state])
+  @@map("discharge_orchestrations")
+}
+
+model DischargeTransition {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  dischargeId  String   @map("discharge_id")
+  action       String
+  fromState    String   @map("from_state")
+  toState      String   @map("to_state")
+  actorId      String?  @map("actor_id")
+  actorRole    String?  @map("actor_role")
+  reason       String?
+  metadata     Json?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  discharge DischargeOrchestration @relation(fields: [dischargeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, dischargeId, createdAt])
+  @@map("discharge_transitions")
+}
+
+/// Insurance / TPA authorization for IPD.
+model InsuranceAuthorization {
+  id              String    @id @default(cuid())
+  tenantId        String    @map("tenant_id")
+  branchId        String    @map("branch_id")
+  admissionId     String    @unique @map("admission_id")
+  patientId       String    @map("patient_id")
+  payerName       String?   @map("payer_name")
+  policyNumber    String?   @map("policy_number")
+  state           String    @default("initiated")
+  approvedCents   Int?      @map("approved_cents")
+  settledCents    Int?      @map("settled_cents")
+  version         Int       @default(0)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  admission   IpdAdmission          @relation(fields: [admissionId], references: [id], onDelete: Cascade)
+  patient     Patient               @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  transitions InsuranceTransition[]
+
+  @@index([tenantId, state])
+  @@map("insurance_authorizations")
+}
+
+model InsuranceTransition {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  insuranceId   String   @map("insurance_id")
+  action        String
+  fromState     String   @map("from_state")
+  toState       String   @map("to_state")
+  actorId       String?  @map("actor_id")
+  actorRole     String?  @map("actor_role")
+  reason        String?
+  metadata      Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  insurance InsuranceAuthorization @relation(fields: [insuranceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, insuranceId, createdAt])
+  @@map("insurance_transitions")
+}
+
+/// Branch workflow definition (draft / publish).
+model WorkflowDefinition {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  lifecycleId  String   @map("lifecycle_id")
+  name         String
+  description  String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  versions WorkflowVersion[]
+
+  @@unique([tenantId, lifecycleId])
+  @@map("workflow_definitions")
+}
+
+model WorkflowVersion {
+  id             String   @id @default(cuid())
+  tenantId       String   @map("tenant_id")
+  definitionId   String   @map("definition_id")
+  version        Int
+  state          String   @default("draft")
+  draftJson      Json     @map("draft_json")
+  publishedAt    DateTime? @map("published_at")
+  publishedBy    String?  @map("published_by")
+  expectedVersion Int     @default(0) @map("expected_version")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  definition WorkflowDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  publishLogs WorkflowPublishLog[]
+
+  @@unique([definitionId, version])
+  @@index([tenantId, definitionId, state])
+  @@map("workflow_versions")
+}
+
+model WorkflowPublishLog {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  definitionId String   @map("definition_id")
+  versionId    String   @map("version_id")
+  fromVersion  Int      @map("from_version")
+  toVersion    Int      @map("to_version")
+  action       String
+  actorId      String?  @map("actor_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  version WorkflowVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, definitionId, createdAt])
+  @@map("workflow_publish_logs")
+}
+
+/// Per-branch lifecycle transition override JSON.
+model WorkflowBranchOverride {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  branchId        String   @map("branch_id")
+  lifecycleId     String   @map("lifecycle_id")
+  workflowVersionId String @map("workflow_version_id")
+  overrideJson    Json     @map("override_json")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, branchId, lifecycleId])
+  @@map("workflow_branch_overrides")
+}
+
+/// Persisted operational escalation.
+model OperationalEscalation {
+  id            String    @id @default(cuid())
+  tenantId      String    @map("tenant_id")
+  branchId      String    @map("branch_id")
+  type          String
+  severity      String
+  sourceRuntime String    @map("source_runtime")
+  resourceId    String?   @map("resource_id")
+  state         String    @default("open")
+  message       String
+  acknowledgedAt DateTime? @map("acknowledged_at")
+  resolvedAt    DateTime? @map("resolved_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([tenantId, branchId, state])
+  @@index([tenantId, type, createdAt])
+  @@map("operational_escalations")
+}
+
+// --- OT, inventory, dialysis ---
+model OtRoom {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  branchId  String   @map("branch_id")
+  code      String
+  label     String
+  state     String   @default("available")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  cases OtCase[]
+
+  @@unique([tenantId, branchId, code])
+  @@index([tenantId, branchId, state])
+  @@map("ot_rooms")
+}
+
+model OtCase {
+  id               String    @id @default(cuid())
+  tenantId         String    @map("tenant_id")
+  branchId         String    @map("branch_id")
+  patientId        String    @map("patient_id")
+  ipdAdmissionId   String?   @map("ipd_admission_id")
+  otRoomId         String?   @map("ot_room_id")
+  procedureName    String    @map("procedure_name")
+  surgeonName      String?   @map("surgeon_name")
+  priority         String    @default("elective")
+  scheduledAt      DateTime? @map("scheduled_at")
+  state            String    @default("scheduled")
+  externalRef      String?   @map("external_ref")
+  amountCents      Int       @default(0) @map("amount_cents")
+  billingChargeKey String?   @map("billing_charge_key")
+  metadata         Json?
+  version          Int       @default(0)
+  completedAt      DateTime? @map("completed_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  patient     Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  admission   IpdAdmission? @relation(fields: [ipdAdmissionId], references: [id], onDelete: SetNull)
+  otRoom      OtRoom?     @relation(fields: [otRoomId], references: [id], onDelete: SetNull)
+  transitions OtCaseTransition[]
+
+  @@index([tenantId, branchId, state])
+  @@index([tenantId, patientId, scheduledAt])
+  @@map("ot_cases")
+}
+
+model OtCaseTransition {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  otCaseId  String   @map("ot_case_id")
+  action    String
+  fromState String   @map("from_state")
+  toState   String   @map("to_state")
+  actorId   String?  @map("actor_id")
+  actorRole String?  @map("actor_role")
+  reason    String?
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  otCase OtCase @relation(fields: [otCaseId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, otCaseId, createdAt])
+  @@map("ot_case_transitions")
+}
+
+model InventoryCatalogItem {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  branchId      String   @map("branch_id")
+  sku           String
+  name          String
+  category      String   @default("General")
+  unit          String   @default("pcs")
+  qtyOnHand     Int      @default(0) @map("qty_on_hand")
+  reorderLevel  Int      @default(0) @map("reorder_level")
+  unitCostCents Int      @default(0) @map("unit_cost_cents")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  stockMoves InventoryStockMove[]
+
+  @@unique([tenantId, branchId, sku])
+  @@index([tenantId, branchId, category])
+  @@map("inventory_catalog_items")
+}
+
+model InventoryStockMove {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  branchId        String   @map("branch_id")
+  catalogItemId   String   @map("catalog_item_id")
+  moveType        String   @map("move_type")
+  quantity        Int
+  fromLocation    String?  @map("from_location")
+  toLocation      String?  @map("to_location")
+  state           String   @default("draft")
+  externalRef     String?  @map("external_ref")
+  requestedBy     String?  @map("requested_by")
+  metadata        Json?
+  version         Int      @default(0)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  catalogItem InventoryCatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+  transitions InventoryStockMoveTransition[]
+
+  @@index([tenantId, branchId, state])
+  @@index([tenantId, catalogItemId, createdAt])
+  @@map("inventory_stock_moves")
+}
+
+model InventoryStockMoveTransition {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  stockMoveId String   @map("stock_move_id")
+  action      String
+  fromState   String   @map("from_state")
+  toState     String   @map("to_state")
+  actorId     String?  @map("actor_id")
+  actorRole   String?  @map("actor_role")
+  reason      String?
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  stockMove InventoryStockMove @relation(fields: [stockMoveId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, stockMoveId, createdAt])
+  @@map("inventory_stock_move_transitions")
+}
+
+model DialysisMachine {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  branchId  String   @map("branch_id")
+  code      String
+  model     String   @default("")
+  state     String   @default("available")
+  hoursRun  Int      @default(0) @map("hours_run")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  sessions DialysisSession[]
+
+  @@unique([tenantId, branchId, code])
+  @@index([tenantId, branchId, state])
+  @@map("dialysis_machines")
+}
+
+model DialysisSession {
+  id               String    @id @default(cuid())
+  tenantId         String    @map("tenant_id")
+  branchId         String    @map("branch_id")
+  patientId        String    @map("patient_id")
+  ipdAdmissionId   String?   @map("ipd_admission_id")
+  machineId        String?   @map("machine_id")
+  scheduledAt      DateTime? @map("scheduled_at")
+  state            String    @default("scheduled")
+  packageCode      String?   @map("package_code")
+  externalRef      String?   @map("external_ref")
+  amountCents      Int       @default(0) @map("amount_cents")
+  billingChargeKey String?   @map("billing_charge_key")
+  metadata         Json?
+  version          Int       @default(0)
+  completedAt      DateTime? @map("completed_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  patient     Patient          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  admission   IpdAdmission?    @relation(fields: [ipdAdmissionId], references: [id], onDelete: SetNull)
+  machine     DialysisMachine? @relation(fields: [machineId], references: [id], onDelete: SetNull)
+  transitions DialysisSessionTransition[]
+
+  @@index([tenantId, branchId, state])
+  @@index([tenantId, patientId, scheduledAt])
+  @@map("dialysis_sessions")
+}
+
+model DialysisSessionTransition {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  sessionId String   @map("session_id")
+  action    String
+  fromState String   @map("from_state")
+  toState   String   @map("to_state")
+  actorId   String?  @map("actor_id")
+  actorRole String?  @map("actor_role")
+  reason    String?
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  session DialysisSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, sessionId, createdAt])
+  @@map("dialysis_session_transitions")
+}
+
+// --- Data migration ---
+model ImportJob {
+  id         String   @id @default(cuid())
+  tenantId   String   @map("tenant_id")
+  branchId   String?  @map("branch_id")
+  type       String
+  status     String   @default("draft")
+  fileName   String?  @map("file_name")
+  mapping    Json?
+  rowCount   Int      @default(0) @map("row_count")
+  errorCount Int      @default(0) @map("error_count")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  rows ImportJobRow[]
+
+  @@index([tenantId, type, status])
+  @@map("import_jobs")
+}
+
+model ImportJobRow {
+  id        String   @id @default(cuid())
+  jobId     String   @map("job_id")
+  rowIndex  Int      @map("row_index")
+  rawData   Json     @map("raw_data")
+  status    String   @default("pending")
+  errors    Json?
+  entityId  String?  @map("entity_id")
+
+  job ImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, status])
+  @@map("import_job_rows")
+}
+
+model ImportMappingTemplate {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  type      String
+  name      String
+  mapping   Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, type, name])
+  @@map("import_mapping_templates")
+}
+
+// --- Notifications ---
+model NotificationTemplate {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  code      String
+  channel   String
+  subject   String?
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, code, channel])
+  @@map("notification_templates")
+}
+
+model NotificationOutbox {
+  id          String    @id @default(cuid())
+  tenantId    String    @map("tenant_id")
+  channel     String
+  templateCode String?  @map("template_code")
+  recipient   String
+  payload     Json
+  status      String    @default("pending")
+  attempts    Int       @default(0)
+  nextRetryAt DateTime? @map("next_retry_at")
+  lastError   String?   @map("last_error")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  deliveries NotificationDelivery[]
+
+  @@index([tenantId, status, nextRetryAt])
+  @@map("notification_outbox")
+}
+
+model NotificationDelivery {
+  id        String   @id @default(cuid())
+  outboxId  String   @map("outbox_id")
+  provider  String
+  status    String
+  detail    String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  outbox NotificationOutbox @relation(fields: [outboxId], references: [id], onDelete: Cascade)
+
+  @@map("notification_deliveries")
+}
+
+// --- AI orchestration ---
+model AIActionLog {
+  id         String   @id @default(cuid())
+  tenantId   String   @map("tenant_id")
+  branchId   String?  @map("branch_id")
+  userId     String   @map("user_id")
+  actionType String   @map("action_type")
+  input      Json?
+  output     Json?
+  status     String   @default("completed")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, actionType, createdAt])
+  @@map("ai_action_logs")
+}
+
+model AITenantQuota {
+  id              String   @id @default(cuid())
+  tenantId        String   @unique @map("tenant_id")
+  monthlyTokenCap Int      @default(100000) @map("monthly_token_cap")
+  tokensUsed      Int      @default(0) @map("tokens_used")
+  periodStart     DateTime @default(now()) @map("period_start")
+
+  @@map("ai_tenant_quotas")
+}

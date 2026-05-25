@@ -1,0 +1,118 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 5%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 5%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 5%;
+
+    --primary: 0 0% 5%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 9%;
+
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 9%;
+
+    /* Restoring semantic colors but keeping them sleek and premium, not overpowering */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --success: 142 60% 45%;
+    --success-foreground: 0 0% 98%;
+
+    --warning: 38 90% 55%;
+    --warning-foreground: 0 0% 5%;
+
+    --info: 217 90% 60%;
+    --info-foreground: 0 0% 98%;
+
+    --border: 0 0% 92%;
+    --input: 0 0% 92%;
+    --ring: 0 0% 5%;
+
+    --radius: 0.33rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 0 0% 25%;
+    --sidebar-primary: 0 0% 5%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 0 0% 94%;
+    --sidebar-accent-foreground: 0 0% 5%;
+    --sidebar-border: 0 0% 92%;
+    --sidebar-ring: 0 0% 5%;
+  }
+
+  .dark {
+    --background: 0 0% 3%;
+    --foreground: 0 0% 98%;
+
+    --card: 0 0% 3%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 0 0% 3%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 5%;
+
+    --secondary: 0 0% 9%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 0 0% 9%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 0 0% 9%;
+    --accent-foreground: 0 0% 98%;
+
+    /* Premium dark mode semantic colors */
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 95%;
+
+    --success: 142 50% 35%;
+    --success-foreground: 0 0% 95%;
+
+    --warning: 38 70% 50%;
+    --warning-foreground: 0 0% 5%;
+
+    --info: 217 70% 50%;
+    --info-foreground: 0 0% 95%;
+
+    --border: 0 0% 12%;
+    --input: 0 0% 12%;
+    --ring: 0 0% 98%;
+
+    --sidebar-background: 0 0% 5%;
+    --sidebar-foreground: 0 0% 75%;
+    --sidebar-primary: 0 0% 98%;
+    --sidebar-primary-foreground: 0 0% 5%;
+    --sidebar-accent: 0 0% 12%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 0 0% 12%;
+    --sidebar-ring: 0 0% 98%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}

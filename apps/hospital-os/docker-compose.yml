@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  web:
+    build: .
+    container_name: adrine-web
+    ports:
+      - "5173:80"
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: adrine-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: adrine_hospital
+      POSTGRES_USER: adrine
+      POSTGRES_PASSWORD: adrine_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend-nest-stub:
+    image: node:20-alpine
+    container_name: adrine-nest-stub
+    profiles: ["backend-stub"]
+    environment:
+      DATABASE_URL: postgresql://adrine:adrine_dev_password@postgres:5432/adrine_hospital
+      API_PORT: "3000"
+    depends_on:
+      - postgres
+    command: ["sh", "-c", "echo 'NestJS backend stub placeholder is running'; sleep infinity"]
+
+  backend-fastapi-stub:
+    image: python:3.12-alpine
+    container_name: adrine-fastapi-stub
+    profiles: ["backend-stub"]
+    environment:
+      DATABASE_URL: postgresql://adrine:adrine_dev_password@postgres:5432/adrine_hospital
+      API_PORT: "8000"
+    depends_on:
+      - postgres
+    command: ["sh", "-c", "echo 'FastAPI backend stub placeholder is running'; sleep infinity"]
+
+volumes:
+  postgres_data:

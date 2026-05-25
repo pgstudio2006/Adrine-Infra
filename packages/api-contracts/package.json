@@ -1,0 +1,12 @@
+{
+  "name": "@adrine/api-contracts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "OpenAPI bundles, JSON Schemas, and event contracts (expand over time).",
+  "scripts": {
+    "build": "node -e \"require('fs').mkdirSync('dist',{recursive:true}); require('fs').writeFileSync('dist/.gitkeep','')\" && node -e \"console.log('api-contracts: no build')\"",
+    "lint": "node -e \"console.log('api-contracts: no lint')\"",
+    "typecheck": "node -e \"console.log('api-contracts: no typecheck')\"",
+    "test": "node -e \"process.exit(0)\""
+  }
+}

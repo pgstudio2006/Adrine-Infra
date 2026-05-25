@@ -1,0 +1,35 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
+import { PrismaModule } from '../prisma/prisma.module';
+import { AuthController } from './auth.controller';
+import { AuthService } from './auth.service';
+import { JwtStrategy } from './jwt.strategy';
+import { MfaService } from './mfa.service';
+import { PhiSafeLoggerInterceptor } from './phi-safe-logger.interceptor';
+
+@Module({
+  imports: [
+    PrismaModule,
+    PassportModule.register({ defaultStrategy: 'jwt' }),
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: config.get<string>('JWT_DEV_SECRET') ?? 'dev-insecure-change-me',
+        signOptions: { expiresIn: '1d' },
+      }),
+    }),
+  ],
+  controllers: [AuthController],
+  providers: [
+    JwtStrategy,
+    AuthService,
+    MfaService,
+    { provide: APP_INTERCEPTOR, useClass: PhiSafeLoggerInterceptor },
+  ],
+  exports: [JwtModule, AuthService],
+})
+export class AuthModule {}
