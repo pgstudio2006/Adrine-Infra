@@ -1,15 +1,13 @@
 # Navayu Wave 0 — Coolify Deploy Status (adrine.in)
 
-**Updated:** 2026-06-03 (session 4 — adrine.in domains)  
+**Updated:** 2026-06-03 (session 6 — hospital-os deployed)  
 **Coolify:** http://187.127.129.209:8000  
 **Project UUID:** `umn8vjfqrqn7jglfr8wqee0i`  
 **Environment UUID:** `fzhhu9uv8kltz49e51qxp58h` (production)  
 **Server UUID:** `gsk4hshqgd09oemlj9z9d6n5` (localhost)  
 **Destination UUID:** `kt0mkddiavm0eo3afpjzlseu`  
-**GitHub App UUID:** `e10vr7ere12wqtvz14rkydsw`  
-**Repo / branch:** `pgstudio2006/Adrine-Infra` @ `f0986ba` (master)
-
-**Domains (adrine.in only — not navayuhealth.in):** see [ADRINE_IN_DNS.md](./ADRINE_IN_DNS.md)
+**GitHub App UUID:** `e10vr7ere12wqtvz14rkydsw` (UI name: `lucky-llama-evx5km2ml1nobo1d0l`)  
+**Repo / branch:** `pgstudio2006/Adrine-Infra` @ `master`
 
 ---
 
@@ -17,183 +15,121 @@
 
 | Area | Status |
 |------|--------|
-| PostgreSQL | ✅ Running |
-| Redis | ✅ Running (healthy) |
-| Traefik proxy | 🔴 **Exited** — blocks HTTPS on adrine.in subdomains |
-| kernel-api app | 🔴 Config incomplete; last deploy **failed** |
-| domain-api / hospital-os / patient-app | ❌ Not created |
-| API automation | ⚠️ Deploy works; **write** blocked without token with root+write |
+| Traefik proxy | ✅ **Running** (API: `proxy.status=running`) |
+| PostgreSQL | ✅ Running (`adrine-postgres`) |
+| Redis | ✅ Running |
+| **kernel-api** (`adrine-kernel`) | ✅ **Running** — `https://kernel.adrine.in` routes; API returns 401 without `x-tenant-id` (expected) |
+| domain-api | ❌ Not created |
+| hospital-os | ✅ **Running** — `https://hms.adrine.in` |
+| patient-app | ❌ Not created |
+| `adrine_domain` DB | ❌ Not created |
+| API automation (create/PATCH apps) | ⚠️ Needs token with **write** (latest auto-token was read-only) |
 
 ---
 
-## What succeeded (this session)
+## Service status & URLs (verified 2026-06-03)
 
-1. **Redis `adrine-redis`** — API reports `running:healthy`, port mappings cleared, not publicly exposed.
-2. **PostgreSQL `adrine-postgres`** — Still running (`dp2gns8ygjh0w20s84z7kofl`).
-3. **Coolify API** — Enabled; API tokens created (deploy/read; **write** still blocked on PATCH/create until you mint a token with **root + write** checked in UI).
-4. **Kernel deploy triggered** — `GET /api/v1/deploy?uuid=t36wqfoh1hj88qrizvbr0q9h&force=true` queued deployment `e8pzptb9i0nswbxt1jteac3c` on commit `f0986ba` (build failed — see below).
-5. **`NODE_ENV` on kernel** — Already **runtime-only** (`is_buildtime=false`) in Coolify env.
-
----
-
-## What failed / blocked
-
-### Kernel deploy `e8pzptb9i0nswbxt1jteac3c` — FAILED
-
-- **Status:** `failed` (~06/03/2026 11:45 UTC)
-- **Root cause:** App still has **empty `dockerfile_location`** and FQDN still sslip.io. Build cannot use `services/kernel-api/Dockerfile`.
-- **API PATCH** returns `403 Missing required permissions: write` with current tokens.
-- **UI Save** via automation does not persist (Alpine `x-model` on Dockerfile + Livewire submit rollback).
-
-### Traefik proxy — EXITED
-
-Server proxy status: `exited`. Until **coolify-proxy** is running, `https://kernel.adrine.in` (and other subdomains) will not route or get Let's Encrypt certs.
-
-**Manual:** Coolify → Servers → localhost → Proxy → **Start**
-
-### Apps not created
-
-Only one application exists: `t36wqfoh1hj88qrizvbr0q9h` (kernel).  
-`POST /applications/private-github-app` requires **write** permission.
-
-| Planned app | Domain | Port | Dockerfile / build |
-|-------------|--------|------|-------------------|
-| adrine-kernel | https://kernel.adrine.in | 3001 | `services/kernel-api/Dockerfile` |
-| adrine-domain | https://domain.adrine.in | 3002 | `services/domain-api/Dockerfile` |
-| adrine-hospital-os | https://hms.adrine.in | 80/443 via proxy | Static: `pnpm --filter @adrine/hospital-os build`, publish `apps/hospital-os/dist` |
-| adrine-patient-app | https://book.adrine.in | 3000 | Nixpacks, base `apps/patient-app` |
+| Service | Coolify status | URL | HTTP |
+|---------|----------------|-----|------|
+| Traefik | Running | — | — |
+| adrine-postgres | Running | internal `dp2gns8ygjh0w20s84z7kofl:5432` | — |
+| adrine-redis | Running | internal `owztayjm22pvffyu0x7xjpls:6379` | — |
+| adrine-kernel | Running | https://kernel.adrine.in | `/health` → 401 (app up); `/healthz` same middleware |
+| domain-api | — | https://domain.adrine.in | 503 no backend |
+| hospital-os | Running | https://hms.adrine.in | **200** (login UI) |
+| patient-app | — | https://book.adrine.in | 503 |
 
 ---
 
-## DNS — user action at registrar (required)
+## Kernel app — configured & running
 
-Add **A records** pointing to **`187.127.129.209`** (TTL 300 recommended for first cutover):
+**UUID:** `t36wqfoh1hj88qrizvbr0q9h`
 
-| Host | Type | Value | Coolify service |
-|------|------|-------|-----------------|
-| `kernel` | A | `187.127.129.209` | kernel-api |
-| `domain` | A | `187.127.129.209` | domain-api |
-| `hms` | A | `187.127.129.209` | Hospital OS |
-| `book` | A | `187.127.129.209` | Patient app |
-
-Optional: `@` → `187.127.129.209`, `www` CNAME → `adrine.in`.
-
-**Until DNS propagates**, use IP ports: `:3001` kernel, `:3002` domain, `:8080` HMS, `:3000` book.
-
-Full copy-paste env URLs: [ADRINE_IN_DNS.md](./ADRINE_IN_DNS.md)
-
----
-
-## Manual steps (priority order) — ~15 min in Coolify UI
-
-### 1. Start Traefik proxy
-
-Servers → **localhost** → Proxy → **Start** (must show running).
-
-### 2. API token with write (one-time)
-
-Security → API Tokens → New → check **root, write, deploy, read, read:sensitive** → Create → save token locally.
-
-Then from PC:
-
-```powershell
-$env:COOLIFY_TOKEN = "<token-with-write>"
-# PATCH example:
-$headers = @{ Authorization = "Bearer $env:COOLIFY_TOKEN"; "Content-Type" = "application/json" }
-$body = @{
-  name = "adrine-kernel"
-  domains = "https://kernel.adrine.in"
-  dockerfile_location = "services/kernel-api/Dockerfile"
-  ports_mappings = "3001:3001"
-  git_commit_sha = "f0986ba"
-} | ConvertTo-Json
-Invoke-RestMethod -Uri "http://187.127.129.209:8000/api/v1/applications/t36wqfoh1hj88qrizvbr0q9h" -Method Patch -Headers $headers -Body $body
-```
-
-### 3. Fix kernel app (if not using API)
-
-Application → **adrine--infra** → General:
-
-| Field | Value |
-|-------|-------|
+| Setting | Value |
+|---------|--------|
 | Name | `adrine-kernel` |
-| Domains | `https://kernel.adrine.in` |
-| Dockerfile location | `services/kernel-api/Dockerfile` |
-| Ports exposes | `3001` |
-| Port mappings | `3001:3001` |
-| Network alias | `adrine-kernel` |
+| Domain | `https://kernel.adrine.in` |
+| Dockerfile | `/services/kernel-api/Dockerfile` |
+| Ports | `3001` / `3001:3001` |
+| Branch | `master` |
+| Repo | `pgstudio2006/Adrine-Infra` |
 
-**Save** → confirm values **stick after reload**.
-
-Environment variables (update CORS):
+**Environment (runtime):**
 
 ```env
-CORS_ORIGINS=https://hms.adrine.in,https://book.adrine.in
 DATABASE_URL=postgresql://adrine:AdrineNavayu2026!Pg@dp2gns8ygjh0w20s84z7kofl:5432/adrine_kernel?schema=public
-REDIS_URL=redis://default:<password>@owztayjm22pvffyu0x7xjpls:6379/0
+REDIS_URL=redis://default:AdrineNavayu2026!Redis@owztayjm22pvffyu0x7xjpls:6379/0
 JWT_SECRET=adrine-navayu-jwt-2026-k7x9m2p4q8w1n5r3
 NODE_ENV=production
 PORT=3001
+CORS_ORIGINS=https://hms.adrine.in,https://book.adrine.in
 ALLOW_DEV_LOGIN=false
 ```
 
-Ensure **NODE_ENV** is **not** “Available at Buildtime” (runtime only).
+Container CMD runs `npx prisma migrate deploy` on start.
 
-**Deploy** → after success:
+---
 
-```bash
-cd /repo/services/kernel-api && npx prisma migrate deploy
-```
+## Hospital OS — configured & running
 
-### 4. Create `adrine_domain` database
+**UUID:** `lm0z1tqxf5xm6mzme3veytnd`
 
-On VPS (SSH or Coolify Postgres terminal when realtime service is fixed):
+| Setting | Value |
+|---------|--------|
+| Name | `adrine-hospital-os` |
+| Domain | `https://hms.adrine.in` |
+| Dockerfile | `/apps/hospital-os/Dockerfile` |
+| Ports expose | `80` (Traefik only — **no** `80:80` host map) |
+| Branch | `master` |
+| Repo | `pgstudio2006/Adrine-Infra` |
 
-```bash
-docker exec -it $(docker ps -qf name=dp2gns8ygjh0w20s84z7kofl) psql -U adrine -d adrine_kernel -c "CREATE DATABASE adrine_domain;"
-```
-
-### 5. Create domain-api, hospital-os, patient-app
-
-+ New → **Private Repository (GitHub App)** → Adrine-Infra → master → per [COOLIFY_NAVAYU_CLICKBYCLICK.md](./COOLIFY_NAVAYU_CLICKBYCLICK.md) with domains:
-
-- `https://domain.adrine.in` (3002)
-- `https://hms.adrine.in` (static)
-- `https://book.adrine.in` (patient-app)
-
-**domain-api env:**
-
-```env
-DATABASE_URL=postgresql://adrine:AdrineNavayu2026!Pg@adrine-postgres:5432/adrine_domain?schema=public
-JWT_SECRET=adrine-navayu-jwt-2026-k7x9m2p4q8w1n5r3
-KERNEL_API_URL=http://adrine-kernel:3001
-NODE_ENV=production
-PORT=3002
-CORS_ORIGINS=https://hms.adrine.in,https://book.adrine.in
-```
-
-**hospital-os build env:**
+**Build-time env (set via API):**
 
 ```env
 VITE_PLATFORM_RUNTIME=true
+VITE_API_PROVIDER=nest
 VITE_KERNEL_API_URL=https://kernel.adrine.in
 VITE_DOMAIN_API_URL=https://domain.adrine.in
 VITE_PATIENT_APP_URL=https://book.adrine.in
 ```
 
-**patient-app env:**
+First deploy failed on `80:80` host bind (Traefik already uses port 80). Fix: clear `ports_mappings` and redeploy.
 
-```env
-NEXT_PUBLIC_KERNEL_API_URL=https://kernel.adrine.in
-NEXT_PUBLIC_DOMAIN_API_URL=https://domain.adrine.in
-NEXT_PUBLIC_PLATFORM_RUNTIME=true
+---
+
+## Domain API — created (needs DB + redeploy after Dockerfile fix)
+
+**UUID:** `fxq9vh2765921yv0y6gvqs2z`
+
+| Setting | Value |
+|---------|--------|
+| Name | `adrine-domain` |
+| Domain | `https://domain.adrine.in` |
+| Dockerfile | `/services/domain-api/Dockerfile` |
+| Ports | `3002` / `3002:3002` |
+| Branch | `master` |
+
+**Runtime env:** `DATABASE_URL` → `adrine_domain`, `KERNEL_API_URL=http://adrine-kernel:3001`, same Redis/JWT/CORS as kernel.
+
+**Blocker:** `adrine_domain` database must exist before Prisma migrate. Dockerfile CMD now creates it on start (push `master` then redeploy). Do **not** use `pre_deployment_command` with `docker exec` — Coolify runs that inside the app container.
+
+---
+
+## Remaining manual steps (~15 min)
+
+### 1. Push latest `services/domain-api/Dockerfile` to `master` and redeploy `adrine-domain`
+
+### 2. Create `adrine_domain` database (if not using updated Dockerfile yet)
+
+Init scripts only run on **first** Postgres start. For existing `adrine-postgres`, use **Servers → localhost → Terminal → Connect**, then:
+
+```bash
+docker exec -i $(docker ps -qf name=dp2gns8ygjh0w20s84z7kofl) psql -U adrine -d adrine_kernel -c "CREATE DATABASE adrine_domain;"
 ```
 
-Deploy each app after DNS points to the VPS (or use sslip.io until DNS is live).
+See `deploy/coolify/init-adrine-domain.sql`.
 
-### 6. Provision Navayu tenant
-
-From PC when Postgres is reachable:
+### 4. Provision Navayu tenant (from PC when Postgres reachable)
 
 ```powershell
 cd "C:\Users\Parthrajsinh Gohil\Desktop\Adrine Cloud Infra"
@@ -205,46 +141,22 @@ pnpm provision:navayu
 
 ---
 
-## Target URLs (after DNS + proxy + deploy)
-
-| Service | URL |
-|---------|-----|
-| Kernel API | https://kernel.adrine.in |
-| Domain API | https://domain.adrine.in |
-| Hospital OS | https://hms.adrine.in |
-| Online booking | https://book.adrine.in/book/navayu |
-
-Login (tenant): `reception@navayuhealth.in` / `Navayu@2026`
-
----
-
-## API quick reference (deploy without write)
-
-```http
-GET /api/v1/deploy?uuid=t36wqfoh1hj88qrizvbr0q9h&force=true
-Authorization: Bearer <token-with-deploy>
-```
-
-List deployment: `GET /api/v1/deployments/{deployment_uuid}`
-
----
-
-## Infrastructure blockers (unchanged)
+## Blockers
 
 | Issue | Impact |
 |-------|--------|
 | Real-time service down (6001/6002) | In-app terminals unreliable |
-| SSH :22 timeout from automation PC | No remote `docker exec` from agent |
-| Traefik proxy exited | No 80/443 routing / SSL for adrine.in |
-| API tokens without **write** | Cannot PATCH apps or create new apps via API |
-| Coolify UI Save via headless browser | Dockerfile/domain fields revert — use manual Save or write-capable API token |
+| Coolify “New app” GitHub card | Headless click does not advance to repo list; **click manually** on `lucky-llama-evx5km2ml1nobo1d0l` |
+| API token without **write** | `POST /applications/private-github-app` → 403 |
+| No `psql` / SSH from agent PC | Cannot create `adrine_domain` remotely |
 
 ---
 
-## Resource UUIDs (quick links)
+## Resource UUIDs
 
-| Resource | UUID | URL |
-|----------|------|-----|
-| Postgres | `dp2gns8ygjh0w20s84z7kofl` | [config](http://187.127.129.209:8000/project/umn8vjfqrqn7jglfr8wqee0i/environment/fzhhu9uv8kltz49e51qxp58h/database/dp2gns8ygjh0w20s84z7kofl) |
-| Redis | `owztayjm22pvffyu0x7xjpls` | [config](http://187.127.129.209:8000/project/umn8vjfqrqn7jglfr8wqee0i/environment/fzhhu9uv8kltz49e51qxp58h/database/owztayjm22pvffyu0x7xjpls) |
-| kernel-api | `t36wqfoh1hj88qrizvbr0q9h` | [app](http://187.127.129.209:8000/project/umn8vjfqrqn7jglfr8wqee0i/environment/fzhhu9uv8kltz49e51qxp58h/application/t36wqfoh1hj88qrizvbr0q9h) |
+| Resource | UUID |
+|----------|------|
+| Postgres | `dp2gns8ygjh0w20s84z7kofl` |
+| Redis | `owztayjm22pvffyu0x7xjpls` |
+| kernel-api | `t36wqfoh1hj88qrizvbr0q9h` |
+| hospital-os | `lm0z1tqxf5xm6mzme3veytnd` |
