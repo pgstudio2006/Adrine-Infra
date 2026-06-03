@@ -13,6 +13,7 @@ export class TenantModule implements NestModule {
         { path: 'auth/branches', method: RequestMethod.GET },
         { path: 'auth/mfa/verify', method: RequestMethod.POST },
         { path: 'public/tenants/:slug/branches', method: RequestMethod.GET },
+        { path: 'internal/provision-navayu', method: RequestMethod.POST },
       )
       .forRoutes('*');
   }
