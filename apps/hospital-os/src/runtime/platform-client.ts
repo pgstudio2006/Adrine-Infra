@@ -49,8 +49,10 @@ export async function platformFetch<T>(
   init?: RequestInit,
   options?: PlatformFetchOptions,
 ): Promise<T> {
+  const tenantId =
+    (import.meta.env.VITE_DEV_TENANT_ID as string | undefined)?.trim() || 'tenant_navayu';
   const authHeaders = options?.unauthenticated
-    ? { 'Content-Type': 'application/json' }
+    ? { 'Content-Type': 'application/json', 'x-tenant-id': tenantId }
     : platformHeaders();
 
   const res = await fetch(`${baseUrl.replace(/\/$/, '')}${path}`, {

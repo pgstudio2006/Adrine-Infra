@@ -197,6 +197,7 @@ export default function LoginPage() {
       try {
         const res = await fetch(
           `${kernelUrl.replace(/\/$/, '')}/auth/branches?tenantId=${encodeURIComponent(tenantId)}`,
+          { headers: { 'x-tenant-id': tenantId } },
         );
         if (!res.ok) return;
         const data = (await res.json()) as Array<{ id: string; code: string; name: string }>;
