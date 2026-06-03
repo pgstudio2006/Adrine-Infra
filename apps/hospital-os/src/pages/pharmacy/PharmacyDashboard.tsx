@@ -1,30 +1,27 @@
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pill, ClipboardList, AlertTriangle, Package, TrendingUp, Clock, ShieldAlert, Activity } from "lucide-react";
+import { useHospital } from "@/stores/hospitalStore";
 
-const stats = [
-  { label: "Pending Prescriptions", value: "23", icon: ClipboardList, trend: "+5 from yesterday" },
-  { label: "Dispensed Today", value: "87", icon: Pill, trend: "12% above avg" },
-  { label: "Low Stock Alerts", value: "14", icon: AlertTriangle, trend: "3 critical" },
-  { label: "Near-Expiry Items", value: "9", icon: Clock, trend: "Within 30 days" },
-];
+type RecentRx = {
+  id: string;
+  patient: string;
+  doctor: string;
+  items: number;
+  status: string;
+  priority: string;
+  time: string;
+};
 
-const recentPrescriptions = [
-  { id: "RX-2401", patient: "Ravi Sharma", doctor: "Dr. Patel", items: 4, status: "Pending", priority: "Urgent", time: "2 min ago" },
-  { id: "RX-2400", patient: "Anita Desai", doctor: "Dr. Mehta", items: 2, status: "Verified", priority: "Routine", time: "8 min ago" },
-  { id: "RX-2399", patient: "Suresh Kumar", doctor: "Dr. Rao", items: 6, status: "Dispensed", priority: "Routine", time: "15 min ago" },
-  { id: "RX-2398", patient: "Meena Joshi", doctor: "Dr. Shah", items: 3, status: "Partially dispensed", priority: "Urgent", time: "22 min ago" },
-  { id: "RX-2397", patient: "Vikram Singh", doctor: "Dr. Gupta", items: 1, status: "Dispensed", priority: "Emergency", time: "30 min ago" },
-];
-
-const drugAlerts = [
-  { drug: "Amoxicillin 500mg", type: "Low Stock", detail: "Only 24 units left", severity: "critical" },
-  { drug: "Metformin 850mg", type: "Near Expiry", detail: "Batch B-4421 expires in 12 days", severity: "warning" },
-  { drug: "Morphine 10mg", type: "Controlled", detail: "Dispensed 3 times today — review required", severity: "info" },
-  { drug: "Ciprofloxacin 250mg", type: "Interaction Alert", detail: "Flagged in 2 prescriptions today", severity: "warning" },
-];
+type DrugAlert = {
+  drug: string;
+  type: string;
+  detail: string;
+  severity: 'critical' | 'warning' | 'info';
+};
 
 const statusColor: Record<string, string> = {
   Pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -41,6 +38,63 @@ const severityIcon: Record<string, string> = {
 };
 
 export default function PharmacyDashboard() {
+  const { prescriptions, pharmacyInventory } = useHospital();
+
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const pendingCount = prescriptions.filter(r => r.status === 'Pending' || r.status === 'Verified').length;
+  const dispensedToday = prescriptions.filter(r => r.status === 'Dispensed' && r.date.startsWith(todayKey)).length;
+  const lowStockCount = pharmacyInventory.filter(i => i.qty <= i.reorder).length;
+  const nearExpiryCount = pharmacyInventory.filter(i => {
+    const daysToExpiry = Math.floor((new Date(i.expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    return daysToExpiry <= 30 && daysToExpiry >= 0;
+  }).length;
+
+  const stats = [
+    { label: "Pending Prescriptions", value: String(pendingCount), icon: ClipboardList, trend: pendingCount === 0 ? "No pending" : "Live store" },
+    { label: "Dispensed Today", value: String(dispensedToday), icon: Pill, trend: "Live store" },
+    { label: "Low Stock Alerts", value: String(lowStockCount), icon: AlertTriangle, trend: lowStockCount === 0 ? "Stock OK" : "At or below reorder" },
+    { label: "Near-Expiry Items", value: String(nearExpiryCount), icon: Clock, trend: "Within 30 days" },
+  ];
+
+  const recentPrescriptions: RecentRx[] = useMemo(() => {
+    return [...prescriptions]
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+      .slice(0, 8)
+      .map(r => ({
+        id: r.id,
+        patient: r.patientName,
+        doctor: r.doctor,
+        items: r.meds.length,
+        status: r.status,
+        priority: r.priority,
+        time: r.date,
+      }));
+  }, [prescriptions]);
+
+  const drugAlerts: DrugAlert[] = useMemo(() => {
+    const alerts: DrugAlert[] = [];
+    pharmacyInventory.forEach(item => {
+      if (item.qty <= item.reorder) {
+        alerts.push({
+          drug: item.drug,
+          type: "Low Stock",
+          detail: `Only ${item.qty} units left (reorder at ${item.reorder})`,
+          severity: item.qty === 0 ? 'critical' : 'warning',
+        });
+      }
+      const daysToExpiry = Math.floor((new Date(item.expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      if (daysToExpiry <= 30 && daysToExpiry >= 0) {
+        alerts.push({
+          drug: item.drug,
+          type: "Near Expiry",
+          detail: `Batch ${item.batch} expires in ${daysToExpiry} days`,
+          severity: daysToExpiry <= 7 ? 'critical' : 'warning',
+        });
+      }
+    });
+    return alerts.slice(0, 8);
+  }, [pharmacyInventory]);
+
   return (
     <div className="space-y-6">
       <div>
@@ -89,6 +143,13 @@ export default function PharmacyDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {recentPrescriptions.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-6">
+                      No prescriptions yet.
+                    </TableCell>
+                  </TableRow>
+                )}
                 {recentPrescriptions.map(rx => (
                   <TableRow key={rx.id}>
                     <TableCell className="font-mono text-sm">{rx.id}</TableCell>
@@ -119,6 +180,9 @@ export default function PharmacyDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            {drugAlerts.length === 0 && (
+              <p className="text-xs text-muted-foreground">No stock or expiry alerts.</p>
+            )}
             {drugAlerts.map((a, i) => (
               <div key={i} className="border border-border rounded-lg p-3 space-y-1">
                 <div className="flex items-center gap-2">

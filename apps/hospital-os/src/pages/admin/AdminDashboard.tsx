@@ -40,7 +40,7 @@ export default function AdminDashboard() {
 
   const activeAdmissions = admissions.filter((a) => a.status !== 'discharged').length;
   const opdToday = patients.filter((p) => p.patientType === 'OPD').length;
-  const pendingRx = prescriptions.filter((rx) => rx.status !== 'dispensed').length;
+  const pendingRx = prescriptions.filter((rx) => rx.status !== 'Dispensed').length;
   const pendingLabs = labOrders.filter(
     (o) => o.stage !== 'Reported' && o.stage !== 'Validated',
   ).length;

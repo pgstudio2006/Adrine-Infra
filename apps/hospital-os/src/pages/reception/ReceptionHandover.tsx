@@ -21,35 +21,8 @@ interface HandoverNote {
   time: string;
 }
 
-const DEMO_HANDOVERS: HandoverNote[] = [
-  {
-    id: 'h1',
-    counter: 'Main Counter',
-    shift: 'Morning',
-    priority: 'urgent',
-    note: 'Patient UHID-240003 waiting for IPD bed assignment — billing deposit pending. Follow up with nursing team.',
-    author: 'Reception Staff',
-    time: '13:45',
-  },
-  {
-    id: 'h2',
-    counter: 'Counter 2',
-    shift: 'Morning',
-    priority: 'normal',
-    note: 'Dr. R. Mehta unavailable afternoon — reschedule 3 appointments to tomorrow.',
-    author: 'Reception Staff',
-    time: '13:30',
-  },
-  {
-    id: 'h3',
-    counter: 'Main Counter',
-    shift: 'Afternoon',
-    priority: 'normal',
-    note: 'Queue board updated for Cardiology — TV display reconnected. Token #47 last served.',
-    author: 'Evening Staff',
-    time: '18:00',
-  },
-];
+// Handover notes are produced locally on submit; no hardcoded demo entries.
+const DEMO_HANDOVERS: HandoverNote[] = [];
 
 const COUNTER_OPTIONS = [
   { value: 'Main Counter', label: 'Main Counter' },

@@ -53,22 +53,13 @@ interface Patient {
   branch: string;
 }
 
-const existingPatients: Patient[] = [
-  { uhid: 'UHID-240001', name: 'Rajesh Sharma', age: 45, gender: 'M', phone: '9876543210', abhaId: '91-1234-5678-9012', aadhaar: '•••• •••• 3210', registeredOn: '15 Jan 2025', lastVisit: '2 Mar 2026', lastDoctor: 'Dr. R. Mehta', patientType: 'OPD', category: 'insurance', bloodGroup: 'B+', pendingBills: 0, branch: 'Main Hospital' },
-  { uhid: 'UHID-240002', name: 'Priya Patel', age: 28, gender: 'F', phone: '9876543211', registeredOn: '22 Aug 2024', lastVisit: '28 Feb 2026', lastDoctor: 'Dr. S. Iyer', patientType: 'OPD', category: 'general', pendingBills: 1500, branch: 'Main Hospital' },
-  { uhid: 'UHID-240003', name: 'Amit Kumar', age: 62, gender: 'M', phone: '9876543212', abhaId: '91-2345-6789-0123', aadhaar: '•••• •••• 5432', registeredOn: '10 Jun 2024', lastVisit: '1 Mar 2026', lastDoctor: 'Dr. R. Mehta', patientType: 'IPD', category: 'government', bloodGroup: 'O+', activeAdmission: true, branch: 'Main Hospital' },
-  { uhid: 'UHID-240004', name: 'Sunita Devi', age: 55, gender: 'F', phone: '9876543213', registeredOn: '3 Mar 2024', patientType: 'OPD', category: 'general', branch: 'City Branch' },
-  { uhid: 'UHID-240005', name: 'Vikram Singh', age: 38, gender: 'M', phone: '9876543214', abhaId: '91-3456-7890-1234', registeredOn: '11 Oct 2024', lastVisit: '5 Mar 2026', lastDoctor: 'Dr. K. Rao', patientType: 'Emergency', category: 'vip', bloodGroup: 'A+', branch: 'Main Hospital' },
-  { uhid: 'UHID-240006', name: 'Neha Gupta', age: 32, gender: 'F', phone: '9876543215', registeredOn: '20 Dec 2025', lastVisit: '6 Mar 2026', lastDoctor: 'Dr. D. Kapoor', patientType: 'OPD', category: 'corporate', bloodGroup: 'AB+', branch: 'Main Hospital' },
-  { uhid: 'UHID-240007', name: 'Arjun Reddy', age: 50, gender: 'M', phone: '9876543216', abhaId: '91-4567-8901-2345', registeredOn: '5 Nov 2024', patientType: 'OPD', category: 'insurance', bloodGroup: 'O-', branch: 'City Branch' },
-  { uhid: 'UHID-240008', name: 'Fatima Khan', age: 41, gender: 'F', phone: '9876543217', registeredOn: '18 Feb 2026', lastVisit: '7 Mar 2026', lastDoctor: 'Dr. P. Nair', patientType: 'IPD', category: 'general', activeAdmission: true, branch: 'Main Hospital' },
-];
+// Patient list comes from useHospital().patients via the platform sync hook below.
+// Empty placeholder retained only so the unused `Patient` type stays referenced.
+const existingPatients: Patient[] = [];
+void existingPatients;
 
-// Duplicate candidates for merge demo
-const duplicateCandidates = [
-  { uhid1: 'UHID-240002', uhid2: 'UHID-240099', name: 'Priya Patel', phone1: '9876543211', phone2: '9876543299', matchScore: 92 },
-  { uhid1: 'UHID-240004', uhid2: 'UHID-240088', name: 'Sunita Devi', phone1: '9876543213', phone2: '9876543288', matchScore: 85 },
-];
+// Duplicate candidates would come from a platform de-dupe service; empty until wired.
+const duplicateCandidates: Array<{ uhid1: string; uhid2: string; name: string; phone1: string; phone2: string; matchScore: number }> = [];
 
 const STEPS = [
   { label: 'Patient Info', icon: User },
@@ -417,6 +408,11 @@ export default function ReceptionRegistration() {
         <div className="rounded-xl border bg-card p-4">
           <h3 className="font-semibold mb-3">Potential Duplicates ({duplicateCandidates.length})</h3>
           <div className="space-y-3">
+            {duplicateCandidates.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                No potential duplicates detected. Use manual merge below if needed.
+              </p>
+            )}
             {duplicateCandidates.map((d, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
                 className="rounded-lg border p-4 space-y-3">

@@ -8,16 +8,18 @@ import { Label } from '@/components/ui/label';
 import { Users, Plus, Search, UserCheck, UserX } from 'lucide-react';
 import { useState } from 'react';
 
-const STAFF = [
-  { id: 'S001', name: 'Dr. Rajesh Mehta', role: 'doctor', department: 'Cardiology', email: 'rajesh@hospital.com', phone: '9876543210', license: 'MCI-12345', status: 'active' },
-  { id: 'S002', name: 'Dr. Priya Sharma', role: 'doctor', department: 'Pediatrics', email: 'priya@hospital.com', phone: '9876543211', license: 'MCI-12346', status: 'active' },
-  { id: 'S003', name: 'Nurse Anjali', role: 'nurse', department: 'ICU', email: 'anjali@hospital.com', phone: '9876543212', license: 'NMC-5678', status: 'active' },
-  { id: 'S004', name: 'Ramesh Patel', role: 'lab_technician', department: 'Laboratory', email: 'ramesh@hospital.com', phone: '9876543213', license: 'LT-9012', status: 'active' },
-  { id: 'S005', name: 'Suresh Kumar', role: 'pharmacist', department: 'Pharmacy', email: 'suresh@hospital.com', phone: '9876543214', license: 'PC-3456', status: 'inactive' },
-  { id: 'S006', name: 'Meena Devi', role: 'receptionist', department: 'Front Desk', email: 'meena@hospital.com', phone: '9876543215', license: '', status: 'active' },
-  { id: 'S007', name: 'Dr. Vikram Singh', role: 'radiologist', department: 'Radiology', email: 'vikram@hospital.com', phone: '9876543216', license: 'MCI-12347', status: 'active' },
-  { id: 'S008', name: 'Kavita Joshi', role: 'billing', department: 'Finance', email: 'kavita@hospital.com', phone: '9876543217', license: '', status: 'active' },
-];
+type StaffRow = {
+  id: string;
+  name: string;
+  role: string;
+  department: string;
+  email: string;
+  phone: string;
+  license: string;
+  status: 'active' | 'inactive';
+};
+
+const STAFF: StaffRow[] = [];
 
 const ROLE_LABELS: Record<string, string> = {
   doctor: 'Doctor', nurse: 'Nurse', receptionist: 'Receptionist', lab_technician: 'Lab Tech',
@@ -140,6 +142,13 @@ export default function AdminStaff() {
                 </tr>
               </thead>
               <tbody>
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="p-6 text-center text-sm text-muted-foreground">
+                      No staff records yet. Add staff to populate the directory.
+                    </td>
+                  </tr>
+                )}
                 {filtered.map(s => (
                   <tr key={s.id} className="border-b last:border-0 hover:bg-muted/30">
                     <td className="p-3 font-mono text-xs">{s.id}</td>

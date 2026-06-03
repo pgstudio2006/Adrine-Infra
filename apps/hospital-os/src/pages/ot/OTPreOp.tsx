@@ -100,7 +100,7 @@ export default function OTPreOp() {
   }, [platformOn, cases]);
 
   const preOpCases: PreOpCase[] = useMemo(() => {
-    return pickPlatformRows(platformOn && platformPreOpCases.length > 0, platformPreOpCases.map((c) => ({
+    return pickPlatformRows(platformOn && platformPreOpCases.length > 0, platformPreOpCases.map((c): PreOpCase => ({
         id: c.id,
         patient: c.patient?.fullName ?? '—',
         uhid: c.patient?.mrn ?? c.id,
@@ -110,12 +110,12 @@ export default function OTPreOp() {
           ? new Date(c.scheduledAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
           : '—',
         room: c.otRoom?.code ?? 'TBD',
-        checklist: { consent: false, labResults: false, imaging: false, fasting: false, preOpEval: false, bloodReserve: false, markingSite: false, ivAccess: false },
+        checklist: { consent: false as boolean, labResults: false as boolean, imaging: false as boolean, fasting: false as boolean, preOpEval: false as boolean, bloodReserve: false as boolean, markingSite: false as boolean, ivAccess: false as boolean },
         whoPhase: c.state === 'preop_ready' ? 'sign_in' as const : 'pending' as const,
         anesthesiaClearance: false,
         allergies: [],
         bloodGroup: '—',
-      })), DEMO_CASES_PREOP);
+      })), DEMO_CASES_PREOP as PreOpCase[]);
   }, [platformOn, platformPreOpCases]);
 
   const activeCase = useMemo(() => {
@@ -126,7 +126,7 @@ export default function OTPreOp() {
     return preOpCases[0];
   }, [preOpCases, selectedCaseId]);
 
-  const mergedChecklist = useMemo(() => {
+  const mergedChecklist = useMemo<Record<string, boolean>>(() => {
     if (!activeCase) return {};
     return { ...activeCase.checklist, ...localChecklist };
   }, [activeCase, localChecklist]);

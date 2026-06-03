@@ -40,65 +40,9 @@ interface RateCard {
   active: boolean;
 }
 
-const packages: BillingPackage[] = [
-  {
-    id: "PKG-001", name: "Appendectomy Package", category: "Surgery", price: 45000, validity: "5 days stay", active: true, usageCount: 12,
-    services: [
-      { service: "General Ward — 5 days", dept: "IPD", included: true },
-      { service: "Appendectomy Surgery", dept: "Surgery", included: true },
-      { service: "General Anesthesia", dept: "OT", included: true },
-      { service: "Pre-op investigations", dept: "Laboratory", included: true },
-      { service: "Post-op medications — 5 days", dept: "Pharmacy", included: true },
-      { service: "Nursing care", dept: "Nursing", included: true },
-      { service: "X-ray Chest PA (if needed)", dept: "Radiology", included: false },
-    ],
-  },
-  {
-    id: "PKG-002", name: "Normal Delivery Package", category: "Maternity", price: 35000, validity: "3 days stay", active: true, usageCount: 28,
-    services: [
-      { service: "Maternity Ward — 3 days", dept: "IPD", included: true },
-      { service: "Normal Delivery charges", dept: "OB-GYN", included: true },
-      { service: "Routine lab investigations", dept: "Laboratory", included: true },
-      { service: "Medications — 3 days", dept: "Pharmacy", included: true },
-      { service: "Newborn care — basic", dept: "Pediatrics", included: true },
-    ],
-  },
-  {
-    id: "PKG-003", name: "Premium Health Checkup", category: "Preventive", price: 5999, validity: "1 day", active: true, usageCount: 85,
-    services: [
-      { service: "Complete Blood Count", dept: "Laboratory", included: true },
-      { service: "Lipid Profile", dept: "Laboratory", included: true },
-      { service: "Liver Function Test", dept: "Laboratory", included: true },
-      { service: "Kidney Function Test", dept: "Laboratory", included: true },
-      { service: "Thyroid Profile", dept: "Laboratory", included: true },
-      { service: "X-ray Chest PA", dept: "Radiology", included: true },
-      { service: "Ultrasound Abdomen", dept: "Radiology", included: true },
-      { service: "ECG", dept: "Cardiology", included: true },
-      { service: "Doctor Consultation", dept: "Medicine", included: true },
-    ],
-  },
-  {
-    id: "PKG-004", name: "Knee Replacement Package", category: "Surgery", price: 250000, validity: "7 days stay", active: true, usageCount: 5,
-    services: [
-      { service: "Semi-Private Room — 7 days", dept: "IPD", included: true },
-      { service: "Total Knee Replacement", dept: "Orthopedics", included: true },
-      { service: "Anesthesia — Spinal/General", dept: "OT", included: true },
-      { service: "Implant — Standard", dept: "OT", included: true },
-      { service: "Physiotherapy — 7 sessions", dept: "Rehab", included: true },
-      { service: "Medications", dept: "Pharmacy", included: true },
-      { service: "Lab investigations", dept: "Laboratory", included: true },
-    ],
-  },
-];
+const packages: BillingPackage[] = [];
 
-const rateCards: RateCard[] = [
-  { id: "RC-001", name: "General Rate Card", type: "General", services: 245, modifier: "Base price (1x)", active: true },
-  { id: "RC-002", name: "Insurance Rate Card", type: "Insurance", services: 245, modifier: "CGHS/NABH rates", active: true },
-  { id: "RC-003", name: "Corporate — TCS", type: "Corporate", services: 180, modifier: "15% discount on base", active: true },
-  { id: "RC-004", name: "Corporate — Infosys", type: "Corporate", services: 180, modifier: "12% discount on base", active: true },
-  { id: "RC-005", name: "ECHS / Government", type: "Government", services: 200, modifier: "Government schedule rates", active: true },
-  { id: "RC-006", name: "Ayushman Bharat", type: "Government", services: 150, modifier: "PMJAY package rates", active: true },
-];
+const rateCards: RateCard[] = [];
 
 export default function BillingPackages() {
   const [selected, setSelected] = useState<BillingPackage | null>(null);
@@ -144,6 +88,13 @@ export default function BillingPackages() {
           <div className="flex justify-end">
             <Button onClick={() => setShowAddPkg(true)}><Plus className="h-4 w-4 mr-2" /> Create Package</Button>
           </div>
+          {packageRows.length === 0 && (
+            <Card>
+              <CardContent className="py-12 text-center text-sm text-muted-foreground">
+                No treatment packages configured. Create one to get started.
+              </CardContent>
+            </Card>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {packageRows.map(pkg => (
               <Card key={pkg.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelected(pkg)}>
@@ -192,6 +143,11 @@ export default function BillingPackages() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {rateCards.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">No rate cards configured</TableCell>
+                    </TableRow>
+                  )}
                   {rateCards.map(rc => (
                     <TableRow key={rc.id}>
                       <TableCell className="font-medium">{rc.name}</TableCell>

@@ -19,15 +19,11 @@ import { pickPlatformRows, allowDemoFallback } from "@/lib/platform/demo-fallbac
 import { PlatformEmptyState } from "@/components/platform/PlatformEmptyState";
 import { formatPlatformErrorBody, PlatformApiError } from "@/runtime/platform-client";
 
-const MAR_RECORDS_DEMO = [
-  { id: "MAR001", uhid: "UH-2024-0012", patient: "Ramesh Kumar", drug: "Ceftriaxone 1g IV", scheduled: "08:00 AM", actual: "08:10 AM", status: "Administered", nurse: "Nurse Priya" },
-  { id: "MAR002", uhid: "UH-2024-0012", patient: "Ramesh Kumar", drug: "Paracetamol 500mg PO", scheduled: "08:00 AM", actual: "08:05 AM", status: "Administered", nurse: "Nurse Priya" },
-];
+type MarRow = { id: string; uhid: string; patient: string; drug: string; scheduled: string; actual: string; status: string; nurse: string };
+type AuditRow = { time: string; nurse: string; action: string; patient: string; uhid: string; detail?: string };
 
-const AUDIT_DEMO = [
-  { time: "09:30 AM", nurse: "Nurse Priya", action: "Recorded vitals", patient: "Ramesh Kumar", uhid: "UH-2024-0012" },
-  { time: "09:15 AM", nurse: "Nurse Priya", action: "Administered Meropenem 1g IV", patient: "Vikram Singh", uhid: "UH-2024-0103" },
-];
+const MAR_RECORDS_DEMO: MarRow[] = [];
+const AUDIT_DEMO: AuditRow[] = [];
 
 const statusColor = (s: string) => {
   if (s === "Administered" || s === "administered" || s === "Reported" || s === "Received") return "default";
@@ -39,8 +35,8 @@ const statusColor = (s: string) => {
 export default function NurseReports() {
   const { admissions } = useHospital();
   const platformOk = canUseNursingRuntime() && canUseMarRuntime();
-  const [marRows, setMarRows] = useState<typeof MAR_RECORDS_DEMO>([]);
-  const [auditRows, setAuditRows] = useState<typeof AUDIT_DEMO>([]);
+  const [marRows, setMarRows] = useState<MarRow[]>([]);
+  const [auditRows, setAuditRows] = useState<AuditRow[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -160,19 +156,27 @@ export default function NurseReports() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {marRows.map((m) => (
-                    <TableRow key={m.id}>
-                      <TableCell>
-                        <p className="font-medium text-sm text-foreground">{m.patient}</p>
-                        <p className="text-xs text-muted-foreground">{m.uhid}</p>
+                  {marRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+                        No MAR entries yet. Schedule and administer medications to populate this log.
                       </TableCell>
-                      <TableCell className="text-sm">{m.drug}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{m.scheduled}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{m.actual}</TableCell>
-                      <TableCell><Badge variant={statusColor(m.status)} className="text-xs">{m.status}</Badge></TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{m.nurse}</TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    marRows.map((m) => (
+                      <TableRow key={m.id}>
+                        <TableCell>
+                          <p className="font-medium text-sm text-foreground">{m.patient}</p>
+                          <p className="text-xs text-muted-foreground">{m.uhid}</p>
+                        </TableCell>
+                        <TableCell className="text-sm">{m.drug}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{m.scheduled}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{m.actual}</TableCell>
+                        <TableCell><Badge variant={statusColor(m.status)} className="text-xs">{m.status}</Badge></TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{m.nurse}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -193,20 +197,28 @@ export default function NurseReports() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {auditRows.map((row, idx) => (
-                    <TableRow key={`${row.uhid}-${idx}`}>
-                      <TableCell className="text-xs text-muted-foreground">{row.time}</TableCell>
-                      <TableCell className="text-sm">{row.nurse}</TableCell>
-                      <TableCell className="text-sm">{row.action}</TableCell>
-                      <TableCell>
-                        <p className="text-sm font-medium">{row.patient}</p>
-                        <p className="text-xs text-muted-foreground">{row.uhid}</p>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[240px] truncate">
-                        {"detail" in row ? (row as { detail?: string }).detail : "—"}
+                  {auditRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
+                        No nursing actions recorded yet.
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    auditRows.map((row, idx) => (
+                      <TableRow key={`${row.uhid}-${idx}`}>
+                        <TableCell className="text-xs text-muted-foreground">{row.time}</TableCell>
+                        <TableCell className="text-sm">{row.nurse}</TableCell>
+                        <TableCell className="text-sm">{row.action}</TableCell>
+                        <TableCell>
+                          <p className="text-sm font-medium">{row.patient}</p>
+                          <p className="text-xs text-muted-foreground">{row.uhid}</p>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-[240px] truncate">
+                          {"detail" in row ? (row as { detail?: string }).detail : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>

@@ -44,54 +44,7 @@ interface Invoice {
   paymentStatus: "Pending" | "Paid" | "Partial" | "Refunded";
 }
 
-const DEMO_INVOICES: Invoice[] = [
-  {
-    id: "INV-7001", billId: "BIL-9001", uhid: "UH-10042", patient: "Ravi Sharma", category: "OPD", date: "2026-03-08",
-    items: [
-      { service: "Consultation — General Medicine", dept: "Medicine", qty: 1, rate: 800, tax: 0, amount: 800 },
-      { service: "Blood Test — CBC", dept: "Laboratory", qty: 1, rate: 350, tax: 18, amount: 413 },
-      { service: "X-ray Chest PA", dept: "Radiology", qty: 1, rate: 350, tax: 18, amount: 413 },
-    ],
-    subtotal: 1500, taxTotal: 126, discount: 0, netAmount: 1626, status: "Finalized", paymentStatus: "Paid",
-  },
-  {
-    id: "INV-7002", billId: "BIL-9002", uhid: "UH-10035", patient: "Suresh Kumar", category: "IPD", date: "2026-03-08",
-    items: [
-      { service: "General Ward — 3 days", dept: "IPD", qty: 3, rate: 2500, tax: 0, amount: 7500 },
-      { service: "Surgery — Appendectomy", dept: "Surgery", qty: 1, rate: 25000, tax: 5, amount: 26250 },
-      { service: "Anesthesia", dept: "OT", qty: 1, rate: 5000, tax: 5, amount: 5250 },
-      { service: "Post-op medications", dept: "Pharmacy", qty: 1, rate: 3200, tax: 12, amount: 3584 },
-      { service: "Lab investigations", dept: "Laboratory", qty: 1, rate: 2800, tax: 18, amount: 3304 },
-    ],
-    subtotal: 38500, taxTotal: 7388, discount: 3850, netAmount: 42038, status: "Finalized", paymentStatus: "Partial",
-  },
-  {
-    id: "INV-7003", billId: "BIL-9003", uhid: "UH-10038", patient: "Anita Desai", category: "OPD", date: "2026-03-08",
-    items: [
-      { service: "Consultation — Cardiology", dept: "Cardiology", qty: 1, rate: 1200, tax: 0, amount: 1200 },
-      { service: "ECG", dept: "Cardiology", qty: 1, rate: 500, tax: 18, amount: 590 },
-      { service: "Lipid Profile", dept: "Laboratory", qty: 1, rate: 600, tax: 18, amount: 708 },
-    ],
-    subtotal: 2300, taxTotal: 198, discount: 0, netAmount: 2498, status: "Sent", paymentStatus: "Pending",
-  },
-  {
-    id: "INV-7004", billId: "BIL-9004", uhid: "UH-10021", patient: "Vikram Singh", category: "Emergency", date: "2026-03-07",
-    items: [
-      { service: "Emergency consultation", dept: "Emergency", qty: 1, rate: 2000, tax: 0, amount: 2000 },
-      { service: "IV fluids + medication", dept: "Pharmacy", qty: 1, rate: 1500, tax: 12, amount: 1680 },
-      { service: "CT Head", dept: "Radiology", qty: 1, rate: 2500, tax: 18, amount: 2950 },
-      { service: "Observation — 6 hrs", dept: "Emergency", qty: 1, rate: 1500, tax: 0, amount: 1500 },
-    ],
-    subtotal: 7500, taxTotal: 630, discount: 0, netAmount: 8130, status: "Draft", paymentStatus: "Pending",
-  },
-  {
-    id: "INV-7005", billId: "BIL-9005", uhid: "UH-10029", patient: "Meena Joshi", category: "Package", date: "2026-03-07",
-    items: [
-      { service: "Health Checkup — Premium Package", dept: "Preventive", qty: 1, rate: 5999, tax: 18, amount: 7079 },
-    ],
-    subtotal: 5999, taxTotal: 1080, discount: 600, netAmount: 6479, status: "Finalized", paymentStatus: "Paid",
-  },
-];
+const DEMO_INVOICES: Invoice[] = [];
 
 const statusColor: Record<string, string> = {
   Draft: "bg-muted text-muted-foreground",

@@ -233,11 +233,11 @@ export function RadiologyCriticalCallback() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input className="pl-9" placeholder="Search patient/study/order..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <select className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm" value={severityFilter} onChange={e => setSeverityFilter(e.target.value)}>
+        <select className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm" value={severityFilter} onChange={e => setSeverityFilter(e.target.value as typeof severityFilter)}>
           <option value="all">All severities</option>
           {SEVERITIES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
         </select>
-        <select className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+        <select className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}>
           <option value="all">All statuses</option>
           {CALLBACK_STATI.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
         </select>
@@ -1287,7 +1287,7 @@ export function RadiologyAmendments() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input className="pl-9" placeholder="Search patient/order..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <select className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+        <select className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}>
           <option value="all">All statuses</option>
           <option value="draft">Draft</option>
           <option value="submitted">Submitted</option>

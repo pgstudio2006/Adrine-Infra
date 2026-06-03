@@ -134,16 +134,15 @@ export function PharmacyFormulary() {
   const addDrug = () => {
     if (!form.genericName.trim()) return;
     const brands = form.brandNameInput.split(',').map(b => b.trim()).filter(Boolean);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { brandNameInput: _drop, ...formCore } = form;
     const newDrug: FormularyDrug = {
-      ...form,
+      ...formCore,
       id: crypto.randomUUID?.() ?? `${Date.now()}`,
       brandNames: brands,
-      brandNameInput: undefined as unknown as string,
       createdAt: new Date().toLocaleString('en-IN'),
     };
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { brandNameInput, ...rest } = newDrug;
-    const updated = [rest, ...drugs];
+    const updated = [newDrug, ...drugs];
     setDrugs(updated);
     saveJson(FORMULARY_KEY, updated);
     setForm({ genericName: '', brandNameInput: '', therapeuticCategory: 'Other', dosageForm: 'Tablet', strength: '', manufacturer: '', formularyStatus: 'active', tier: 2, priorAuthRequired: false, substitutionAllowed: true, substituteGeneric: '', restrictionNotes: '', maxQtyPerRx: 30 });

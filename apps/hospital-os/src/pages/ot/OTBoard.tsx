@@ -16,6 +16,7 @@ import {
   otStateBadgeClass,
 } from '@/lib/operations/module-lifecycle-ui';
 import { platformOtTransition } from '@/runtime/ot-runtime';
+import { CalendarDays, Plus, Search, Scissors, RefreshCw } from 'lucide-react';
 import { guardOtTransition } from '@/operations/ot-inventory-dialysis-guards';
 import { toast } from 'sonner';
 import { pickPlatformRows } from '@/lib/platform/demo-fallback';

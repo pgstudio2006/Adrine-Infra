@@ -247,7 +247,7 @@ export default function OTSchedule() {
                   </div>
                   {/* Room rows */}
                   {rooms.filter(r => selectedRoom === 'All Rooms' || r === selectedRoom).map(room => {
-                    const roomSurgeries = SURGERIES.filter(s => s.room === room);
+                    const roomSurgeries = surgeries.filter(s => s.room === room);
                     return (
                       <div key={room} className="flex border-b border-border/40 last:border-0 min-h-[72px]">
                         <div className="w-24 shrink-0 p-3 flex items-center border-r border-border/40">

@@ -23,56 +23,8 @@ interface VisitorPass {
   status: "active" | "expired";
 }
 
-const SEED_VISITORS: VisitorPass[] = [
-  {
-    id: "vp-001",
-    patientUhid: "UHID-240003",
-    patientName: "Amit Kumar",
-    visitorName: "Ravi Kumar",
-    relation: "Spouse",
-    purpose: "Care attendant",
-    passNo: "VP-00001",
-    validFrom: "08:00",
-    validUntil: "20:00",
-    status: "active",
-  },
-  {
-    id: "vp-002",
-    patientUhid: "UHID-240008",
-    patientName: "Fatima Khan",
-    visitorName: "Salim Khan",
-    relation: "Spouse",
-    purpose: "Overnight attendant",
-    passNo: "VP-00002",
-    validFrom: "18:00",
-    validUntil: "08:00+1",
-    status: "active",
-  },
-  {
-    id: "vp-003",
-    patientUhid: "UHID-240007",
-    patientName: "Arjun Reddy",
-    visitorName: "Priya Reddy",
-    relation: "Spouse",
-    purpose: "Day visitor",
-    passNo: "VP-00003",
-    validFrom: "10:00",
-    validUntil: "14:00",
-    status: "expired",
-  },
-  {
-    id: "vp-004",
-    patientUhid: "UHID-240003",
-    patientName: "Amit Kumar",
-    visitorName: "Kavya Kumar",
-    relation: "Child",
-    purpose: "Day visitor",
-    passNo: "VP-00004",
-    validFrom: "14:00",
-    validUntil: "18:00",
-    status: "active",
-  },
-];
+// Visitor passes are created locally via the Issue Pass form; no seeded demo entries.
+const SEED_VISITORS: VisitorPass[] = [];
 
 const now = new Date();
 const pad = (n: number) => String(n).padStart(2, "0");

@@ -33,14 +33,7 @@ interface InsuranceClaim {
   notes: string;
 }
 
-const claims: InsuranceClaim[] = [
-  { id: "CLM-401", uhid: "UH-10038", patient: "Anita Desai", provider: "Star Health Insurance", policyNo: "SH-20258844", billId: "BIL-9003", claimAmount: 2498, approvedAmount: null, submittedDate: "2026-03-08", status: "Submitted", type: "Cashless", notes: "OPD cardiology consultation and diagnostics" },
-  { id: "CLM-400", uhid: "UH-10035", patient: "Suresh Kumar", provider: "ICICI Lombard", policyNo: "IL-30124567", billId: "BIL-9002", claimAmount: 42038, approvedAmount: 38000, submittedDate: "2026-03-07", status: "Under Review", type: "Cashless", notes: "IPD — Appendectomy surgery package. Pre-auth approved for 38,000." },
-  { id: "CLM-399", uhid: "UH-10012", patient: "Kavita Reddy", provider: "HDFC ERGO", policyNo: "HE-44589231", billId: "BIL-9008", claimAmount: 15600, approvedAmount: 15600, submittedDate: "2026-03-05", status: "Approved", type: "Cashless", notes: "IPD delivery — normal. Approved in full." },
-  { id: "CLM-398", uhid: "UH-10009", patient: "Sanjay Patil", provider: "New India Assurance", policyNo: "NI-78123456", billId: "BIL-9009", claimAmount: 8500, approvedAmount: 0, submittedDate: "2026-03-04", status: "Rejected", type: "Reimbursement", notes: "Claim rejected — pre-existing condition exclusion." },
-  { id: "CLM-397", uhid: "UH-10006", patient: "Priya Menon", provider: "Star Health Insurance", policyNo: "SH-20251122", billId: "BIL-9010", claimAmount: 22000, approvedAmount: 22000, submittedDate: "2026-03-01", status: "Settled", type: "Cashless", notes: "IPD knee arthroscopy — settled in full." },
-  { id: "CLM-396", uhid: "UH-10021", patient: "Vikram Singh", provider: "Bajaj Allianz", policyNo: "BA-55123890", billId: "BIL-9004", claimAmount: 8130, approvedAmount: null, submittedDate: "2026-03-08", status: "Pre-Auth Pending", type: "Cashless", notes: "Emergency admission — awaiting TPA pre-authorization." },
-];
+const claims: InsuranceClaim[] = [];
 
 const statusColor: Record<string, string> = {
   "Pre-Auth Pending": "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -52,7 +45,7 @@ const statusColor: Record<string, string> = {
   Settled: "bg-muted text-muted-foreground",
 };
 
-const providers = [...new Set(claims.map(c => c.provider))];
+const providers: string[] = [];
 
 function mapAuthState(state: string): InsuranceClaim["status"] {
   const s = state.toLowerCase();

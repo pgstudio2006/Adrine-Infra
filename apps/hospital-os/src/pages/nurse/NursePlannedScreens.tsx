@@ -526,7 +526,7 @@ export function NurseWoundCare() {
                 {w.status !== 'healed' && (
                   <div className="flex gap-1 shrink-0">
                     {w.status === 'active' && <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => updateStatus(w.id, 'healing')}>Healing</Button>}
-                    {w.status !== 'healed' && <Button size="sm" variant="outline" className="h-7 text-[10px] text-emerald-600" onClick={() => updateStatus(w.id, 'healed')}>Healed</Button>}
+                    <Button size="sm" variant="outline" className="h-7 text-[10px] text-emerald-600" onClick={() => updateStatus(w.id, 'healed')}>Healed</Button>
                   </div>
                 )}
               </div>

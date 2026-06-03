@@ -6,8 +6,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import {
-  CalendarDays, Clock, User, Scissors, Plus, 
+  CalendarDays, Clock, User, Scissors, Plus,
   CheckCircle2, AlertTriangle, Edit3, RefreshCw
 } from 'lucide-react';
 import { motion } from 'framer-motion';

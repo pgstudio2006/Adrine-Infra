@@ -112,19 +112,19 @@
         "visible": true
       },
       "departments": {
-        "visible": true
+        "visible": false
       },
       "finance": {
-        "visible": true
+        "visible": false
       },
       "expenses": {
-        "visible": true
+        "visible": false
       },
       "approvals": {
-        "visible": true
+        "visible": false
       },
       "claims": {
-        "visible": true
+        "visible": false
       },
       "doctor-sharing": {
         "visible": false
@@ -153,7 +153,7 @@
         "visible": true
       },
       "patients": {
-        "visible": true
+        "visible": false
       },
       "queue": {
         "visible": true
@@ -171,7 +171,7 @@
         "visible": true
       },
       "analytics": {
-        "visible": true
+        "visible": false
       }
     },
     "nurse": {
@@ -253,13 +253,13 @@
         "visible": true
       },
       "enquiries": {
-        "visible": true
+        "visible": false
       },
       "branches": {
         "visible": true
       },
       "feedback": {
-        "visible": true
+        "visible": false
       }
     },
     "lab_technician": {
@@ -350,25 +350,25 @@
         "visible": true
       },
       "suppliers": {
-        "visible": true
+        "visible": false
       },
       "purchase": {
-        "visible": true
+        "visible": false
       },
       "schedule-h": {
         "visible": false
       },
       "queries": {
-        "visible": true
+        "visible": false
       },
       "formulary": {
         "visible": false
       },
       "indent": {
-        "visible": true
+        "visible": false
       },
       "returns": {
-        "visible": true
+        "visible": false
       },
       "narcotics": {
         "visible": false
@@ -414,6 +414,9 @@
       "packages": {
         "visible": true
       },
+      "counselling": {
+        "visible": false
+      },
       "health-plans": {
         "visible": false
       },
@@ -442,7 +445,7 @@
         "visible": true
       },
       "charge-master": {
-        "visible": true
+        "visible": false
       },
       "tpa-desk": {
         "visible": false
@@ -466,7 +469,7 @@
         "visible": false
       },
       "cashier": {
-        "visible": true
+        "visible": false
       },
       "copay-audit": {
         "visible": false

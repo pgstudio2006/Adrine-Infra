@@ -18,66 +18,28 @@ const fadeIn = (i: number) => ({
   transition: { delay: i * 0.04, duration: 0.3 },
 });
 
-const clinicalGuidelines = [
-  {
-    id: 1, condition: 'Type 2 Diabetes Mellitus', icd: 'E11',
-    guidelines: [
-      'Start Metformin 500mg BD as first-line therapy',
-      'Order HbA1c, Fasting glucose, Renal function panel',
-      'Initiate diabetic diet counseling',
-      'Schedule ophthalmology referral for retinopathy screening',
-      'Check foot examination — monofilament test',
-    ],
-    alerts: ['Check renal function before Metformin initiation', 'Avoid in eGFR <30'],
-  },
-  {
-    id: 2, condition: 'Community-Acquired Pneumonia', icd: 'J18.9',
-    guidelines: [
-      'Assess CURB-65 score for severity stratification',
-      'Start empirical antibiotics within 4 hours of diagnosis',
-      'Order Chest X-ray PA view, CBC, CRP, Blood cultures',
-      'Oxygen supplementation if SpO2 <94%',
-      'Switch to oral antibiotics after 48h clinical improvement',
-    ],
-    alerts: ['Check for drug allergies to penicillin/cephalosporins', 'Severe CAP → ICU referral'],
-  },
-  {
-    id: 3, condition: 'Acute Coronary Syndrome', icd: 'I21.9',
-    guidelines: [
-      'Immediate ECG within 10 minutes of presentation',
-      'MONA protocol: Morphine, Oxygen, Nitrate, Aspirin',
-      'Troponin I at 0h and 3h for serial monitoring',
-      'Dual antiplatelet: Aspirin 325mg + Clopidogrel 300mg loading',
-      'Activate cath lab if STEMI confirmed',
-    ],
-    alerts: ['Contraindications to thrombolytics: recent surgery, bleeding', 'Door-to-balloon time target: <90 min'],
-  },
-  {
-    id: 4, condition: 'Dengue Fever', icd: 'A90',
-    guidelines: [
-      'Serial platelet count monitoring every 12 hours',
-      'Avoid NSAIDs and Aspirin — use Paracetamol only',
-      'IV fluid resuscitation if warning signs present',
-      'Monitor for plasma leakage — HCT rise >20%',
-      'Daily CBC and hematocrit tracking',
-    ],
-    alerts: ['Warning signs: Abdominal pain, persistent vomiting, mucosal bleeding', 'Platelet <20,000 → consider transfusion'],
-  },
-];
+type ClinicalGuideline = {
+  id: number;
+  condition: string;
+  icd: string;
+  guidelines: string[];
+  alerts: string[];
+};
 
-const monitoringAlerts = [
-  { id: 1, patient: 'Bed 12 — Rajesh K.', alert: 'Creatinine rising: 1.8 → 2.4 mg/dL over 24h', type: 'lab', severity: 'warning', action: 'Consider nephrology consult' },
-  { id: 2, patient: 'Bed 5 — Priya M.', alert: 'Potassium 5.8 mEq/L — Hyperkalemia', type: 'lab', severity: 'critical', action: 'Order ECG, Calcium gluconate, Insulin+D50' },
-  { id: 3, patient: 'Bed 8 — Anil S.', alert: 'Drug interaction: Warfarin + Metronidazole', type: 'drug', severity: 'warning', action: 'Monitor INR closely, consider dose reduction' },
-  { id: 4, patient: 'Ward 3 — Meena D.', alert: 'No vitals documented in 8 hours', type: 'workflow', severity: 'moderate', action: 'Assign nurse for immediate assessment' },
-  { id: 5, patient: 'ICU-A2 — Suresh P.', alert: 'Ventilator day 5 — SAT/SBT protocol due', type: 'protocol', severity: 'info', action: 'Initiate spontaneous breathing trial' },
-];
+type MonitoringAlertItem = {
+  id: number;
+  patient: string;
+  alert: string;
+  type: string;
+  severity: 'critical' | 'warning' | 'moderate' | 'info';
+  action: string;
+};
 
-const suggestedNotes = [
-  { trigger: 'Post-appendectomy Day 1', note: 'Patient tolerated procedure well. Vitals stable. Started on clear liquids. Surgical site clean, no signs of infection. Continue IV antibiotics for 24h. Monitor for signs of ileus.' },
-  { trigger: 'Diabetic Ketoacidosis Admission', note: 'Admitted with DKA. Blood glucose 420 mg/dL, pH 7.18, HCO3 10. Started on insulin infusion protocol. Aggressive IV hydration with NS. Monitoring hourly glucose, q4h ABG, BMP.' },
-  { trigger: 'Pneumonia Day 3 Progress', note: 'Day 3 of antibiotics. Fever trending down (101°F → 99.2°F). WBC improving (18k → 12k). Cough productive but decreasing. SpO2 maintained on room air. Plan to step down to oral antibiotics if afebrile for 24h.' },
-];
+type SuggestedNote = { trigger: string; note: string };
+
+const clinicalGuidelines: ClinicalGuideline[] = [];
+const monitoringAlerts: MonitoringAlertItem[] = [];
+const suggestedNotes: SuggestedNote[] = [];
 
 export default function AdminAIWorkflow() {
   const [selectedGuideline, setSelectedGuideline] = useState<number | null>(null);
@@ -155,7 +117,7 @@ export default function AdminAIWorkflow() {
       )}
       {!canUseAIRuntime() && (
         <p className="text-xs text-muted-foreground border border-dashed rounded-lg px-3 py-2">
-          Guideline library and monitoring cards are preview content. Connect platform runtime to execute governed AI actions.
+          Platform AI runtime is off. Connect platform runtime to execute governed AI actions; guideline library and monitoring cards remain empty until populated.
         </p>
       )}
       <motion.div {...fadeIn(0)}>
@@ -207,6 +169,9 @@ export default function AdminAIWorkflow() {
               <Badge variant="secondary" className="text-[10px]">{monitoringAlerts.length} Active</Badge>
             </div>
             <div className="space-y-2">
+              {monitoringAlerts.length === 0 && (
+                <p className="text-[11px] text-muted-foreground">No active monitoring alerts.</p>
+              )}
               {monitoringAlerts.map(alert => (
                 <div key={alert.id} className={`flex items-start justify-between border rounded-lg p-2.5 ${alert.severity === 'critical' ? 'border-destructive/30 bg-destructive/5' : ''}`}>
                   <div className="flex items-start gap-2.5">
@@ -243,6 +208,9 @@ export default function AdminAIWorkflow() {
                 <BookOpen className="w-3.5 h-3.5" /> Treatment Guidelines Library
               </p>
               <div className="space-y-2">
+                {clinicalGuidelines.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground">No treatment guidelines published yet.</p>
+                )}
                 {clinicalGuidelines.map(g => (
                   <div key={g.id} className="border rounded-lg">
                     <button
@@ -298,6 +266,9 @@ export default function AdminAIWorkflow() {
                 <FileText className="w-3.5 h-3.5" /> AI-Suggested Clinical Notes
               </p>
               <div className="space-y-3">
+                {suggestedNotes.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground">No AI-suggested notes available yet.</p>
+                )}
                 {suggestedNotes.map((n, i) => (
                   <div key={i} className="border rounded-lg p-3">
                     <div className="flex items-center justify-between mb-1.5">
