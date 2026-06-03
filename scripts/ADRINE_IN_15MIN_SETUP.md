@@ -15,9 +15,11 @@ http://187.127.129.209:8000/server/gsk4hshqgd09oemlj9z9d6n5/proxy → **Start Pr
 
 http://187.127.129.209:8000/project/umn8vjfqrqn7jglfr8wqee0i/environment/fzhhu9uv8kltz49e51qxp58h/application/t36wqfoh1hj88qrizvbr0q9h
 
+If deploy fails with **`open Dockerfile: no such file or directory`**, Coolify is building from repo root without a Dockerfile path. Either pull latest `master` (root `Dockerfile` for kernel) **or** set Dockerfile location below and **Save** (reload page to confirm).
+
 | Field | Value |
 |-------|-------|
-| Dockerfile | `services/kernel-api/Dockerfile` |
+| Dockerfile | `Dockerfile` or `services/kernel-api/Dockerfile` |
 | Domain | `https://kernel.adrine.in` |
 | Ports exposes | `3001` |
 | Port mappings | `3001:3001` |
