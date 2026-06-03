@@ -70,6 +70,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isPlatformRuntimeEnabled()) return;
+
+    if (isProductionHospitalOs() && !getPlatformSession()?.accessToken) {
+      const stored = localStorage.getItem('adrine_user');
+      if (stored) {
+        localStorage.removeItem('adrine_user');
+        setUser(null);
+        setPlatformConnected(false);
+      }
+      return;
+    }
+
     const kernel = import.meta.env.VITE_KERNEL_API_URL as string | undefined;
     const session = getPlatformSession();
     if (!kernel || !session?.accessToken) return;
@@ -121,15 +132,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const auth = await platformFetch<{
           accessToken: string;
           user: AuthUserPayload;
-        }>(kernel, '/auth/login', {
-          method: 'POST',
-          body: JSON.stringify({
-            email: email.trim(),
-            password,
-            tenantId: import.meta.env.VITE_DEV_TENANT_ID ?? 'tenant_navayu',
-            branchId: options?.branchId,
-          }),
-        });
+        }>(
+          kernel,
+          '/auth/login',
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              email: email.trim(),
+              password,
+              tenantId: import.meta.env.VITE_DEV_TENANT_ID ?? 'tenant_navayu',
+              branchId: options?.branchId,
+            }),
+          },
+          { unauthenticated: true },
+        );
 
         const profile = await applyPlatformAuth(auth);
         setPlatformConnected(true);
@@ -180,15 +196,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const auth = await platformFetch<{
                 accessToken: string;
                 user: AuthUserPayload;
-              }>(kernel, '/auth/dev-login', {
-                method: 'POST',
-                body: JSON.stringify({
-                  email,
-                  fullName: name,
-                  role,
-                  tenantId: import.meta.env.VITE_DEV_TENANT_ID ?? 'tenant_dev',
-                }),
-              });
+              }>(
+                kernel,
+                '/auth/dev-login',
+                {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    email,
+                    fullName: name,
+                    role,
+                    tenantId: import.meta.env.VITE_DEV_TENANT_ID ?? 'tenant_dev',
+                  }),
+                },
+                { unauthenticated: true },
+              );
               const profile = await applyPlatformAuth(auth);
               newUser.id = profile.sub;
               setPlatformConnected(true);

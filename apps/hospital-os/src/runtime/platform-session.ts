@@ -39,7 +39,7 @@ export function platformHeaders(): Record<string, string> {
 
   if (runtimeOn && production && !session?.accessToken) {
     throw new Error(
-      'Platform session required in production. Sign in via kernel dev-login or configure OIDC (see ops/PRODUCTION_AUTH.md).',
+      'Platform session required in production. Sign in with email and password (kernel /auth/login) or configure OIDC (see ops/PRODUCTION_AUTH.md).',
     );
   }
 

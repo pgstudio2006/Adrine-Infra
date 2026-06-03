@@ -22,9 +22,13 @@ After login, `sessionStorage` holds `adrine_platform_session` with:
 
 `platformHeaders()` throws in **production** if runtime is on but branch or bearer token is missing.
 
-## Dev login (staging)
+## Staff password login (production HMS)
 
-`POST {VITE_KERNEL_API_URL}/auth/dev-login` with role email `{role}@adrine.local` is enabled for local and staging builds. Production builds still use this endpoint until OIDC is wired; configure kernel CORS and tenant seeding.
+`POST {VITE_KERNEL_API_URL}/auth/login` with provisioned tenant email + password (e.g. Navayu users after `pnpm provision:navayu`). Hospital OS stores the JWT in `sessionStorage` as `adrine_platform_session`.
+
+## Dev login (local / non-prod builds only)
+
+`POST {VITE_KERNEL_API_URL}/auth/dev-login` with role email `{role}@adrine.local` is used when `import.meta.env.PROD` is false. **Production HMS builds do not use dev-login** — kernel returns 403 unless `ALLOW_DEV_LOGIN=true`.
 
 ## OIDC stub (future)
 

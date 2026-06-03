@@ -38,15 +38,25 @@ export function formatPlatformErrorBody(body: unknown): string | undefined {
   return undefined;
 }
 
+export type PlatformFetchOptions = {
+  /** Login / dev-login — do not require an existing platform session. */
+  unauthenticated?: boolean;
+};
+
 export async function platformFetch<T>(
   baseUrl: string,
   path: string,
   init?: RequestInit,
+  options?: PlatformFetchOptions,
 ): Promise<T> {
+  const authHeaders = options?.unauthenticated
+    ? { 'Content-Type': 'application/json' }
+    : platformHeaders();
+
   const res = await fetch(`${baseUrl.replace(/\/$/, '')}${path}`, {
     ...init,
     headers: {
-      ...platformHeaders(),
+      ...authHeaders,
       ...(init?.headers as Record<string, string> | undefined),
     },
   });
