@@ -1,4 +1,4 @@
-import { canTransition, findTransition } from './lifecycle-engine.js';
+import { canTransition } from './lifecycle-engine.js';
 import {
   navayuMskVisitLifecycle,
   type NavayuMskVisitState,
