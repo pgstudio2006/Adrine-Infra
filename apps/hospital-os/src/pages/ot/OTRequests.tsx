@@ -16,6 +16,7 @@ import {
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { OperationsModulePage } from '@/components/operations/OperationsModulePage';
+import { allowDemoFallback } from '@/lib/platform/demo-fallback';
 import { Badge as BadgeUI } from '@/components/ui/badge';
 
 interface SurgeryRequest {
@@ -60,7 +61,9 @@ const item = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transiti
 export default function OTRequests() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('All');
-  const [requests, setRequests] = useState(DEMO_REQUESTS);
+  const [requests, setRequests] = useState<SurgeryRequest[]>(() =>
+    allowDemoFallback() ? DEMO_REQUESTS : [],
+  );
   const [showDialog, setShowDialog] = useState(false);
   const [newNotes, setNewNotes] = useState('');
 

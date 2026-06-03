@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { filterNavayuDoctorQueue } from '@/lib/navayu/navayu-queue';
+import { NavayuMskWorkflowStrip } from '@/components/navayu/NavayuMskWorkflowStrip';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, Play, SkipForward, Megaphone } from 'lucide-react';
@@ -48,9 +50,18 @@ export default function DoctorQueue() {
   const navayuSenior = isNavayuSeniorDoctor(getPlatformSession()?.email);
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
-  useClinicalPlatformListSync({ queue: true, departmentWorklists: false, ipd: false });
+  useClinicalPlatformListSync({
+    queue: true,
+    patients: true,
+    departmentWorklists: false,
+    ipd: false,
+  });
 
-  const myQueue = [...queue].sort((a, b) => a.tokenNo - b.tokenNo);
+  const myQueue = useMemo(() => {
+    const sorted = [...queue].sort((a, b) => a.tokenNo - b.tokenNo);
+    if (!navayuMode) return sorted;
+    return filterNavayuDoctorQueue(sorted, navayuSenior);
+  }, [queue, navayuMode, navayuSenior]);
   const waiting = myQueue.filter((q) => q.status === 'waiting').length;
   const completed = myQueue.filter((q) => q.status === 'completed').length;
   const current = myQueue.find((q) => q.status === 'in-consultation');
@@ -134,7 +145,14 @@ export default function DoctorQueue() {
       ) : null}
 
       {isPlatformAuthoritative() ? (
-        <PlatformConnectivityStrip detail="Your queue is scoped to assigned department and refreshed from the OPD board." />
+        <PlatformConnectivityStrip detail="Branch-scoped OPD board from domain-api — no demo seed patients when platform runtime is on." />
+      ) : null}
+
+      {navayuMode && activePatient && navayuBundle.mskLifecycleState ? (
+        <NavayuMskWorkflowStrip
+          state={navayuBundle.mskLifecycleState}
+          seniorView={navayuSenior}
+        />
       ) : null}
 
       {navayuMode && navayuSenior && activePatient ? (
@@ -160,7 +178,8 @@ export default function DoctorQueue() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">OPD Queue</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {doctorName} · {department || 'All Departments'} ·{' '}
+            {doctorName} · {department || 'All Departments'}
+            {navayuMode ? (navayuSenior ? ' · Senior MSK queue' : ' · Junior MSK queue') : ''} ·{' '}
             <span className="font-semibold text-foreground">{waiting}</span> waiting ·{' '}
             <span className="font-semibold text-foreground">{completed}</span> completed · Token{' '}
             {current?.tokenNo ?? '—'}

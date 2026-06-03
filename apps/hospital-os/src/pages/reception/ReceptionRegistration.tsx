@@ -30,7 +30,6 @@ import {
   NAVAYU_CLINICAL_DEPARTMENTS,
   saveNavayuVisitMetadata,
 } from '@/lib/navayu/navayu-forms';
-import { maybeCreateNavayuCrmLead } from '@/lib/navayu/navayu-crm';
 
 // ── Types ──
 interface Patient {
@@ -124,6 +123,7 @@ export default function ReceptionRegistration() {
     tokenNo: number | null;
     invoiceId: string | null;
     admissionId: string | null;
+    platformOpdVisitId?: string | null;
   }>(null);
   const navigate = useNavigate();
 
@@ -286,21 +286,25 @@ export default function ReceptionRegistration() {
     };
   };
 
+  useEffect(() => {
+    if (!demoResult?.uhid) return;
+    const match = storePatients.find((p) => p.uhid === demoResult.uhid);
+    if (match?.platformOpdVisitId && match.platformOpdVisitId !== demoResult.platformOpdVisitId) {
+      setDemoResult((prev) =>
+        prev ? { ...prev, platformOpdVisitId: match.platformOpdVisitId } : prev,
+      );
+    }
+  }, [storePatients, demoResult?.uhid, demoResult?.platformOpdVisitId]);
+
   const afterNavayuRegistration = async (
     uhid: string,
     patientName: string,
-    phone: string,
-    platformPatientId?: string,
+    _phone: string,
+    _platformPatientId?: string,
   ) => {
     if (!navayuMode || !navayuFields.hearAboutNavayu) return;
     const metadata = toNavayuRegistrationMetadata(navayuFields);
     saveNavayuVisitMetadata(uhid, metadata);
-    await maybeCreateNavayuCrmLead({
-      fullName: patientName,
-      phone,
-      platformPatientId,
-      metadata,
-    });
   };
 
   const filtered = storePatients.filter(p => {
@@ -1598,8 +1602,10 @@ export default function ReceptionRegistration() {
               </p>
             </div>
             {(() => {
-              const intakeVisitId = demoResult.appointmentId ?? demoResult.uhid;
+              const intakeVisitId =
+                demoResult.platformOpdVisitId ?? demoResult.appointmentId ?? demoResult.uhid;
               const intakeUrl = patientIntakeUrl(intakeVisitId);
+              const usingPlatformVisit = Boolean(demoResult.platformOpdVisitId);
               return (
                 <div className="rounded-lg border border-dashed p-3 space-y-2 w-full lg:w-auto lg:min-w-[20rem]">
                   <p className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
@@ -1607,7 +1613,11 @@ export default function ReceptionRegistration() {
                   </p>
                   <p className="text-xs font-mono break-all text-foreground/80">{intakeUrl}</p>
                   <p className="text-xs text-muted-foreground">
-                    Open on tablet or scan QR from this URL · visitId={intakeVisitId}
+                    {usingPlatformVisit
+                      ? 'Platform visit linked — patient app intake will sync to domain-api.'
+                      : 'Waiting for platform visit id — link copies local id until sync completes.'}
+                    {' · visitId='}
+                    {intakeVisitId}
                   </p>
                   <button
                     type="button"

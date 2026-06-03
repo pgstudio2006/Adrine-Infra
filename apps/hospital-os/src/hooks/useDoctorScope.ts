@@ -1,5 +1,8 @@
 import { useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { getPlatformSession } from '@/runtime/platform-session';
+import { isPlatformAuthoritative } from '@/runtime/platform-store-bridge';
+import { scopeQueueToBranch } from '@/lib/navayu/navayu-queue';
 import {
   useHospital,
   type HospitalPatient,
@@ -86,7 +89,11 @@ export function useDoctorScope(): DoctorScope {
       return [];
     }
 
-    return store.queue.filter((entry) => {
+    const branchScoped = isPlatformAuthoritative()
+      ? scopeQueueToBranch(store.queue)
+      : store.queue;
+
+    return branchScoped.filter((entry) => {
       if (entry.doctor !== doctorName) {
         return false;
       }
@@ -95,6 +102,12 @@ export function useDoctorScope(): DoctorScope {
       }
       if (patientUhidSet.size > 0 && !patientUhidSet.has(entry.uhid)) {
         return false;
+      }
+      if (isPlatformAuthoritative()) {
+        const branchId = getPlatformSession()?.branchId;
+        if (branchId && entry.branchId && entry.branchId !== branchId) {
+          return false;
+        }
       }
       return true;
     });

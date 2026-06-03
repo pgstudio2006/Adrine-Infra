@@ -106,7 +106,6 @@ export default function LoginPage() {
   const { login, loginWithCredentials, platformConnected } = useAuth();
   const platformRuntime = isPlatformRuntimeEnabled();
   const kernelUrl = import.meta.env.VITE_KERNEL_API_URL as string | undefined;
-  const tenantId = (import.meta.env.VITE_DEV_TENANT_ID as string | undefined) ?? 'tenant_navayu';
   const existingSession = getPlatformSession();
   const { patients, appointments } = useHospital();
   const { settings, getAvailableRoles, getRoleDescription, getRoleLabel } = useTenantSettings();
@@ -116,8 +115,6 @@ export default function LoginPage() {
   const [selectedDoctor, setSelectedDoctor] = useState('');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
-  const [selectedBranchId, setSelectedBranchId] = useState('');
-  const [branches, setBranches] = useState<Array<{ id: string; code: string; name: string }>>([]);
   const [credentialSubmitting, setCredentialSubmitting] = useState(false);
   const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
   const [ticketForm, setTicketForm] = useState<TicketFormState>(createInitialTicketForm());
@@ -191,27 +188,6 @@ export default function LoginPage() {
   const doctorSelectionIncomplete = selectedRole === 'doctor' && (!selectedDepartment || !selectedDoctor);
   const useCredentialLogin = platformRuntime && Boolean(kernelUrl?.trim());
 
-  useEffect(() => {
-    if (!useCredentialLogin || !kernelUrl) return;
-    const loadBranches = async () => {
-      try {
-        const res = await fetch(
-          `${kernelUrl.replace(/\/$/, '')}/auth/branches?tenantId=${encodeURIComponent(tenantId)}`,
-          { headers: { 'x-tenant-id': tenantId } },
-        );
-        if (!res.ok) return;
-        const data = (await res.json()) as Array<{ id: string; code: string; name: string }>;
-        setBranches(data);
-        if (data.length > 0 && !selectedBranchId) {
-          setSelectedBranchId(data[0].id);
-        }
-      } catch {
-        /* branch picker optional */
-      }
-    };
-    void loadBranches();
-  }, [useCredentialLogin, kernelUrl, tenantId, selectedBranchId]);
-
   const updateTicketForm = <K extends keyof TicketFormState>(field: K, value: TicketFormState[K]) => {
     setTicketForm((current) => ({
       ...current,
@@ -284,9 +260,7 @@ export default function LoginPage() {
       return;
     }
     setCredentialSubmitting(true);
-    const ok = await loginWithCredentials(loginEmail, loginPassword, {
-      branchId: selectedBranchId || undefined,
-    });
+    const ok = await loginWithCredentials(loginEmail, loginPassword);
     setCredentialSubmitting(false);
     if (ok) navigate('/dashboard');
   };
@@ -376,21 +350,6 @@ export default function LoginPage() {
                 placeholder="••••••••"
               />
             </label>
-            {branches.length > 0 && (
-              <label className="space-y-1.5 block">
-                <span className="text-xs font-semibold text-muted-foreground">Branch</span>
-                <AppSelect
-                  value={selectedBranchId || undefined}
-                  onValueChange={setSelectedBranchId}
-                  options={branches.map((b) => ({
-                    value: b.id,
-                    label: `${b.name} (${b.code})`,
-                  }))}
-                  placeholder="Select branch"
-                  className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
-                />
-              </label>
-            )}
             <button
               type="button"
               onClick={() => void handleCredentialLogin()}
@@ -648,8 +607,7 @@ export default function LoginPage() {
             </div>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
               Staff sign-in uses kernel <code className="font-mono text-[10px]">/auth/login</code> with provisioned
-              Navayu emails. Dev builds may still use{' '}
-              <code className="font-mono text-[10px]">/auth/dev-login</code> when platform runtime is off.
+              Navayu emails. Your branch is assigned from your account — Gurgaon and Pataudi sessions stay isolated.
             </p>
             <div className="mt-2 flex flex-wrap gap-2 text-[10px]">
               <span className={`rounded px-2 py-0.5 border ${kernelUrl ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300' : 'border-amber-500/40 text-amber-700'}`}>

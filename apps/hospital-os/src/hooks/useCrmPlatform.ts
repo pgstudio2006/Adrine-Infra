@@ -10,9 +10,11 @@ import {
   type PlatformCrmLifecycleEvent,
   type PlatformCrmSummary,
 } from '@/runtime/crm-runtime';
+import { getPlatformSession } from '@/runtime/platform-session';
 
 export function useCrmPlatform() {
   const platformOn = canUseCrmRuntime();
+  const branchId = getPlatformSession()?.branchId;
   const [loading, setLoading] = useState(platformOn);
   const [summary, setSummary] = useState<PlatformCrmSummary | null>(null);
   const [leads, setLeads] = useState<PlatformCrmLead[]>([]);
@@ -33,10 +35,10 @@ export function useCrmPlatform() {
     setError(null);
     try {
       const [s, l, c, ev] = await Promise.all([
-        platformGetCrmSummary(),
-        platformListCrmLeads(),
-        platformListCrmCampaigns(),
-        platformListCrmLifecycle(),
+        platformGetCrmSummary(branchId),
+        platformListCrmLeads(branchId),
+        platformListCrmCampaigns(branchId),
+        platformListCrmLifecycle(branchId),
       ]);
       setSummary(s);
       setLeads(l);
@@ -47,7 +49,7 @@ export function useCrmPlatform() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [branchId]);
 
   useEffect(() => {
     void refresh();

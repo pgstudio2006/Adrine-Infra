@@ -51,8 +51,8 @@
       "fields": [
         {
           "id": "bodyRegions",
-          "type": "multiselect",
-          "label": "Affected regions",
+          "type": "pain_map",
+          "label": "Pain map — affected regions",
           "options": [
             { "value": "neck", "label": "Neck" },
             { "value": "back", "label": "Back / lumbar" },

@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Search, Eye, Plus, Printer, Send, FileText, Trash2 } from "lucide-react";
+import { pickPlatformRows } from "@/lib/platform/demo-fallback";
 
 interface InvoiceItem {
   service: string;
@@ -121,8 +122,7 @@ export default function BillingInvoices() {
   const [selected, setSelected] = useState<Invoice | null>(null);
 
   const invoices: Invoice[] = useMemo(() => {
-    if (!platformOn) return DEMO_INVOICES;
-    return storeInvoices.map((inv) => {
+    const platformInvoices = storeInvoices.map((inv) => {
       const { status, paymentStatus } = mapStoreInvoiceStatus(inv);
       const items: InvoiceItem[] = inv.items.map((line) => ({
         service: line.description,
@@ -149,6 +149,7 @@ export default function BillingInvoices() {
         paymentStatus,
       };
     });
+    return pickPlatformRows(platformOn, platformInvoices, DEMO_INVOICES);
   }, [platformOn, storeInvoices]);
 
   const selectedVisitId = selected ? resolveOpdVisitId(selected.uhid) : undefined;

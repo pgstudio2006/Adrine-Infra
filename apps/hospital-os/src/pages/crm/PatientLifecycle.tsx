@@ -6,20 +6,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CalendarCheck2, HeartHandshake, PhoneCall, UserRound } from 'lucide-react';
+import { allowDemoFallback, pickPlatformRows } from '@/lib/platform/demo-fallback';
+import { PlatformEmptyState } from '@/components/platform/PlatformEmptyState';
 
-const lifecycleCards = [
+const lifecycleCardsDemo = [
   { label: 'Active journeys', value: '893', detail: 'Across OPD, IPD and chronic care' },
   { label: 'At-risk patients', value: '24', detail: 'Need intervention in 24 hours' },
   { label: 'Recovery completion', value: '72%', detail: 'Discharge follow-up task completion' },
 ];
 
-const lifecycleStages = [
+const lifecycleStagesDemo = [
   { stage: 'Pre-visit activation', count: 428, progress: 91 },
   { stage: 'Care delivery', count: 276, progress: 84 },
   { stage: 'Recovery and loyalty', count: 189, progress: 72 },
 ];
 
-const lifecyclePatients = [
+const lifecyclePatientsDemo = [
   { patient: 'Sana Khan', journey: 'Orthopedic post-op recovery', owner: 'Neha', risk: 'High', nextStep: 'Call caregiver and escalate to nursing desk' },
   { patient: 'Rohan Iyer', journey: 'Preventive cardiology annual plan', owner: 'Wellness team', risk: 'Medium', nextStep: 'Send reminder bundle and slot reservation' },
   { patient: 'Meera Joseph', journey: 'Maternity postpartum support', owner: 'Women care pod', risk: 'Low', nextStep: 'Request review after successful support touchpoint' },
@@ -34,19 +36,35 @@ const riskStyles: Record<string, string> = {
 
 export default function PatientLifecycle() {
   const { platformOn, lifecycle: platformLifecycle } = useCrmPlatform();
-  const patients = useMemo(() => {
+  const platformPatients = useMemo(() => {
+    return platformLifecycle.map((e) => ({
+      patient: e.patient?.fullName ?? 'Patient',
+      journey: e.journey ?? e.eventType,
+      owner: e.ownerLabel ?? 'Care team',
+      risk:
+        (e.riskLevel ?? 'medium').charAt(0).toUpperCase() + (e.riskLevel ?? 'medium').slice(1),
+      nextStep: e.nextStep ?? e.detail ?? '—',
+    }));
+  }, [platformLifecycle]);
+
+  const patients = useMemo(
+    () => pickPlatformRows(platformOn && platformLifecycle.length > 0, platformPatients, lifecyclePatientsDemo),
+    [platformOn, platformLifecycle.length, platformPatients],
+  );
+
+  const lifecycleCards = useMemo(() => {
     if (platformOn && platformLifecycle.length > 0) {
-      return platformLifecycle.map((e) => ({
-        patient: e.patient?.fullName ?? 'Patient',
-        journey: e.journey ?? e.eventType,
-        owner: e.ownerLabel ?? 'Care team',
-        risk:
-          (e.riskLevel ?? 'medium').charAt(0).toUpperCase() + (e.riskLevel ?? 'medium').slice(1),
-        nextStep: e.nextStep ?? e.detail ?? '—',
-      }));
+      return [
+        { label: 'Active journeys', value: String(platformLifecycle.length), detail: 'From CRM lifecycle API' },
+        { label: 'At-risk patients', value: String(platformLifecycle.filter((e) => e.riskLevel === 'high').length), detail: 'High risk flagged' },
+        { label: 'Recovery completion', value: '—', detail: 'Analytics pending' },
+      ];
     }
-    return lifecyclePatients;
+    if (allowDemoFallback()) return lifecycleCardsDemo;
+    return lifecycleCardsDemo.map((c) => ({ ...c, value: '—', detail: 'No platform data' }));
   }, [platformOn, platformLifecycle]);
+
+  const lifecycleStages = allowDemoFallback() ? lifecycleStagesDemo : [];
 
   return (
     <div className="space-y-6">
@@ -79,15 +97,19 @@ export default function PatientLifecycle() {
             <CardTitle className="text-lg">Lifecycle Health</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {lifecycleStages.map((stage) => (
-              <div key={stage.stage} className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">{stage.stage}</span>
-                  <span className="text-muted-foreground">{stage.count}</span>
+            {lifecycleStages.length === 0 ? (
+              <PlatformEmptyState message="Lifecycle stage metrics appear when platform CRM data is available." />
+            ) : (
+              lifecycleStages.map((stage) => (
+                <div key={stage.stage} className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">{stage.stage}</span>
+                    <span className="text-muted-foreground">{stage.count}</span>
+                  </div>
+                  <Progress value={stage.progress} className="h-2" />
                 </div>
-                <Progress value={stage.progress} className="h-2" />
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
 
@@ -97,6 +119,9 @@ export default function PatientLifecycle() {
             <Button variant="outline" size="sm">View All</Button>
           </CardHeader>
           <CardContent>
+            {patients.length === 0 ? (
+              <PlatformEmptyState message="No lifecycle interventions queued. Connect CRM platform to monitor patient journeys." />
+            ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -123,6 +148,7 @@ export default function PatientLifecycle() {
                 ))}
               </TableBody>
             </Table>
+            )}
           </CardContent>
         </Card>
       </div>

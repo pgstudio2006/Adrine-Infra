@@ -1,0 +1,41 @@
+{
+  "formId": "navayu.protocol.map",
+  "version": "v0",
+  "label": "Navayu Protocol Mapping",
+  "workflowStep": "protocol_mapped",
+  "sections": [
+    {
+      "id": "protocol",
+      "label": "Protocol selection",
+      "fields": [
+        {
+          "id": "protocolId",
+          "type": "select",
+          "label": "Protocol family",
+          "required": true,
+          "optionsSource": "tenant.protocols"
+        },
+        {
+          "id": "stageId",
+          "type": "select",
+          "label": "Stage",
+          "required": true,
+          "optionsSource": "protocol.stages"
+        },
+        {
+          "id": "packageTier",
+          "type": "select",
+          "label": "Package tier",
+          "optionsSource": "protocol.packageTiers"
+        }
+      ]
+    },
+    {
+      "id": "plan",
+      "label": "Plan notes",
+      "fields": [
+        { "id": "protocolNotes", "type": "text", "label": "Counselling / plan notes" }
+      ]
+    }
+  ]
+}

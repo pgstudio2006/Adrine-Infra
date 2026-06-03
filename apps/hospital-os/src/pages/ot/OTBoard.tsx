@@ -18,7 +18,7 @@ import {
 import { platformOtTransition } from '@/runtime/ot-runtime';
 import { guardOtTransition } from '@/operations/ot-inventory-dialysis-guards';
 import { toast } from 'sonner';
-import { CalendarDays, Plus, Search, RefreshCw, Scissors } from 'lucide-react';
+import { pickPlatformRows } from '@/lib/platform/demo-fallback';
 import type { PlatformOtCase } from '@/runtime/ot-runtime';
 
 const BOARD_COLUMNS: { key: string; label: string; states: string[] }[] = [
@@ -48,7 +48,7 @@ export default function OTBoard() {
   const { platformOn, cases, loading, error, refresh } = useOtPlatformData();
   const [search, setSearch] = useState('');
 
-  const sourceCases = platformOn ? cases : DEMO_CASES;
+  const sourceCases = pickPlatformRows(platformOn, cases, DEMO_CASES);
 
   const todayCases = useMemo(() => {
     return sourceCases.filter(

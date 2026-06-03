@@ -1,0 +1,28 @@
+{
+  "formId": "navayu.senior.review",
+  "version": "v0",
+  "label": "Navayu Senior Review",
+  "sections": [
+    {
+      "id": "pathway",
+      "label": "Pathway decision",
+      "fields": [
+        {
+          "id": "pathwayDecision",
+          "type": "select",
+          "label": "Recommended pathway",
+          "required": true,
+          "options": [
+            { "value": "conservative", "label": "Conservative / physiotherapy" },
+            { "value": "interventional", "label": "Interventional (injection)" },
+            { "value": "surgical_consult", "label": "Surgical consult" },
+            { "value": "regenerative", "label": "Regenerative protocol" },
+            { "value": "observe", "label": "Observe & review" }
+          ]
+        },
+        { "id": "confirmedDiagnosis", "type": "text", "label": "Working diagnosis (senior)" },
+        { "id": "seniorNotes", "type": "text", "label": "Senior consultation notes" }
+      ]
+    }
+  ]
+}

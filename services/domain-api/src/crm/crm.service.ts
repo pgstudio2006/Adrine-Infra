@@ -9,12 +9,13 @@ export class CrmService {
     private readonly events: EventBusService,
   ) {}
 
-  listLeads(tenantId: string, branchId: string, stage?: string) {
+  listLeads(tenantId: string, branchId: string, stage?: string, opdVisitId?: string) {
     return this.prisma.crmLead.findMany({
       where: {
         tenantId,
         branchId,
         ...(stage ? { stage } : {}),
+        ...(opdVisitId ? { opdVisitId } : {}),
       },
       include: { patient: true },
       orderBy: { updatedAt: 'desc' },
@@ -26,6 +27,7 @@ export class CrmService {
     branchId: string,
     body: {
       patientId?: string;
+      opdVisitId?: string;
       fullName: string;
       phone?: string;
       email?: string;
@@ -45,6 +47,7 @@ export class CrmService {
         tenantId,
         branchId,
         patientId: body.patientId,
+        opdVisitId: body.opdVisitId,
         fullName: body.fullName,
         phone: body.phone,
         email: body.email,
@@ -74,6 +77,7 @@ export class CrmService {
       priority: string;
       notes: string;
       patientId: string;
+      opdVisitId: string;
     }>,
   ) {
     const existing = await this.prisma.crmLead.findFirst({ where: { id, tenantId } });

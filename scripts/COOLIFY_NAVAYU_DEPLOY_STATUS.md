@@ -1,6 +1,6 @@
 # Navayu Wave 0 — Coolify Deploy Status (adrine.in)
 
-**Updated:** 2026-06-03 (session 6 — hospital-os deployed)  
+**Updated:** 2026-06-04 (session 7 — patient-app ready to deploy)  
 **Coolify:** http://187.127.129.209:8000  
 **Project UUID:** `umn8vjfqrqn7jglfr8wqee0i`  
 **Environment UUID:** `fzhhu9uv8kltz49e51qxp58h` (production)  
@@ -21,7 +21,7 @@
 | **kernel-api** (`adrine-kernel`) | ✅ **Running** — `https://kernel.adrine.in` routes; API returns 401 without `x-tenant-id` (expected) |
 | domain-api | ❌ Not created |
 | hospital-os | ✅ **Running** — `https://hms.adrine.in` |
-| patient-app | ❌ Not created |
+| patient-app | ✅ **Ready to deploy** — Dockerfile verified; see [COOLIFY_PATIENT_APP.md](./COOLIFY_PATIENT_APP.md) |
 | `adrine_domain` DB | ❌ Not created |
 | API automation (create/PATCH apps) | ⚠️ Needs token with **write** (latest auto-token was read-only) |
 
@@ -37,7 +37,7 @@
 | adrine-kernel | Running | https://kernel.adrine.in | `/health` → 401 (app up); `/healthz` same middleware |
 | domain-api | — | https://domain.adrine.in | 503 no backend |
 | hospital-os | Running | https://hms.adrine.in | **200** (login UI) |
-| patient-app | — | https://book.adrine.in | 503 |
+| patient-app | **Not deployed** (ready) | https://book.adrine.in | 503 until Coolify app created |
 
 ---
 
@@ -115,6 +115,35 @@ First deploy failed on `80:80` host bind (Traefik already uses port 80). Fix: cl
 
 ---
 
+## Patient app — ready to deploy (not yet in Coolify)
+
+**Status:** Dockerfile builds locally (2026-06-04). Coolify app **not created** — follow click-by-click guide.
+
+| Setting | Value |
+|---------|--------|
+| Name | `adrine-patient-app` |
+| Domain | `https://book.adrine.in` |
+| Dockerfile | `/apps/patient-app/Dockerfile` (repo root context) |
+| Port expose | `3000` (no host port map) |
+| Branch | `master` |
+
+**Build-time env:**
+
+```env
+NEXT_PUBLIC_PLATFORM_RUNTIME=true
+NEXT_PUBLIC_KERNEL_API_URL=https://kernel.adrine.in
+NEXT_PUBLIC_DOMAIN_API_URL=https://domain.adrine.in
+NEXT_PUBLIC_DEV_TENANT_ID=tenant_navayu
+```
+
+**Runtime env:** `NODE_ENV=production`, `PORT=3000`, `HOSTNAME=0.0.0.0`
+
+**CORS:** ensure kernel + domain `CORS_ORIGINS` includes `https://book.adrine.in` (kernel already has this).
+
+**Guide:** [COOLIFY_PATIENT_APP.md](./COOLIFY_PATIENT_APP.md) · [deploy/coolify/patient-app.md](../deploy/coolify/patient-app.md)
+
+---
+
 ## Remaining manual steps (~15 min)
 
 ### 1. Push latest `services/domain-api/Dockerfile` to `master` and redeploy `adrine-domain`
@@ -128,6 +157,12 @@ docker exec -i $(docker ps -qf name=dp2gns8ygjh0w20s84z7kofl) psql -U adrine -d 
 ```
 
 See `deploy/coolify/init-adrine-domain.sql`.
+
+### 3. Deploy patient-app (`adrine-patient-app`)
+
+Follow [COOLIFY_PATIENT_APP.md](./COOLIFY_PATIENT_APP.md) — domain `https://book.adrine.in`, build-time `NEXT_PUBLIC_*` vars, CORS on kernel/domain.
+
+Smoke: `https://book.adrine.in/book/navayu`
 
 ### 4. Provision Navayu tenant (from PC when Postgres reachable)
 
@@ -160,3 +195,4 @@ pnpm provision:navayu
 | Redis | `owztayjm22pvffyu0x7xjpls` |
 | kernel-api | `t36wqfoh1hj88qrizvbr0q9h` |
 | hospital-os | `lm0z1tqxf5xm6mzme3veytnd` |
+| domain-api | `fxq9vh2765921yv0y6gvqs2z` |

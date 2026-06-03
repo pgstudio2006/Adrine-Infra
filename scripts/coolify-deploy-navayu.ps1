@@ -56,6 +56,12 @@ Write-Host @"
      - DATABASE_URL=$domainDb
      - KERNEL_API_URL=http://adrine-kernel:3001
 
+   patient-app:
+     - Dockerfile: apps/patient-app/Dockerfile (repo root context)
+     - Port: 3000
+     - Domain: https://book.adrine.in
+     - Build args: see deploy/coolify/patient-app.env.example
+
 3. After deploy, run migrations in each app terminal:
    cd services/kernel-api && npx prisma migrate deploy
    cd services/domain-api && npx prisma migrate deploy

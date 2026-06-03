@@ -1,6 +1,11 @@
 /**
  * Honest operational connectivity cues — UI hints only; does not change routing.
  */
+import {
+  canUseDashboardRuntime,
+  routeRequiresApiForLiveBadge,
+} from "@/lib/dashboard/dashboard-engine";
+
 export type RouteConnectivityClass = "c1" | "c1-leaning" | "preview";
 
 export type RouteReadinessBadge = "Preview" | "Live" | null;
@@ -9,6 +14,7 @@ const PREVIEW_MODULE_PREFIXES = [] as const;
 
 /** Platform-backed or partial-sync routes (not full C1). */
 const C1_LEANING_EXACT: readonly string[] = [
+  "/admin",
   "/admin/platform",
   "/admin/onboarding",
   "/admin/command-center",
@@ -18,10 +24,8 @@ const C1_LEANING_EXACT: readonly string[] = [
   "/admin/audit",
   "/admin/ai-workflow",
   "/admin/morning-briefing",
-  "/doctor/queue",
   "/doctor/labs",
   "/doctor/radiology",
-  "/doctor/consultation",
   "/doctor/ipd",
   "/reception",
   "/reception/flow",
@@ -97,21 +101,23 @@ const C1_LEANING_RADIOLOGY_PREFIXES: readonly string[] = [
   "/radiology/reports",
 ];
 
+/** Doctor UAT P0 — platform OPD queue + consultation; no navbar readiness badge. */
+const DOCTOR_OPERATIONAL_EXACT = new Set(["/doctor/queue"]);
+
 const C1_LEANING_PREFIXES: readonly string[] = [
   "/nurse/vitals/chart/",
   "/nurse/notes/",
-  "/doctor/consultation/",
   "/doctor/ipd/",
   "/emergency/",
   "/billing-dept/",
+  "/crm/leads",
+  "/crm/lifecycle",
   "/ot/",
-  "/inventory/",
   "/dialysis/",
 ];
 
 /** Demo / MIS admin surfaces — preview until wired. */
 const ADMIN_PREVIEW_EXACT = new Set([
-  "/admin",
   "/admin/mortality",
   "/admin/ai-workflow",
   "/admin/disease-mapping",
@@ -127,7 +133,6 @@ const ADMIN_PREVIEW_EXACT = new Set([
   "/admin/approvals",
   "/admin/claims",
   "/admin/mrd",
-  "/admin/mis",
   "/admin/audit",
   "/admin/settings",
   "/admin/doctor-sharing",
@@ -341,12 +346,23 @@ export function getRouteConnectivityClass(
   return null;
 }
 
+function isDoctorOperationalRoute(pathname: string): boolean {
+  if (DOCTOR_OPERATIONAL_EXACT.has(pathname)) return true;
+  return pathname.startsWith("/doctor/consultation/");
+}
+
 export function getRouteReadinessBadge(pathname: string): RouteReadinessBadge {
+  if (isDoctorOperationalRoute(pathname)) {
+    return null;
+  }
   const cls = getRouteConnectivityClass(pathname);
   if (cls === "preview") {
     return "Preview";
   }
   if (cls === "c1-leaning") {
+    if (routeRequiresApiForLiveBadge(pathname) && !canUseDashboardRuntime()) {
+      return "Preview";
+    }
     return "Live";
   }
   return null;
@@ -358,6 +374,9 @@ export function shouldShowRoutePreviewBanner(pathname: string): boolean {
 
 export function getRoutePreviewMessage(pathname: string): string {
   if (pathname.startsWith("/admin")) {
+    if (pathname === "/admin") {
+      return "Admin home KPIs use domain command + analytics when platform runtime is on; otherwise local store summary.";
+    }
     if (
       pathname === "/admin/command-center" ||
       pathname === "/admin/mortality" ||
@@ -434,6 +453,12 @@ export function getRoutePreviewMessage(pathname: string): string {
   if (pathname === "/reception/photos") {
     return "Patient photos are preview-only. Registration, check-in, queue, and flow hub are the platform-backed reception P0 path.";
   }
+  if (pathname === "/reception/billing") {
+    return "Front-desk billing posts charges to domain finance when platform runtime is on (OPD draft + sync charge). Counsellor MSK packages use /billing-dept/counselling.";
+  }
+  if (pathname === "/billing-dept/counselling") {
+    return "Navayu counsellor desk: protocol tiers from protocols.json, MSK workflow transitions, billing charge sync, and scheduling follow-up when runtime is on.";
+  }
   if (pathname.startsWith("/reception")) {
     return "Reception P0 is C1-leaning: dashboard, registration, appointments, check-in, queue, billing, beds, IPD, and flow hub use platform data when runtime is on.";
   }
@@ -450,13 +475,26 @@ const BILLING_LIVE_ROUTES = new Set([
 ]);
 
 const BILLING_PREVIEW_ROUTES = new Set([
-  "/billing-dept/packages",
+  "/billing-dept/charge-master",
+  "/billing-dept/tpa-desk",
+  "/billing-dept/copay",
+  "/billing-dept/ecl",
+  "/billing-dept/claims",
+  "/billing-dept/denials",
+  "/billing-dept/pharmacy-billing",
+  "/billing-dept/corporate-billing",
+  "/billing-dept/cashier",
+  "/billing-dept/copay-audit",
+  "/billing-dept/scheme-billing",
+  "/billing-dept/settlement",
   "/billing-dept/revenue",
   "/billing-dept/health-plans",
   "/billing-dept/gst",
 ]);
 
 const BILLING_LIVE_EXTRA = new Set([
+  "/billing-dept/packages",
+  "/billing-dept/counselling",
   "/billing-dept/insurance",
   "/billing-dept/finance",
   "/billing-dept/tpa-charges",

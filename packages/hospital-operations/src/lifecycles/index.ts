@@ -16,6 +16,7 @@ export * from './billing-payment.js';
 export * from './ot-case.js';
 export * from './inventory-stock-move.js';
 export * from './dialysis-session.js';
+export * from './navayu-msk-visit.js';
 
 import { ipdAdmissionLifecycle } from './ipd-admission.js';
 import { bedOccupancyLifecycle } from './bed-occupancy.js';
@@ -32,6 +33,7 @@ import { opdVisitLifecycle } from './opd-visit.js';
 import { otCaseLifecycle } from './ot-case.js';
 import { inventoryStockMoveLifecycle } from './inventory-stock-move.js';
 import { dialysisSessionLifecycle } from './dialysis-session.js';
+import { navayuMskVisitLifecycle } from './navayu-msk-visit.js';
 
 export const ALL_LIFECYCLES = [
   opdVisitLifecycle,
@@ -50,4 +52,5 @@ export const ALL_LIFECYCLES = [
   otCaseLifecycle,
   inventoryStockMoveLifecycle,
   dialysisSessionLifecycle,
+  navayuMskVisitLifecycle,
 ] as const;

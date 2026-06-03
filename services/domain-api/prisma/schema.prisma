@@ -197,6 +197,7 @@ model CrmLead {
   tenantId     String    @map("tenant_id")
   branchId     String    @map("branch_id")
   patientId    String?   @map("patient_id")
+  opdVisitId   String?   @map("opd_visit_id")
   fullName     String    @map("full_name")
   phone        String?
   email        String?

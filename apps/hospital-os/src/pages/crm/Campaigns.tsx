@@ -8,21 +8,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Activity, BarChart3, CalendarCheck2, PlayCircle, Users, Zap } from 'lucide-react';
 import { PlatformConnectivityStrip } from '@/components/PlatformConnectivityStrip';
 import { ScheduleFromLeadDialog } from '@/components/crm/ScheduleFromLeadDialog';
+import { allowDemoFallback, pickPlatformRows } from '@/lib/platform/demo-fallback';
+import { PlatformEmptyState } from '@/components/platform/PlatformEmptyState';
 
-const stats = [
+const statsDemo = [
   { label: 'Active participants', value: '1,284', icon: Users, detail: '+12% this month' },
   { label: 'Engagement rate', value: '84.2%', icon: Activity, detail: 'Across all journeys' },
   { label: 'Retention lift', value: '28%', icon: BarChart3, detail: 'Compared with baseline' },
 ];
 
-const journeys = [
+const journeysDemo = [
   { name: 'Post-NICU Support', segment: 'Maternity Patients', reach: 182, channel: 'WhatsApp + Call', engagement: 92, status: 'Active' },
   { name: 'Diabetes Wellness Hub', segment: 'Chronic Care', reach: 246, channel: 'SMS + App', engagement: 74, status: 'Active' },
   { name: 'Cardiac Rehab Follow-up', segment: 'Post-op Patients', reach: 138, channel: 'Call + Email', engagement: 88, status: 'Review' },
   { name: 'Preventive Screening Recall', segment: 'Wellness Members', reach: 204, channel: 'WhatsApp + SMS', engagement: 69, status: 'Active' },
 ];
 
-const templates = [
+const templatesDemo = [
   { name: 'Orthopedic rehab', detail: 'Discharge to physiotherapy completion', usage: '32 launches' },
   { name: 'Maternity concierge', detail: 'ANC to postpartum experience', usage: '24 launches' },
   { name: 'Executive health renewal', detail: 'Annual package reactivation', usage: '18 launches' },
@@ -37,20 +39,42 @@ export default function Campaigns() {
   const { platformOn, loading, error, campaigns: platformCampaigns, leads: platformLeads, refresh } =
     useCrmPlatform();
 
-  const journeyRows = useMemo(() => {
+  const platformJourneyRows = useMemo(() => {
+    return platformCampaigns.map((c) => ({
+      id: c.id,
+      name: c.name,
+      segment: c.segment ?? 'All patients',
+      reach: c.reachCount,
+      channel: c.channel ?? 'Multi-channel',
+      engagement: 0,
+      status: c.status.charAt(0).toUpperCase() + c.status.slice(1),
+    }));
+  }, [platformCampaigns]);
+
+  const demoJourneyRows = useMemo(
+    () => journeysDemo.map((j, i) => ({ id: `demo-${i}`, ...j })),
+    [],
+  );
+
+  const journeyRows = useMemo(
+    () => pickPlatformRows(platformOn && platformCampaigns.length > 0, platformJourneyRows, demoJourneyRows),
+    [platformOn, platformCampaigns.length, platformJourneyRows, demoJourneyRows],
+  );
+
+  const stats = useMemo(() => {
     if (platformOn && platformCampaigns.length > 0) {
-      return platformCampaigns.map((c) => ({
-        id: c.id,
-        name: c.name,
-        segment: c.segment ?? 'All patients',
-        reach: c.reachCount,
-        channel: c.channel ?? 'Multi-channel',
-        engagement: 0,
-        status: c.status.charAt(0).toUpperCase() + c.status.slice(1),
-      }));
+      const totalReach = platformCampaigns.reduce((s, c) => s + c.reachCount, 0);
+      return [
+        { label: 'Active participants', value: String(totalReach), icon: Users, detail: `${platformCampaigns.length} journeys` },
+        { label: 'Engagement rate', value: '—', icon: Activity, detail: 'Analytics pending' },
+        { label: 'Retention lift', value: '—', icon: BarChart3, detail: 'Analytics pending' },
+      ];
     }
-    return journeys.map((j, i) => ({ id: `demo-${i}`, ...j }));
+    if (allowDemoFallback()) return statsDemo;
+    return statsDemo.map((s) => ({ ...s, value: '—', detail: 'No platform data' }));
   }, [platformOn, platformCampaigns]);
+
+  const templates = allowDemoFallback() ? templatesDemo : [];
 
   const campaignLeads = useMemo(() => {
     if (!platformOn) return [];
@@ -176,6 +200,9 @@ export default function Campaigns() {
             </Button>
           </CardHeader>
           <CardContent>
+            {journeyRows.length === 0 ? (
+              <PlatformEmptyState message="No care journeys yet. Enable platform runtime to load CRM campaigns." />
+            ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -228,6 +255,7 @@ export default function Campaigns() {
                 ))}
               </TableBody>
             </Table>
+            )}
           </CardContent>
         </Card>
 
@@ -236,7 +264,10 @@ export default function Campaigns() {
             <CardTitle className="text-lg">Popular Templates</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {templates.map((template) => (
+            {templates.length === 0 ? (
+              <PlatformEmptyState message="Journey templates appear when demo data is enabled or platform campaigns are configured." />
+            ) : (
+              templates.map((template) => (
               <div key={template.name} className="rounded-lg border p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -247,7 +278,8 @@ export default function Campaigns() {
                 </div>
                 <p className="mt-3 text-xs text-muted-foreground">{template.usage}</p>
               </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
       </div>

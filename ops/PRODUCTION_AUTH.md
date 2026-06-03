@@ -17,7 +17,22 @@ Hospital OS must not rely on mock role cards alone when `VITE_PLATFORM_RUNTIME=t
 |----------|---------|
 | `CORS_ORIGINS` | `https://hms.adrine.in,https://book.adrine.in` |
 
-Without `CORS_ORIGINS`, the APIs do not send `Access-Control-Allow-Origin` and browser login from Hospital OS fails.
+Without `CORS_ORIGINS`, the APIs do not send `Access-Control-Allow-Origin` and browser login from Hospital OS or patient-app fails.
+
+## Patient app (book.adrine.in)
+
+Build-time env (Coolify Dockerfile ARGs — not runtime):
+
+| Variable | Example |
+|----------|---------|
+| `NEXT_PUBLIC_PLATFORM_RUNTIME` | `true` |
+| `NEXT_PUBLIC_KERNEL_API_URL` | `https://kernel.adrine.in` |
+| `NEXT_PUBLIC_DOMAIN_API_URL` | `https://domain.adrine.in` |
+| `NEXT_PUBLIC_DEV_TENANT_ID` | `tenant_navayu` |
+
+See [deploy/coolify/patient-app.env.example](../deploy/coolify/patient-app.env.example).
+
+**kernel-api internal provision:** leave `NAVAYU_PROVISION_SECRET` unset in production so `POST /internal/provision-navayu` returns 404; run `pnpm provision:navayu` from a trusted shell instead.
 
 ## Session shape
 

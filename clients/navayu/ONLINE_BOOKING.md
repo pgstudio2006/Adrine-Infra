@@ -31,6 +31,24 @@ GET /auth/branches?tenantId=tenant_navayu
 
 ---
 
+## GET booking config (Form Engine / publicBookingConfig)
+
+```http
+GET /public/tenants/navayu/booking-config
+```
+
+(kernel-api) — branches, service types (MSK vs General OPD), patient field schema.
+
+Fallback:
+
+```http
+GET /public/booking/navayu/config
+```
+
+(domain-api, same JSON from `clients/navayu/public-booking-config.json`)
+
+---
+
 ## GET available slots
 
 ```http

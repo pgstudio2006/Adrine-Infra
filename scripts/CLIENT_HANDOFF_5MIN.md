@@ -48,11 +48,11 @@ $env:NAVAYU_DEFAULT_PASSWORD="Navayu@2026"
 pnpm provision:navayu
 ```
 
-**Option B — from VPS via kernel** (when port 5432 is firewalled; uses `JWT_SECRET` as `x-provision-secret`):
+**Option B — from VPS via kernel** (only if `NAVAYU_PROVISION_SECRET` is set on kernel-api; otherwise use Option A):
 
 ```powershell
 curl.exe -X POST "https://kernel.adrine.in/internal/provision-navayu" `
-  -H "x-provision-secret: YOUR_JWT_SECRET_FROM_COOLIFY"
+  -H "x-provision-secret: YOUR_NAVAYU_PROVISION_SECRET"
 ```
 
 Then **remove** public Postgres port `5432:5432` (if you enabled it).

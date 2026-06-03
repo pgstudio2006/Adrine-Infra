@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/table";
 import { PlatformConnectivityStrip } from "@/components/PlatformConnectivityStrip";
 import { useAdminOperationalData } from "@/hooks/useAdminOperationalData";
+import { DashboardKpiGrid } from "@/components/dashboard/DashboardKpiGrid";
+import { buildMisHeaderKpis } from "@/lib/dashboard/dashboard-engine";
 
 interface ReportEntry {
   name: string;
@@ -76,6 +78,11 @@ export default function AdminMIS() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const { analytics, snapshot, platformOn, error } = useAdminOperationalData("7d");
 
+  const headerKpis = useMemo(
+    () => buildMisHeaderKpis(snapshot?.counts, analytics),
+    [snapshot?.counts, analytics],
+  );
+
   const reportCategories = useMemo<ReportCategory[]>(() => {
     const today = formatDate();
 
@@ -92,8 +99,24 @@ export default function AdminMIS() {
       patients: count,
     }));
 
-    const totalAdmissions = admissions.filter((admission) => admission.status !== "discharged").length;
-    const occupancyRate = Number(((totalAdmissions / 120) * 100).toFixed(1));
+    if (snapshot?.counts && analytics) {
+      opdSummaryRows.unshift({
+        department: "_branch_live",
+        patients: snapshot.counts.opdActiveVisits,
+        queue: snapshot.counts.opdWaitingQueue,
+        visitsPeriod: analytics.metrics.opdVisitsCreated ?? 0,
+        branchId: snapshot.branchId,
+      });
+    }
+
+    const bedsTotal =
+      snapshot?.counts
+        ? snapshot.counts.bedsOccupied + snapshot.counts.bedsAvailable
+        : 120;
+    const totalAdmissions =
+      snapshot?.counts?.ipdActiveAdmissions ??
+      admissions.filter((admission) => admission.status !== "discharged").length;
+    const occupancyRate = Number(((totalAdmissions / Math.max(bedsTotal, 1)) * 100).toFixed(1));
     const dischargeReady = admissions.filter((admission) => admission.status === "discharge-ready").length;
 
     const ipdCensusRows: ExportRow[] = [
@@ -350,6 +373,8 @@ export default function AdminMIS() {
     prescriptions,
     radiologyOrders,
     workflowEvents,
+    snapshot,
+    analytics,
   ]);
 
   const filteredCategories = selectedCategory === "all"
@@ -401,14 +426,21 @@ export default function AdminMIS() {
       {platformOn && (
         <PlatformConnectivityStrip
           label="MIS exports + platform analytics"
-          detail={`Reports use hospitalStore rows · platform 7d: OPD ${analytics?.metrics.opdVisitsCreated ?? 0} · IPD census ${snapshot?.counts.ipdActiveAdmissions ?? 0}`}
+          detail={`Branch ${snapshot?.branchId ?? "—"} · 7d OPD ${analytics?.metrics.opdVisitsCreated ?? 0} · queue ${snapshot?.counts.opdWaitingQueue ?? 0} · IPD ${snapshot?.counts.ipdActiveAdmissions ?? 0}`}
           error={error}
         />
+      )}
+      {platformOn && headerKpis.length > 0 && (
+        <DashboardKpiGrid kpis={headerKpis} live loading={!snapshot} columns={4} />
       )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">MIS Reports</h1>
-          <p className="text-sm text-muted-foreground">Exports from hospitalStore; platform analytics overlaid when runtime is on</p>
+          <p className="text-sm text-muted-foreground">
+            {platformOn
+              ? "Export rows from hospitalStore; KPI header from domain command + analytics (branch-scoped)"
+              : "Exports from hospitalStore — enable platform runtime for live branch KPIs"}
+          </p>
         </div>
         <Button variant="outline" onClick={exportAllManifest}><Download className="h-4 w-4 mr-1" /> Export All</Button>
       </div>

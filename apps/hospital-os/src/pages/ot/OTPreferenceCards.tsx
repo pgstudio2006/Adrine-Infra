@@ -14,6 +14,7 @@ import {
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { OperationsModulePage } from '@/components/operations/OperationsModulePage';
+import { allowDemoFallback } from '@/lib/platform/demo-fallback';
 
 interface PreferenceCard {
   id: string;
@@ -86,13 +87,15 @@ export default function OTPreferenceCards() {
   const [search, setSearch] = useState('');
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
 
+  const allCards = allowDemoFallback() ? DEMO_CARDS : [];
+
   const filtered = useMemo(() => {
-    return DEMO_CARDS.filter(c => 
+    return allCards.filter(c => 
       c.surgeon.toLowerCase().includes(search.toLowerCase()) ||
       c.procedure.toLowerCase().includes(search.toLowerCase()) ||
       c.specialty.toLowerCase().includes(search.toLowerCase())
     );
-  }, [search]);
+  }, [search, allCards]);
 
   const active = useMemo(() => {
     if (!selectedCard) return filtered[0];
@@ -104,7 +107,7 @@ export default function OTPreferenceCards() {
       module="ot"
       layout="list"
       title="Surgeon Preference Cards"
-      subtitle={`${DEMO_CARDS.length} cards · ${new Set(DEMO_CARDS.map(c => c.surgeon)).size} surgeons`}
+      subtitle={`${allCards.length} cards · ${new Set(allCards.map(c => c.surgeon)).size} surgeons`}
       actions={
         <Dialog>
           <DialogTrigger asChild>

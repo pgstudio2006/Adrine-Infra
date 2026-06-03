@@ -45,9 +45,9 @@
     }
   ],
   "packageTiers": [
-    { "id": "basic", "label": "Basic" },
-    { "id": "advanced", "label": "Advanced" },
-    { "id": "regenerative", "label": "Regenerative" },
-    { "id": "premium", "label": "Premium" }
+    { "id": "basic", "label": "Basic", "priceInr": 25000, "billingCode": "NAV-MSK-BASIC" },
+    { "id": "advanced", "label": "Advanced", "priceInr": 75000, "billingCode": "NAV-MSK-ADV" },
+    { "id": "regenerative", "label": "Regenerative", "priceInr": 150000, "billingCode": "NAV-MSK-REGEN" },
+    { "id": "premium", "label": "Premium", "priceInr": 250000, "billingCode": "NAV-MSK-PREM" }
   ]
 }

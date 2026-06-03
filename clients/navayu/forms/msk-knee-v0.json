@@ -1,0 +1,34 @@
+{
+  "formId": "navayu.exam.knee",
+  "version": "v0",
+  "label": "Navayu Knee MSK Exam",
+  "workflowStep": "associate_eval",
+  "sections": [
+    {
+      "id": "scores",
+      "label": "Scores",
+      "fields": [
+        { "id": "womac", "type": "calculator", "calculatorId": "womac", "label": "WOMAC" },
+        { "id": "koos", "type": "calculator", "calculatorId": "koos", "label": "KOOS (pain)" },
+        { "id": "vas", "type": "calculator", "calculatorId": "vas", "label": "VAS" }
+      ]
+    },
+    {
+      "id": "exam",
+      "label": "Knee examination",
+      "fields": [
+        {
+          "id": "effusion",
+          "type": "select",
+          "label": "Effusion",
+          "options": [
+            { "value": "none", "label": "None" },
+            { "value": "mild", "label": "Mild" },
+            { "value": "moderate", "label": "Moderate" }
+          ]
+        },
+        { "id": "specialTests", "type": "text", "label": "Special tests (McMurray, Lachman, etc.)" }
+      ]
+    }
+  ]
+}

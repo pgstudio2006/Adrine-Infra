@@ -11,6 +11,7 @@ import {
   Truck, ClipboardList, BarChart3, Clock, IndianRupee, Boxes, ShieldAlert
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { pickPlatformRows, allowDemoFallback } from '@/lib/platform/demo-fallback';
 
 const STATS = [
   { label: 'Total Items', value: '2,847', sub: '+34 this month', icon: Package, color: 'text-foreground' },
@@ -62,21 +63,28 @@ const item = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transiti
 export default function InventoryDashboard() {
   const { platformOn, catalog, moves, loading } = useInventoryPlatformData();
   const recentMovements = useMemo(
-    () => (platformOn && moves.length > 0 ? moves.slice(0, 5).map(mapMoveToRecentRow) : RECENT_MOVEMENTS_DEMO),
+    () => pickPlatformRows(platformOn && moves.length > 0, moves.slice(0, 5).map(mapMoveToRecentRow), RECENT_MOVEMENTS_DEMO),
     [platformOn, moves],
   );
   const stats = useMemo(() => {
-    if (!platformOn || catalog.length === 0) return STATS;
-    const lowStock = catalog.filter((i) => i.qtyOnHand <= i.reorderLevel).length;
-    const totalValue = catalog.reduce((sum, i) => sum + i.qtyOnHand * i.unitCostCents, 0);
-    return [
-      { label: 'Total Items', value: String(catalog.length), sub: 'Platform catalog', icon: Package, color: 'text-foreground' },
-      { label: 'Stock Value', value: `₹${(totalValue / 100).toLocaleString('en-IN')}`, sub: 'Authoritative', icon: IndianRupee, color: 'text-success' },
-      { label: 'Low Stock Alerts', value: String(lowStock), sub: lowStock ? 'Below reorder' : 'OK', icon: TrendingDown, color: 'text-destructive' },
-      STATS[3],
-      { label: 'Pending Moves', value: String(moves.filter((m) => !['received', 'cancelled'].includes(m.state)).length), sub: 'Open moves', icon: Truck, color: 'text-info' },
-    ];
+    if (platformOn && catalog.length > 0) {
+      const lowStock = catalog.filter((i) => i.qtyOnHand <= i.reorderLevel).length;
+      const totalValue = catalog.reduce((sum, i) => sum + i.qtyOnHand * i.unitCostCents, 0);
+      return [
+        { label: 'Total Items', value: String(catalog.length), sub: 'Platform catalog', icon: Package, color: 'text-foreground' },
+        { label: 'Stock Value', value: `₹${(totalValue / 100).toLocaleString('en-IN')}`, sub: 'Authoritative', icon: IndianRupee, color: 'text-success' },
+        { label: 'Low Stock Alerts', value: String(lowStock), sub: lowStock ? 'Below reorder' : 'OK', icon: TrendingDown, color: 'text-destructive' },
+        { label: 'Expiring Soon', value: '—', sub: 'Not tracked', icon: AlertTriangle, color: 'text-warning' },
+        { label: 'Pending Moves', value: String(moves.filter((m) => !['received', 'cancelled'].includes(m.state)).length), sub: 'Open moves', icon: Truck, color: 'text-info' },
+      ];
+    }
+    if (allowDemoFallback()) return STATS;
+    return STATS.map((s) => ({ ...s, value: '—', sub: 'No platform data' }));
   }, [platformOn, catalog, moves]);
+
+  const deptConsumption = allowDemoFallback() ? DEPT_CONSUMPTION : [];
+  const pendingRequisitions = allowDemoFallback() ? PENDING_REQUISITIONS : [];
+  const lowStockCritical = allowDemoFallback() ? LOW_STOCK_CRITICAL : [];
 
   return (
     <OperationsModulePage
@@ -117,7 +125,7 @@ export default function InventoryDashboard() {
               <span className="text-xs font-medium tracking-[0.1em] uppercase text-destructive">Critical Low Stock</span>
             </div>
             <div className="grid md:grid-cols-4 gap-3">
-              {LOW_STOCK_CRITICAL.map((i, idx) => (
+              {lowStockCritical.map((i, idx) => (
                 <div key={idx} className="p-3 rounded-lg bg-background border border-border/60">
                   <p className="text-sm font-semibold">{i.item}</p>
                   <div className="flex items-baseline gap-1 mt-1">
@@ -180,7 +188,7 @@ export default function InventoryDashboard() {
                 <span className="text-xs font-medium tracking-[0.1em] uppercase text-muted-foreground">Pending Requisitions</span>
               </div>
               <div className="space-y-3">
-                {PENDING_REQUISITIONS.map(r => (
+                {pendingRequisitions.map(r => (
                   <div key={r.id} className="p-3 rounded-lg border border-border/60 hover:bg-muted/50 transition-colors cursor-pointer">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-mono font-semibold">{r.id}</span>
@@ -208,7 +216,7 @@ export default function InventoryDashboard() {
               <span className="text-xs font-medium tracking-[0.1em] uppercase text-muted-foreground">Department Consumption (This Month)</span>
             </div>
             <div className="space-y-3">
-              {DEPT_CONSUMPTION.map(d => (
+              {deptConsumption.map(d => (
                 <div key={d.dept} className="flex items-center justify-between py-2 border-b border-border/40 last:border-0">
                   <div>
                     <p className="text-sm font-semibold">{d.dept}</p>

@@ -349,6 +349,7 @@ async function main() {
             email: user.email,
             fullName: user.fullName,
             role: user.role,
+            departmentCode: user.department ?? null,
             passwordHash,
             isActive: true,
           },
@@ -356,6 +357,7 @@ async function main() {
             branchId,
             fullName: user.fullName,
             role: user.role,
+            departmentCode: user.department ?? null,
             passwordHash,
             isActive: true,
           },
@@ -542,9 +544,10 @@ async function main() {
       const mods = branch.modules.join(', ');
       console.log(`Branch:     ${branch.code} (${branch.name}) → ${branchIdByCode.get(branch.code)} [${mods}]`);
     }
-    console.log('\nDev-login test accounts (Hospital OS dev login):');
+    console.log('\nProduction login accounts (POST /auth/login, default password from NAVAYU_DEFAULT_PASSWORD):');
     for (const user of users) {
-      console.log(`  ${user.email}  role=${user.role}  branch=${user.branchCode}`);
+      const dept = user.department ? `  dept=${user.department}` : '';
+      console.log(`  ${user.email}  role=${user.role}  branch=${user.branchCode}${dept}`);
     }
     console.log('\nGurgaon: tenant.settings + tenant.forms + tenant.protocols in BranchConfig (gurgaon-pack.json merged).');
     console.log('Pataudi: tenant.settings + multi_specialty modules (pataudi-pack.json merged).');

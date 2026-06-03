@@ -1,0 +1,27 @@
+{
+  "formId": "navayu.exam.hip",
+  "version": "v0",
+  "label": "Navayu Hip MSK Exam",
+  "workflowStep": "associate_eval",
+  "sections": [
+    {
+      "id": "scores",
+      "label": "Scores",
+      "fields": [
+        { "id": "harrisHip", "type": "calculator", "calculatorId": "harris_hip", "label": "Harris Hip Score" },
+        { "id": "vas", "type": "calculator", "calculatorId": "vas", "label": "VAS" }
+      ]
+    },
+    {
+      "id": "exam",
+      "label": "Hip examination",
+      "fields": [
+        { "id": "trendelenburg", "type": "select", "label": "Trendelenburg", "options": [
+          { "value": "negative", "label": "Negative" },
+          { "value": "positive", "label": "Positive" }
+        ]},
+        { "id": "romNotes", "type": "text", "label": "ROM / gait notes" }
+      ]
+    }
+  ]
+}

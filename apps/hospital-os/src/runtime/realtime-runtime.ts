@@ -50,6 +50,13 @@ export function normalizeOperationalDelta(raw: Record<string, unknown>): Record<
   if (eventName.includes('adrine.opd.') || resourceType === 'opd_visit') {
     return { ...raw, type: 'opd.transition', opdVisitId };
   }
+  if (
+    eventName.includes('adrine.appointment.') ||
+    eventName.includes('adrine.public_booking.') ||
+    resourceType === 'appointment'
+  ) {
+    return { ...raw, type: 'scheduling.transition' };
+  }
   return raw;
 }
 

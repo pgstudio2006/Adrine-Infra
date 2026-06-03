@@ -1,0 +1,32 @@
+{
+  "formId": "navayu.exam.cervical",
+  "version": "v0",
+  "label": "Navayu Cervical MSK Exam",
+  "workflowStep": "associate_eval",
+  "sections": [
+    {
+      "id": "scores",
+      "label": "Scores",
+      "fields": [
+        { "id": "ndi", "type": "calculator", "calculatorId": "ndi", "label": "NDI" },
+        { "id": "vas", "type": "calculator", "calculatorId": "vas", "label": "VAS" }
+      ]
+    },
+    {
+      "id": "exam",
+      "label": "Cervical examination",
+      "fields": [
+        {
+          "id": "spurling",
+          "type": "select",
+          "label": "Spurling test",
+          "options": [
+            { "value": "negative", "label": "Negative" },
+            { "value": "positive", "label": "Positive" }
+          ]
+        },
+        { "id": "romNotes", "type": "text", "label": "ROM / neurological notes" }
+      ]
+    }
+  ]
+}

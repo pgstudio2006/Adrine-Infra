@@ -7,6 +7,7 @@ import { mapDialysisMachineRow, mapDialysisSessionRow } from "@/lib/dialysis/dia
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { pickPlatformRows, allowDemoFallback } from "@/lib/platform/demo-fallback";
 import {
   Activity, Users, Clock, AlertTriangle, CheckCircle,
   Droplets, Settings, TrendingUp, Cpu
@@ -40,15 +41,17 @@ const alerts = [
 export default function DialysisDashboard() {
   const { platformOn, sessions, machines, loading } = useDialysisPlatformData();
   const todaySessions = useMemo(
-    () => (platformOn && sessions.length > 0 ? sessions.map(mapDialysisSessionRow) : todaySessionsDemo),
+    () => pickPlatformRows(platformOn && sessions.length > 0, sessions.map(mapDialysisSessionRow), todaySessionsDemo),
     [platformOn, sessions],
   );
   const machineStatus = useMemo(() => {
-    if (!platformOn || machines.length === 0) return machineStatusDemo;
-    return machines.map((m) => {
-      const active = sessions.find((s) => s.machineId === m.id && s.state === 'in_progress');
-      return mapDialysisMachineRow(m, active);
-    });
+    if (platformOn && machines.length > 0) {
+      return machines.map((m) => {
+        const active = sessions.find((s) => s.machineId === m.id && s.state === 'in_progress');
+        return mapDialysisMachineRow(m, active);
+      });
+    }
+    return pickPlatformRows(false, [], machineStatusDemo);
   }, [platformOn, machines, sessions]);
 
   return (
@@ -71,7 +74,7 @@ export default function DialysisDashboard() {
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/10"><Droplets className="w-5 h-5 text-primary" /></div>
               <div>
-                <p className="text-2xl font-bold">6</p>
+                <p className="text-2xl font-bold">{todaySessions.length}</p>
                 <p className="text-xs text-muted-foreground">Today's Sessions</p>
               </div>
             </div>

@@ -172,6 +172,7 @@ export const ROLE_TABS: Record<UserRole, RoleTab[]> = {
       path: "/billing-dept/ipd-billing",
     },
     { key: "packages", label: "Packages", path: "/billing-dept/packages" },
+    { key: "counselling", label: "Counselling", path: "/billing-dept/counselling" },
     {
       key: "health-plans",
       label: "Health Plans",

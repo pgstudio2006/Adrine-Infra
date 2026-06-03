@@ -9,6 +9,7 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { MfaService } from './mfa.service';
 import { PhiSafeLoggerInterceptor } from './phi-safe-logger.interceptor';
+import { resolveJwtSecret } from './jwt-secret';
 
 @Module({
   imports: [
@@ -18,7 +19,7 @@ import { PhiSafeLoggerInterceptor } from './phi-safe-logger.interceptor';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_DEV_SECRET') ?? 'dev-insecure-change-me',
+        secret: resolveJwtSecret(config),
         signOptions: { expiresIn: '1d' },
       }),
     }),

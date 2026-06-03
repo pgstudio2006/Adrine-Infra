@@ -7,8 +7,10 @@ import {
   setPlatformSession,
 } from '@/runtime/platform-session';
 import { loadEffectiveModules } from '@/runtime/module-runtime';
-import { loadBranchConfig } from '@/runtime/branch-config';
+import { getServerTenantSettings, loadBranchConfig } from '@/runtime/branch-config';
 import { platformFetch } from '@/runtime/platform-client';
+import { coerceTenantSettings } from '@/config/tenantSettings';
+import { roleCanAccessModule } from '@engines/packs';
 import { toast } from 'sonner';
 
 function isProductionHospitalOs(): boolean {
@@ -27,6 +29,7 @@ type AuthUserPayload = {
   role: string;
   name: string;
   email: string;
+  department?: string;
 };
 
 interface AuthContextType {
@@ -103,6 +106,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role: me.user.role,
         });
         setPlatformConnected(true);
+        setUser((prev) =>
+          prev
+            ? {
+                ...prev,
+                id: me.user!.sub,
+                name: me.user!.name,
+                role: me.user!.role as UserRole,
+                department: me.user!.department,
+              }
+            : prev,
+        );
         await Promise.all([loadBranchConfig(), loadEffectiveModules(me.user.branchId)]);
       } catch {
         clearPlatformSession();
@@ -154,6 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           id: profile.sub,
           name: profile.name,
           role: profile.role as UserRole,
+          department: profile.department,
         });
 
         toast.success('Signed in', {
@@ -245,6 +260,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const canAccess = useCallback(
     (module: ModuleKey) => {
       if (!user) return false;
+
+      const serverSettings = getServerTenantSettings();
+      if (isPlatformRuntimeEnabled() && serverSettings) {
+        const settings = coerceTenantSettings(serverSettings);
+        const session = getPlatformSession();
+        return roleCanAccessModule(settings, {
+          role: user.role,
+          department: user.department,
+          email: session?.email,
+          name: user.name,
+        }, module);
+      }
+
       return hasAccess(user.role, module);
     },
     [user],

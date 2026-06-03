@@ -13,6 +13,7 @@ export type PlatformOpdVisit = {
   department?: string | null;
   assignedDoctor?: string | null;
   createdAt?: string;
+  metadata?: Record<string, unknown> | null;
   patient?: { id: string; fullName: string; mrn?: string | null };
 };
 

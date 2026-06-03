@@ -105,12 +105,26 @@ Optional: `docker-compose.prod.yml` service `hospital-os` uses `apps/hospital-os
 
 ---
 
-## 6. Patient app (optional second Coolify app)
+## 6. Patient app (Coolify app: adrine-patient-app)
 
-| Build | `pnpm --filter @adrine/patient-app build` |
-| Env | `NEXT_PUBLIC_DOMAIN_API_URL`, `NEXT_PUBLIC_KERNEL_API_URL`, `NEXT_PUBLIC_PLATFORM_RUNTIME=true` |
+| Field | Value |
+|-------|--------|
+| Dockerfile | `/apps/patient-app/Dockerfile` (repo root build context) |
+| Domain | `https://book.adrine.in` |
+| Port expose | `3000` (Traefik only — no host `3000:3000` if port 80 is in use) |
 
-Intake URL pattern: `https://patient.yourdomain.com/intake?visitId=<platform-opd-visit-id>`
+Build-time env — copy from [deploy/coolify/patient-app.env.example](../deploy/coolify/patient-app.env.example):
+
+```env
+NEXT_PUBLIC_PLATFORM_RUNTIME=true
+NEXT_PUBLIC_KERNEL_API_URL=https://kernel.adrine.in
+NEXT_PUBLIC_DOMAIN_API_URL=https://domain.adrine.in
+NEXT_PUBLIC_DEV_TENANT_ID=tenant_navayu
+```
+
+Booking smoke: `https://book.adrine.in/book/navayu`
+
+Intake URL pattern: `https://book.adrine.in/intake?visitId=<platform-opd-visit-id>`
 
 ---
 

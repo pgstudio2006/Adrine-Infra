@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   Users,
@@ -23,10 +23,10 @@ import {
 } from 'recharts';
 import { useHospital } from '@/stores/hospitalStore';
 import { useDoctorScope } from '@/hooks/useDoctorScope';
-import { canUseCommandRuntime, platformGetCommandSnapshot } from '@/runtime/command-runtime';
-import { getPlatformSession } from '@/runtime/platform-session';
 import { PlatformConnectivityStrip } from '@/components/PlatformConnectivityStrip';
 import { useClinicalPlatformListSync } from '@/hooks/useClinicalPlatformListSync';
+import { useDashboardEngine } from '@/hooks/useDashboardEngine';
+import { buildDoctorKpis } from '@/lib/dashboard/dashboard-engine';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 
@@ -84,36 +84,13 @@ export default function DoctorDashboard() {
     radiologyOrders,
     admissions,
   } = useDoctorScope();
-  const [platformDetail, setPlatformDetail] = useState<string | null>(null);
-  const [platformError, setPlatformError] = useState<string | null>(null);
+  const { counts, branchId, platformOn, error: platformError } = useDashboardEngine('24h');
 
   useClinicalPlatformListSync({ queue: true, departmentWorklists: true, ipd: true });
 
-  const refreshPlatformCounts = useCallback(async () => {
-    if (!canUseCommandRuntime()) {
-      setPlatformDetail(null);
-      setPlatformError(null);
-      return;
-    }
-    try {
-      const snap = await platformGetCommandSnapshot(getPlatformSession()?.branchId);
-      const c = snap.counts;
-      setPlatformDetail(
-        `Branch OPD queue ${c.opdWaitingQueue} · active visits ${c.opdActiveVisits} · IPD ${c.ipdActiveAdmissions} · open nursing tasks ${c.nursingOpenTasks}`,
-      );
-      setPlatformError(null);
-    } catch (e) {
-      setPlatformError(e instanceof Error ? e.message : 'Platform counts unavailable');
-      setPlatformDetail(null);
-    }
-  }, []);
-
-  useEffect(() => {
-    void refreshPlatformCounts();
-    if (!canUseCommandRuntime()) return;
-    const t = setInterval(() => void refreshPlatformCounts(), 30_000);
-    return () => clearInterval(t);
-  }, [refreshPlatformCounts]);
+  const platformDetail = counts
+    ? `Branch ${branchId ?? '—'} · OPD queue ${counts.opdWaitingQueue} · active ${counts.opdActiveVisits} · IPD ${counts.ipdActiveAdmissions}`
+    : null;
 
   const latestRoundByAdmission = useMemo(() => {
     const map = new Map<string, (typeof nursingRounds)[number]>();
@@ -143,36 +120,56 @@ export default function DoctorDashboard() {
     );
   }).length;
 
-  const stats = [
-    {
-      label: 'Assigned Patients',
-      value: String(patients.length),
-      change: `${patients.filter((patient) => patient.patientType === 'IPD' || patient.patientType === 'ICU').length} inpatients`,
-      up: true,
-      icon: Users,
-    },
-    {
-      label: 'OPD Queue',
-      value: String(opdQueueCount),
-      change: `${queue.filter((entry) => entry.status === 'waiting').length} waiting`,
-      up: false,
-      icon: CalendarDays,
-    },
-    {
-      label: 'Pending Reports',
-      value: String(pendingReportsCount),
-      change: `${pendingLabCount} lab · ${pendingRadiologyCount} radiology`,
-      up: true,
-      icon: FlaskConical,
-    },
-    {
-      label: 'IPD Rounds Due',
-      value: String(roundsDueCount),
-      change: `${admissions.filter((admission) => admission.status === 'icu').length} ICU`,
-      up: false,
-      icon: Building2,
-    },
-  ];
+  const engineKpis = useMemo(
+    () =>
+      buildDoctorKpis(counts, {
+        patients: patients.length,
+        pendingReports: pendingReportsCount,
+        roundsDue: roundsDueCount,
+      }),
+    [counts, patients.length, pendingReportsCount, roundsDueCount],
+  );
+
+  const useLiveTiles = platformOn && engineKpis.length >= 4;
+
+  const stats = useLiveTiles
+    ? engineKpis.map((kpi, i) => ({
+        label: kpi.label,
+        value: String(kpi.value),
+        change: kpi.hint ?? '',
+        up: i !== 1,
+        icon: [CalendarDays, Building2, FlaskConical, Users][i] ?? Users,
+      }))
+    : [
+        {
+          label: 'Assigned Patients',
+          value: String(patients.length),
+          change: `${patients.filter((patient) => patient.patientType === 'IPD' || patient.patientType === 'ICU').length} inpatients`,
+          up: true,
+          icon: Users,
+        },
+        {
+          label: 'OPD Queue',
+          value: String(opdQueueCount),
+          change: `${queue.filter((entry) => entry.status === 'waiting').length} waiting`,
+          up: false,
+          icon: CalendarDays,
+        },
+        {
+          label: 'Pending Reports',
+          value: String(pendingReportsCount),
+          change: `${pendingLabCount} lab · ${pendingRadiologyCount} radiology`,
+          up: true,
+          icon: FlaskConical,
+        },
+        {
+          label: 'IPD Rounds Due',
+          value: String(roundsDueCount),
+          change: `${admissions.filter((admission) => admission.status === 'icu').length} ICU`,
+          up: false,
+          icon: Building2,
+        },
+      ];
 
   const weeklyPatients = useMemo(() => {
     const now = new Date();
@@ -316,7 +313,7 @@ export default function DoctorDashboard() {
 
   return (
     <div className="space-y-6">
-      {canUseCommandRuntime() && (
+      {platformOn && (
         <PlatformConnectivityStrip
           label="Live OPD / IPD counts"
           detail={platformDetail ?? 'Loading platform snapshot…'}

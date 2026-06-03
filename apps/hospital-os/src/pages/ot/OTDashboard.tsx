@@ -12,6 +12,8 @@ import {
   Timer, Bed, ArrowRight, Zap, Heart, RefreshCw
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { allowDemoFallback, pickPlatformRows } from '@/lib/platform/demo-fallback';
+import { PlatformEmptyState } from '@/components/platform/PlatformEmptyState';
 
 const STATUS_CONFIG = {
   in_progress: { label: 'In Progress', class: 'bg-success/10 text-success border-success/20' },
@@ -69,7 +71,7 @@ export default function OTDashboard() {
         return mapOtCaseToRoomCard(room, active);
       });
     }
-    return DEMO_LIVE_OT_STATUS;
+    return pickPlatformRows(false, [], DEMO_LIVE_OT_STATUS);
   }, [platformOn, cases, rooms]);
 
   const todayStats = useMemo(() => {
@@ -85,7 +87,8 @@ export default function OTDashboard() {
         { label: 'Emergency', value: String(emergencyCount), icon: AlertTriangle, color: 'text-destructive' },
       ];
     }
-    return DEMO_STATS;
+    if (allowDemoFallback()) return DEMO_STATS;
+    return DEMO_STATS.map((s) => ({ ...s, value: '0' }));
   }, [hasLiveData, cases]);
 
   const upcoming = useMemo(() => {
@@ -103,8 +106,10 @@ export default function OTDashboard() {
           priority: (['emergency', 'urgent'].includes(c.priority) ? c.priority : 'elective') as 'elective' | 'urgent' | 'emergency',
         }));
     }
-    return DEMO_UPCOMING;
+    return pickPlatformRows(false, [], DEMO_UPCOMING);
   }, [hasLiveData, cases]);
+
+  const recoveryPatients = allowDemoFallback() ? DEMO_RECOVERY : [];
 
   return (
     <OperationsModulePage
@@ -275,7 +280,10 @@ export default function OTDashboard() {
                 <span className="text-xs font-medium tracking-[0.1em] uppercase text-muted-foreground">Recovery Room</span>
               </div>
               <div className="space-y-4">
-                {DEMO_RECOVERY.map((p, i) => (
+                {recoveryPatients.length === 0 ? (
+                  <PlatformEmptyState message="Recovery room patients appear when OT platform cases are in post-op recovery." />
+                ) : (
+                recoveryPatients.map((p, i) => (
                   <div key={i} className="p-3 rounded-lg bg-muted/50 border border-border/40">
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-sm font-semibold">{p.name}</p>
@@ -289,14 +297,17 @@ export default function OTDashboard() {
                       <span className="font-medium">{p.nurse}</span>
                     </div>
                   </div>
-                ))}
+                ))
+                )}
               </div>
+              {recoveryPatients.length > 0 && (
               <div className="mt-4 p-3 rounded-lg border border-dashed border-border flex items-center justify-center">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Bed className="h-3.5 w-3.5" />
-                  <span>2 of 4 recovery beds occupied</span>
+                  <span>{recoveryPatients.length} recovery patient(s)</span>
                 </div>
               </div>
+              )}
             </CardContent>
           </Card>
         </motion.div>

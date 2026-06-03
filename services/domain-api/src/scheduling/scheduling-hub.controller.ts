@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
 import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import type { RequestWithTenant } from '../tenant/tenant.middleware';
+import { resolveRequestBranchId } from '../tenant/branch.util';
 import { SchedulingService } from './scheduling.service';
 
 @ApiTags('scheduling')
@@ -15,7 +16,7 @@ export class SchedulingHubController {
   }
 
   private branch(req: Request, queryBranch?: string) {
-    return queryBranch ?? req.header('x-branch-id') ?? 'branch_main';
+    return resolveRequestBranchId(req as RequestWithTenant, queryBranch);
   }
 
   @Post('appointments')

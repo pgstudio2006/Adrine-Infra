@@ -3,9 +3,10 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Building2, ExternalLink } from "lucide-react";
-import { DiagnosticsPreviewBanner } from "@/components/diagnostics/DiagnosticsPreviewBanner";
 import { DepartmentWorklistTable } from "@/components/diagnostics/DepartmentWorklistTable";
 import { WorklistStatusChip } from "@/components/diagnostics/WorklistStatusChip";
+import { allowDemoFallback } from "@/lib/platform/demo-fallback";
+import { PlatformEmptyState } from "@/components/platform/PlatformEmptyState";
 
 type SupplierRow = {
   id: string;
@@ -25,14 +26,16 @@ const DEMO_SUPPLIERS: SupplierRow[] = [
 export default function PharmacySuppliers() {
   const [search, setSearch] = useState("");
 
+  const suppliers = allowDemoFallback() ? DEMO_SUPPLIERS : [];
+
   const filtered = useMemo(
     () =>
-      DEMO_SUPPLIERS.filter(
+      suppliers.filter(
         (s) =>
           s.name.toLowerCase().includes(search.toLowerCase()) ||
           s.contact.toLowerCase().includes(search.toLowerCase()),
       ),
-    [search],
+    [search, suppliers],
   );
 
   const columns = useMemo(
@@ -98,9 +101,9 @@ export default function PharmacySuppliers() {
         </Button>
       </div>
 
-      <DiagnosticsPreviewBanner
+      <PlatformEmptyState
         title="Not connected to platform"
-        description="This screen shows a static preview list. Authoritative supplier and PO data will appear under Inventory → Procurement when supplier APIs are available."
+        message="Supplier master is not wired to domain-api. Authoritative supplier and PO data appears under Inventory → Procurement when supplier APIs are available."
       />
 
       <div className="relative">

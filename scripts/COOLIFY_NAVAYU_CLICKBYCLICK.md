@@ -149,21 +149,25 @@ Open `http://187.127.129.209:8080` → login `reception@navayuhealth.in` / `Nava
 
 ## 7. Patient app
 
-**+ Add Resource** → repo `apps/patient-app` base directory OR full repo with:
+**+ Add Resource** → full repo (same as hospital-os):
 
 | Field | Value |
 |-------|--------|
-| Base Directory | `apps/patient-app` |
-| Build Pack | Nixpacks |
-| Port | `3000` |
+| Dockerfile | `/apps/patient-app/Dockerfile` |
+| Build context | repository root |
+| Port expose | `3000` |
+| Domain | `https://book.adrine.in` |
+
+Build-time env (see `deploy/coolify/patient-app.env.example`):
 
 ```env
-NEXT_PUBLIC_KERNEL_API_URL=http://187.127.129.209:3001
-NEXT_PUBLIC_DOMAIN_API_URL=http://187.127.129.209:3002
+NEXT_PUBLIC_KERNEL_API_URL=https://kernel.adrine.in
+NEXT_PUBLIC_DOMAIN_API_URL=https://domain.adrine.in
 NEXT_PUBLIC_PLATFORM_RUNTIME=true
+NEXT_PUBLIC_DEV_TENANT_ID=tenant_navayu
 ```
 
-Booking: `http://187.127.129.209:3000/book/navayu`
+Booking: `https://book.adrine.in/book/navayu`
 
 ---
 

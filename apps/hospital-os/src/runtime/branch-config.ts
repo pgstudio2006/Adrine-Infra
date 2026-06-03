@@ -4,6 +4,7 @@ import { getPlatformSession, isPlatformRuntimeEnabled } from './platform-session
 
 const STORAGE_KEY = 'adrine_branch_config';
 const TENANT_FORMS_KEY = 'adrine_tenant_forms_server';
+const TENANT_PROTOCOLS_KEY = 'adrine_tenant_protocols_server';
 
 export type BranchConfigMap = Record<string, boolean | number | string | unknown>;
 
@@ -29,6 +30,11 @@ export async function loadBranchConfig(): Promise<BranchConfigMap | null> {
     const serverTenantForms = legacyConfig['tenant.forms'];
     if (serverTenantForms && typeof serverTenantForms === 'object') {
       sessionStorage.setItem(TENANT_FORMS_KEY, JSON.stringify(serverTenantForms));
+    }
+
+    const serverProtocols = legacyConfig['tenant.protocols'];
+    if (serverProtocols && typeof serverProtocols === 'object') {
+      sessionStorage.setItem(TENANT_PROTOCOLS_KEY, JSON.stringify(serverProtocols));
     }
 
     const merged: BranchConfigMap = {
@@ -60,6 +66,20 @@ function flattenPolicies(policies: Record<string, unknown>): BranchConfigMap {
     }
   }
   return out;
+}
+
+/** Protocol library from BranchConfig key `tenant.protocols` (clients/navayu/protocols.json). */
+export function getServerTenantProtocols(): Record<string, unknown> | null {
+  const raw = sessionStorage.getItem(TENANT_PROTOCOLS_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Server-persisted UAT form definitions from BranchConfig key `tenant.forms`. */

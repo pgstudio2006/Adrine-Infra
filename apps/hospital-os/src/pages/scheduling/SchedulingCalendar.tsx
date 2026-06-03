@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { PlatformConnectivityStrip } from '@/components/PlatformConnectivityStrip';
 import { useSchedulingPlatform } from '@/hooks/useSchedulingPlatform';
 import type { PlatformAppointment } from '@/runtime/scheduling-runtime';
+import { pickPlatformRows } from '@/lib/platform/demo-fallback';
+import { PlatformEmptyState } from '@/components/platform/PlatformEmptyState';
 import {
   WEEK_DAY_LABELS,
   addDays,
@@ -74,14 +76,11 @@ export default function SchedulingCalendar() {
   const { platformOn, loading, error, appointments } = useSchedulingPlatform(rangeFrom, rangeTo);
 
   const events = useMemo(() => {
-    if (platformOn && appointments.length > 0) {
-      return appointments
-        .map((a) => mapPlatformAppointment(a, weekDays))
-        .filter((e): e is CalendarEvent => e != null)
-        .sort((a, b) => a.dayIndex - b.dayIndex || a.sortMs - b.sortMs);
-    }
-    if (!platformOn) return DEMO_EVENTS;
-    return [];
+    const platformEvents = appointments
+      .map((a) => mapPlatformAppointment(a, weekDays))
+      .filter((e): e is CalendarEvent => e != null)
+      .sort((a, b) => a.dayIndex - b.dayIndex || a.sortMs - b.sortMs);
+    return pickPlatformRows(platformOn && appointments.length > 0, platformEvents, DEMO_EVENTS);
   }, [platformOn, appointments, weekDays]);
 
   const eventsByDay = useMemo(
@@ -129,10 +128,8 @@ export default function SchedulingCalendar() {
         />
       )}
 
-      {!platformOn && (
-        <p className="text-xs text-muted-foreground rounded-lg border border-dashed px-4 py-3">
-          Demo week grid — enable platform runtime to load live appointments from domain-api.
-        </p>
+      {!platformOn && events.length === 0 && (
+        <PlatformEmptyState message="Enable platform runtime to load live appointments from domain-api scheduling range." />
       )}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

@@ -15,6 +15,8 @@ import {
   canUseMarRuntime,
   platformListMarAuditForAdmission,
 } from "@/runtime/mar-runtime";
+import { pickPlatformRows, allowDemoFallback } from "@/lib/platform/demo-fallback";
+import { PlatformEmptyState } from "@/components/platform/PlatformEmptyState";
 import { formatPlatformErrorBody, PlatformApiError } from "@/runtime/platform-client";
 
 const MAR_RECORDS_DEMO = [
@@ -37,8 +39,8 @@ const statusColor = (s: string) => {
 export default function NurseReports() {
   const { admissions } = useHospital();
   const platformOk = canUseNursingRuntime() && canUseMarRuntime();
-  const [marRows, setMarRows] = useState<typeof MAR_RECORDS_DEMO>(MAR_RECORDS_DEMO);
-  const [auditRows, setAuditRows] = useState(AUDIT_DEMO);
+  const [marRows, setMarRows] = useState<typeof MAR_RECORDS_DEMO>([]);
+  const [auditRows, setAuditRows] = useState<typeof AUDIT_DEMO>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -91,8 +93,8 @@ export default function NurseReports() {
         )
         .sort((a, b) => b.time.localeCompare(a.time));
 
-      setMarRows(mar.length ? mar : MAR_RECORDS_DEMO);
-      setAuditRows(audit.length ? audit : AUDIT_DEMO);
+      setMarRows(mar.length ? mar : (allowDemoFallback() ? MAR_RECORDS_DEMO : []));
+      setAuditRows(audit.length ? audit : (allowDemoFallback() ? AUDIT_DEMO : []));
     } catch (err) {
       const body = err instanceof PlatformApiError ? err.body : undefined;
       setLoadError(

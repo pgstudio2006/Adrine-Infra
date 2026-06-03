@@ -9,7 +9,7 @@ Reference for self-hosted PaaS on Hostinger KVM 4. **Authoritative guide:** [doc
 | 1 | adrine-kernel | Docker | `services/kernel-api/Dockerfile` | `kernel.*` |
 | 2 | adrine-domain | Docker | `services/domain-api/Dockerfile` | `domain.*` |
 | 3 | hospital-os | Static / Docker | Build `apps/hospital-os/dist` or `apps/hospital-os/Dockerfile` | `hms.*` |
-| 4 | patient-app | Nixpacks / Docker | `apps/patient-app` Next.js build | `patient.*` |
+| 4 | patient-app | Docker | `apps/patient-app/Dockerfile` (repo root) | `book.adrine.in` — see [patient-app.env.example](./patient-app.env.example) |
 
 **Managed resources (Coolify UI):** PostgreSQL 16, Redis 7 — not in application compose unless you prefer single-file deploy.
 
@@ -37,6 +37,10 @@ Set env from `.env.production.example` first.
 - `kernel.yourdomain.com` → kernel-api:3001
 - `domain.yourdomain.com` → domain-api:3002
 - `hms.yourdomain.com` → static Hospital OS
-- `patient.yourdomain.com` → Patient app
+- `book.yourdomain.com` → Patient app (Navayu booking: `/book/navayu`)
 
 Hospital OS env must point `VITE_KERNEL_API_URL` and `VITE_DOMAIN_API_URL` to these public URLs.
+
+Patient app build env: [patient-app.env.example](./patient-app.env.example).
+
+**Do not** expose `POST /internal/provision-navayu` in production unless `NAVAYU_PROVISION_SECRET` is set on kernel-api; prefer `pnpm provision:navayu` from a trusted shell.

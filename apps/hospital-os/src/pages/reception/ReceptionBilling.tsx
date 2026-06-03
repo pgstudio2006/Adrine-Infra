@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   AlertTriangle,
   Banknote,
@@ -15,6 +16,12 @@ import {
 } from "lucide-react";
 import { useHospital, type BillingInvoice } from "@/stores/hospitalStore";
 import { useClinicalPlatformListSync } from "@/hooks/useClinicalPlatformListSync";
+import { canUseOpdRuntime } from "@/runtime/opd-runtime";
+import {
+  platformEnsureOpdDraft,
+  platformSyncCharge,
+} from "@/runtime/billing-runtime";
+import { getPlatformSession } from "@/runtime/platform-session";
 import { AppSelect } from "@/components/ui/app-select";
 import { useNavigate } from "react-router-dom";
 
@@ -194,12 +201,13 @@ export default function ReceptionBilling() {
     setRefundReason("");
   };
 
-  const handleCreateInvoice = () => {
+  const handleCreateInvoice = async () => {
     const patient = patients.find((item) => item.uhid === newInvoicePatient);
     const amount = Number(newInvoiceAmount);
-    if (!patient || !newInvoiceDescription.trim() || amount <= 0) return;
+    const description = newInvoiceDescription.trim();
+    if (!patient || !description || amount <= 0) return;
 
-    createInvoice({
+    const invoiceId = createInvoice({
       uhid: patient.uhid,
       patientName: patient.name,
       date: new Date().toLocaleDateString("en-IN", {
@@ -208,11 +216,40 @@ export default function ReceptionBilling() {
         year: "numeric",
       }),
       category: newInvoiceCategory,
-      items: [{ description: newInvoiceDescription.trim(), amount }],
+      items: [{ description, amount }],
       total: amount,
       paid: 0,
       status: "pending",
     });
+
+    if (
+      canUseOpdRuntime() &&
+      newInvoiceCategory === "OPD" &&
+      patient.platformOpdVisitId &&
+      patient.platformPatientId &&
+      getPlatformSession()
+    ) {
+      try {
+        await platformEnsureOpdDraft({
+          opdVisitId: patient.platformOpdVisitId,
+          patientId: patient.platformPatientId,
+        });
+        await platformSyncCharge({
+          opdVisitId: patient.platformOpdVisitId,
+          patientId: patient.platformPatientId,
+          idempotencyKey: `reception-desk:${patient.platformOpdVisitId}:${invoiceId}`,
+          description,
+          amountCents: Math.round(amount * 100),
+          sourceModule: "reception_billing",
+          sourceAction: "desk_invoice",
+          sourceRefId: invoiceId,
+        });
+      } catch (err) {
+        toast.error("Platform billing sync failed", {
+          description: err instanceof Error ? err.message : undefined,
+        });
+      }
+    }
 
     setShowNewInvoice(false);
     setNewInvoicePatient("");

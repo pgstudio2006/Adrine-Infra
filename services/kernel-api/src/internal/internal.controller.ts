@@ -1,4 +1,4 @@
-import { Controller, ForbiddenException, Headers, Post } from '@nestjs/common';
+import { Controller, ForbiddenException, Headers, NotFoundException, Post } from '@nestjs/common';
 import { ApiHeader, ApiTags } from '@nestjs/swagger';
 import { PlatformBillingService } from '../platform-billing/platform-billing.service';
 import { ScaleReadinessService } from '../scale/scale-readiness.service';
@@ -27,13 +27,15 @@ export class InternalController {
     return { metrics, usage, reconciledAt: new Date().toISOString() };
   }
 
-  /** One-shot Navayu seed (runs pnpm provision:navayu in-container). Requires x-provision-secret. */
+  /** One-shot Navayu seed (runs pnpm provision:navayu in-container). Requires NAVAYU_PROVISION_SECRET. */
   @Post('provision-navayu')
   @ApiHeader({ name: 'x-provision-secret', required: true })
   async provisionNavayu(@Headers('x-provision-secret') secret: string) {
-    const expected =
-      process.env.NAVAYU_PROVISION_SECRET?.trim() || process.env.JWT_SECRET?.trim();
-    if (!expected || secret !== expected) {
+    const expected = process.env.NAVAYU_PROVISION_SECRET?.trim();
+    if (!expected) {
+      throw new NotFoundException();
+    }
+    if (secret !== expected) {
       throw new ForbiddenException('Invalid provision secret');
     }
     const { stdout, stderr } = await runNavayuProvisionScript();

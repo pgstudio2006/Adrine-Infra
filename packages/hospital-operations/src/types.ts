@@ -38,7 +38,8 @@ export type LifecycleId =
   | 'escalation'
   | 'ot_case'
   | 'inventory_stock_move'
-  | 'dialysis_session';
+  | 'dialysis_session'
+  | 'navayu_msk_visit';
 
 export type LifecycleDefinition<S extends string = string> = {
   id: LifecycleId;

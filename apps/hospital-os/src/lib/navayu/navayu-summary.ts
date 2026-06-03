@@ -1,6 +1,7 @@
 import {
   painRegionLabel,
   referralLabel,
+  scoreFromField,
   type NavayuLumbarExamData,
   type NavayuRegistrationMetadata,
 } from '@/lib/navayu/navayu-forms';
@@ -47,7 +48,11 @@ export function buildNavayuRuleBasedSummary(input: {
         answers.complaintType ? `Complaint type: ${answers.complaintType}` : null,
         answers.complaintText ? `Chief complaint: ${answers.complaintText}` : null,
         answers.durationBucket ? `Duration: ${answers.durationBucket}` : null,
-        answers.vas != null ? `Pain VAS: ${answers.vas}/10` : null,
+        scoreFromField(answers.vas) != null
+          ? `Pain VAS: ${scoreFromField(answers.vas)}/10`
+          : answers.vas != null
+            ? `Pain VAS: ${answers.vas}/10`
+            : null,
         redFlags.length
           ? `Red flags: ${redFlags.join(', ')}${urgent ? ' — review urgently' : ''}`
           : 'Red flags: none reported',
@@ -64,8 +69,16 @@ export function buildNavayuRuleBasedSummary(input: {
     sections.push({
       label: 'Junior lumbar MSK exam',
       lines: [
-        exam.odi != null ? `ODI: ${exam.odi}%` : null,
-        exam.vas != null ? `VAS: ${exam.vas}/10` : null,
+        scoreFromField(exam.odi) != null
+          ? `ODI: ${scoreFromField(exam.odi)}%`
+          : exam.odi != null
+            ? `ODI: ${exam.odi}%`
+            : null,
+        scoreFromField(exam.vas) != null
+          ? `VAS: ${scoreFromField(exam.vas)}/10`
+          : exam.vas != null
+            ? `VAS: ${exam.vas}/10`
+            : null,
         exam.slrt ? `SLR: ${exam.slrt.replace(/_/g, ' ')}` : null,
         exam.femoralStretch ? `Femoral stretch: ${exam.femoralStretch}` : null,
         exam.gait ? `Gait/posture: ${exam.gait}` : null,
@@ -87,7 +100,8 @@ export function buildNavayuRuleBasedSummary(input: {
     suggested.push('Complete junior MSK exam and intake review before senior handoff.');
   }
 
-  if (exam?.odi != null && exam.odi >= 40) {
+  const odiScore = scoreFromField(exam?.odi) ?? (typeof exam?.odi === 'number' ? exam.odi : undefined);
+  if (odiScore != null && odiScore >= 40) {
     suggested.push('ODI ≥40% — moderate–severe functional limitation; document counselling plan.');
   }
 

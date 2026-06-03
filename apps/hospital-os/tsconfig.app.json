@@ -20,6 +20,9 @@
       "@/*": [
         "./src/*"
       ],
+      "@engines/packs": [
+        "../../engines/packs/index.ts"
+      ],
       "react": [
         "./node_modules/@types/react/index.d.ts"
       ],

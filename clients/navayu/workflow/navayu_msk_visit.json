@@ -5,6 +5,16 @@
   "metadata": {
     "initial": "registered",
     "extendsLifecycle": "opd_visit",
+    "formBindings": {
+      "registered": "navayu.reception.registration",
+      "intake_pending": "navayu.patient.intake",
+      "intake_complete": "navayu.patient.intake",
+      "associate_eval": ["navayu.exam.lumbar", "navayu.exam.cervical", "navayu.exam.knee", "navayu.exam.hip", "navayu.exam.shoulder"],
+      "msk_exam_complete": "navayu.investigations",
+      "ai_summary_ready": "navayu.senior.review",
+      "protocol_mapped": "navayu.protocol.map",
+      "counselling": "navayu.counselling.package"
+    },
     "states": [
       "registered",
       "intake_pending",
@@ -70,7 +80,7 @@
       "roles": ["billing", "crm_manager"]
     },
     "close_visit": {
-      "roles": ["doctor", "receptionist", "admin"],
+      "roles": ["doctor", "receptionist", "admin", "billing", "crm_manager"],
       "branchConfigKeys": ["billing.require_encounter_close"]
     }
   }

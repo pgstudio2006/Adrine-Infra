@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, Pill, ExternalLink } from "lucide-react";
 import { useInventoryPlatformData } from "@/hooks/useInventoryPlatformData";
 import { mapCatalogToUiItem } from "@/lib/inventory/inventory-presenters";
-import { DiagnosticsPreviewBanner } from "@/components/diagnostics/DiagnosticsPreviewBanner";
 import { DepartmentWorklistTable } from "@/components/diagnostics/DepartmentWorklistTable";
 import { WorklistStatusChip } from "@/components/diagnostics/WorklistStatusChip";
+import { pickPlatformRows } from "@/lib/platform/demo-fallback";
+import { PlatformEmptyState } from "@/components/platform/PlatformEmptyState";
 
 type DrugRow = {
   id: string;
@@ -32,8 +33,7 @@ export default function PharmacyDrugs() {
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
 
-  const drugs = useMemo((): DrugRow[] => {
-    if (!platformOn || catalog.length === 0) return DEMO_DRUGS;
+  const platformDrugs = useMemo((): DrugRow[] => {
     return catalog
       .filter(
         (item) =>
@@ -52,7 +52,12 @@ export default function PharmacyDrugs() {
           status: "Catalog",
         };
       });
-  }, [platformOn, catalog]);
+  }, [catalog]);
+
+  const drugs = useMemo(
+    () => pickPlatformRows(platformOn && catalog.length > 0, platformDrugs, DEMO_DRUGS),
+    [platformOn, catalog.length, platformDrugs],
+  );
 
   const categories = [...new Set(drugs.map((d) => d.category))];
 
@@ -128,7 +133,7 @@ export default function PharmacyDrugs() {
           <p className="text-muted-foreground text-sm">
             {platformOn
               ? "Pharmacy-relevant SKUs from platform inventory catalog"
-              : "Local demo formulary — enable platform runtime for live catalog"}
+              : "Enable platform runtime for live formulary catalog"}
           </p>
         </div>
         <Button variant="outline" size="sm" className="gap-1.5" asChild>
@@ -139,11 +144,8 @@ export default function PharmacyDrugs() {
         </Button>
       </div>
 
-      {!platformOn && (
-        <DiagnosticsPreviewBanner
-          title="Demo formulary"
-          description="Drug master writes are not available here. Manage items under Inventory → Catalog when domain-api inventory runtime is enabled."
-        />
+      {!platformOn && drugs.length === 0 && (
+        <PlatformEmptyState message="Drug catalog is empty. Enable platform runtime or VITE_ALLOW_DEMO_DATA for local preview rows." />
       )}
 
       <div className="flex flex-col sm:flex-row gap-3">

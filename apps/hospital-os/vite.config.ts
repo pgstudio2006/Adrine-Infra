@@ -18,6 +18,7 @@ export default defineConfig(({ mode }) => ({
         __dirname,
         '../../packages/hospital-operations/src/index.ts',
       ),
+      '@engines/packs': path.resolve(__dirname, '../../engines/packs/index.ts'),
     },
   },
 }));

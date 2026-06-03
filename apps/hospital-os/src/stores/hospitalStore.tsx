@@ -21,6 +21,7 @@ import {
   platformRegisterOpdPatient,
 } from '@/runtime/opd-runtime';
 import { platformSaveNavayuRegistration } from '@/lib/navayu/navayu-runtime';
+import { maybeCreateNavayuCrmLead } from '@/lib/navayu/navayu-crm';
 import type { NavayuRegistrationMetadata } from '@/lib/navayu/navayu-forms';
 import {
   canUseSchedulingRuntime,
@@ -397,6 +398,10 @@ export interface QueueEntry {
   /** ISO check-in / board createdAt for wait-time display */
   boardSinceAt?: string;
   waitMinutes?: number;
+  /** Branch scope from domain-api OPD visit */
+  branchId?: string;
+  /** Navayu MSK lifecycle state from visit metadata */
+  mskLifecycleState?: string;
 }
 
 export interface LabOrder {
@@ -1943,6 +1948,13 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
           if (navayuMeta?.hearAboutNavayu) {
             try {
               await platformSaveNavayuRegistration(platformVisitId, navayuMeta);
+              await maybeCreateNavayuCrmLead({
+                fullName: patient.name,
+                phone: patient.phone,
+                platformPatientId: patientId,
+                opdVisitId: platformVisitId,
+                metadata: navayuMeta,
+              });
             } catch {
               /* local visit metadata still available */
             }
@@ -2617,6 +2629,14 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
             platformWaiting && boardSinceAt
               ? Math.max(0, Math.round((Date.now() - Date.parse(boardSinceAt)) / 60_000))
               : prior?.waitMinutes;
+          const visitMeta =
+            v.metadata && typeof v.metadata === 'object' && !Array.isArray(v.metadata)
+              ? (v.metadata as Record<string, unknown>)
+              : {};
+          const mskLifecycleState =
+            typeof visitMeta.mskLifecycleState === 'string'
+              ? visitMeta.mskLifecycleState
+              : prior?.mskLifecycleState;
           return {
             tokenNo: v.tokenNumber ?? prior?.tokenNo ?? 0,
             uhid,
@@ -2632,6 +2652,8 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
             appointmentId: prior?.appointmentId,
             boardSinceAt,
             waitMinutes,
+            branchId: v.branchId,
+            mskLifecycleState,
           };
         });
         const noPlatformLocal = prev.filter(q => !q.platformOpdVisitId);
@@ -2749,10 +2771,18 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isPlatformAuthoritative()) return;
+    setPatients((prev) => prev.filter((p) => !!p.platformPatientId));
+    setQueue([]);
+    void refreshPatientsFromPlatform();
     void refreshDepartmentWorklistsFromPlatform();
     void refreshPlatformIpdSnapshots();
     void refreshQueueFromPlatform();
-  }, [refreshDepartmentWorklistsFromPlatform, refreshPlatformIpdSnapshots, refreshQueueFromPlatform]);
+  }, [
+    refreshPatientsFromPlatform,
+    refreshDepartmentWorklistsFromPlatform,
+    refreshPlatformIpdSnapshots,
+    refreshQueueFromPlatform,
+  ]);
 
   const nextQueuePatient = useCallback((doctor: string) => {
     let nextUhid: string | undefined;

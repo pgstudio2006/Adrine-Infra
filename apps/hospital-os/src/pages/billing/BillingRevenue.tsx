@@ -7,6 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TrendingUp, IndianRupee, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { allowDemoFallback } from "@/lib/platform/demo-fallback";
+import { PlatformEmptyState } from "@/components/platform/PlatformEmptyState";
 
 const dailyRevenue = [
   { date: "2026-03-08", opd: 125400, ipd: 98500, pharmacy: 87200, lab: 72300, radiology: 56800, procedures: 42150, total: 482350 },
@@ -36,34 +38,42 @@ export default function BillingRevenue() {
   const { data: live, platformOn } = useBillingRevenueData(30);
 
   const todayTotal = useMemo(() => {
-    if (!platformOn || !live?.daily?.length) return 482350;
-    const last = live.daily[live.daily.length - 1];
-    return last?.amount ?? 0;
+    if (platformOn && live?.daily?.length) {
+      const last = live.daily[live.daily.length - 1];
+      return last?.amount ?? 0;
+    }
+    return allowDemoFallback() ? 482350 : 0;
   }, [platformOn, live]);
 
   const deptRows = useMemo(() => {
-    if (!platformOn || !live?.revenueByModule?.length) return deptRevenue;
-    return live.revenueByModule.map((r) => ({
-      dept: r.module,
-      thisMonth: Math.round(r.amount),
-      lastMonth: 0,
-      change: 0,
-    }));
+    if (platformOn && live?.revenueByModule?.length) {
+      return live.revenueByModule.map((r) => ({
+        dept: r.module,
+        thisMonth: Math.round(r.amount),
+        lastMonth: 0,
+        change: 0,
+      }));
+    }
+    return allowDemoFallback() ? deptRevenue : [];
   }, [platformOn, live]);
 
   const dailyRows = useMemo(() => {
-    if (!platformOn || !live?.daily?.length) return dailyRevenue;
-    return live.daily.map((d) => ({
-      date: d.date,
-      opd: 0,
-      ipd: 0,
-      pharmacy: 0,
-      lab: 0,
-      radiology: 0,
-      procedures: 0,
-      total: d.amount,
-    }));
+    if (platformOn && live?.daily?.length) {
+      return live.daily.map((d) => ({
+        date: d.date,
+        opd: 0,
+        ipd: 0,
+        pharmacy: 0,
+        lab: 0,
+        radiology: 0,
+        procedures: 0,
+        total: d.amount,
+      }));
+    }
+    return allowDemoFallback() ? dailyRevenue : [];
   }, [platformOn, live]);
+
+  const monthlyRows = allowDemoFallback() ? monthlyTotals : [];
 
   return (
     <BillingDeptShell
@@ -84,9 +94,9 @@ export default function BillingRevenue() {
       {/* Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Latest day revenue</p><p className="text-2xl font-bold text-foreground mt-1">₹{todayTotal.toLocaleString()}</p>{platformOn && <p className="text-xs text-muted-foreground mt-1">From domain-api settlements</p>}</CardContent></Card>
-        <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Period total</p><p className="text-2xl font-bold text-foreground mt-1">₹{((live?.summary?.totalRevenueCents ?? 0) / 100).toLocaleString()}</p><p className="text-xs text-muted-foreground mt-1">{platformOn ? `${live?.summary?.settledInvoiceCount ?? 0} settled invoices` : 'Local demo'}</p></CardContent></Card>
-        <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Monthly Target</p><p className="text-2xl font-bold text-foreground mt-1">₹1,30,00,000</p><div className="h-2 bg-muted rounded-full mt-2 overflow-hidden"><div className="h-full bg-primary rounded-full" style={{ width: "17.6%" }} /></div><p className="text-xs text-muted-foreground mt-1">17.6% achieved</p></CardContent></Card>
-        <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Profit Margin</p><p className="text-2xl font-bold text-foreground mt-1">19.0%</p><div className="flex items-center gap-1 text-xs text-green-600 mt-1"><ArrowUpRight className="h-3 w-3" /> +0.8% vs last month</div></CardContent></Card>
+        <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Period total</p><p className="text-2xl font-bold text-foreground mt-1">₹{((live?.summary?.totalRevenueCents ?? 0) / 100).toLocaleString()}</p><p className="text-xs text-muted-foreground mt-1">{platformOn ? `${live?.summary?.settledInvoiceCount ?? 0} settled invoices` : 'No platform data'}</p></CardContent></Card>
+        <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Monthly Target</p><p className="text-2xl font-bold text-foreground mt-1">{allowDemoFallback() ? '₹1,30,00,000' : '—'}</p>{allowDemoFallback() && <div className="h-2 bg-muted rounded-full mt-2 overflow-hidden"><div className="h-full bg-primary rounded-full" style={{ width: "17.6%" }} /></div>}<p className="text-xs text-muted-foreground mt-1">{allowDemoFallback() ? '17.6% achieved' : 'Targets not configured'}</p></CardContent></Card>
+        <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Profit Margin</p><p className="text-2xl font-bold text-foreground mt-1">{allowDemoFallback() ? '19.0%' : '—'}</p>{allowDemoFallback() && <div className="flex items-center gap-1 text-xs text-green-600 mt-1"><ArrowUpRight className="h-3 w-3" /> +0.8% vs last month</div>}</CardContent></Card>
       </div>
 
       <Tabs defaultValue="breakdown">
@@ -100,6 +110,9 @@ export default function BillingRevenue() {
           <Card>
             <CardHeader><CardTitle className="text-lg">Revenue by Department</CardTitle></CardHeader>
             <CardContent>
+              {deptRows.length === 0 ? (
+                <PlatformEmptyState message="Department revenue breakdown requires platform billing analytics." />
+              ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -125,6 +138,7 @@ export default function BillingRevenue() {
                   ))}
                 </TableBody>
               </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -133,6 +147,9 @@ export default function BillingRevenue() {
           <Card>
             <CardHeader><CardTitle className="text-lg">Daily Revenue</CardTitle></CardHeader>
             <CardContent>
+              {dailyRows.length === 0 ? (
+                <PlatformEmptyState message="Daily revenue trend appears when platform finance APIs return settlement data." />
+              ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -161,6 +178,7 @@ export default function BillingRevenue() {
                   ))}
                 </TableBody>
               </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -169,6 +187,9 @@ export default function BillingRevenue() {
           <Card>
             <CardHeader><CardTitle className="text-lg">Monthly Financial Summary</CardTitle></CardHeader>
             <CardContent>
+              {monthlyRows.length === 0 ? (
+                <PlatformEmptyState message="Monthly summaries are not wired to platform analytics yet." />
+              ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -180,7 +201,7 @@ export default function BillingRevenue() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {monthlyTotals.map(m => (
+                  {monthlyRows.map(m => (
                     <TableRow key={m.month}>
                       <TableCell className="font-medium">{m.month}</TableCell>
                       <TableCell>₹{m.revenue.toLocaleString()}</TableCell>
@@ -191,6 +212,7 @@ export default function BillingRevenue() {
                   ))}
                 </TableBody>
               </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

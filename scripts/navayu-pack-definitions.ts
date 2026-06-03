@@ -118,7 +118,7 @@ const GURGAON_NURSE_TABS = [
 
 const GURGAON_CRM_TABS = allTabKeys('crm_manager');
 
-const GURGAON_COUNSELLOR_BILLING_TABS = ['dashboard', 'packages', 'revenue'];
+const GURGAON_COUNSELLOR_BILLING_TABS = ['dashboard', 'packages', 'counselling', 'revenue'];
 
 const PATAUDI_ADMIN_TABS = [
   'dashboard',

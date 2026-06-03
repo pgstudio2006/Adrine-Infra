@@ -136,6 +136,8 @@ model PlatformUser {
 
   role      String
 
+  departmentCode String? @map("department_code")
+
   passwordHash String? @map("password_hash")
 
   isActive  Boolean  @default(true) @map("is_active")

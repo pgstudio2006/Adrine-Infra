@@ -6,6 +6,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { hashPassword, verifyPassword } from './password.util';
+import { loadPublicBookingConfig } from './public-booking-config';
 import { resolveTenantIdFromSlug } from './tenant-slugs';
 
 export type DevLoginInput = {
@@ -46,8 +47,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    let branchId = input.branchId ?? user.branchId;
+    let branchId = user.branchId;
     if (input.branchId && input.branchId !== user.branchId) {
+      if (user.role !== 'admin') {
+        throw new UnauthorizedException('You are not assigned to this branch');
+      }
       const branch = await this.prisma.branch.findFirst({
         where: { tenantId, id: input.branchId, isActive: true },
       });
@@ -122,6 +126,14 @@ export class AuthService {
     }));
   }
 
+  getPublicBookingConfig(slug: string) {
+    const config = loadPublicBookingConfig(slug);
+    if (!config) {
+      throw new UnauthorizedException('Unknown tenant slug or booking config');
+    }
+    return config;
+  }
+
   resolveTenantSlug(slug: string): string | undefined {
     return resolveTenantIdFromSlug(slug);
   }
@@ -142,7 +154,14 @@ export class AuthService {
   }
 
   private async issueSession(
-    user: { id: string; email: string; fullName: string; role: string; branchId: string },
+    user: {
+      id: string;
+      email: string;
+      fullName: string;
+      role: string;
+      branchId: string;
+      departmentCode?: string | null;
+    },
     tenantId: string,
     branchId: string,
   ) {
@@ -153,6 +172,7 @@ export class AuthService {
       role: user.role,
       tenantId,
       branchId,
+      ...(user.departmentCode ? { department: user.departmentCode } : {}),
     };
 
     const session = await this.prisma.userSession.create({

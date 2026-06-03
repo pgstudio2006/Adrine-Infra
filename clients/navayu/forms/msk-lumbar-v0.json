@@ -2,13 +2,14 @@
   "formId": "navayu.exam.lumbar",
   "version": "v0",
   "label": "Navayu Lumbar MSK Exam",
+  "workflowStep": "associate_eval",
   "sections": [
     {
       "id": "scores",
       "label": "Scores",
       "fields": [
-        { "id": "odi", "type": "number", "label": "ODI (%)", "min": 0, "max": 100 },
-        { "id": "vas", "type": "number", "label": "VAS (0–10)", "min": 0, "max": 10 }
+        { "id": "odi", "type": "calculator", "calculatorId": "odi", "label": "ODI" },
+        { "id": "vas", "type": "calculator", "calculatorId": "vas", "label": "VAS" }
       ]
     },
     {

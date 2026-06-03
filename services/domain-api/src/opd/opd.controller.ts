@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Headers, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiHeader, ApiTags } from '@nestjs/swagger';
-import { OpdService, type OpdTransitionBody } from './opd.service';
+import { OpdService, type MskTransitionBody, type OpdTransitionBody } from './opd.service';
 
 @ApiTags('opd')
 @Controller('opd')
@@ -97,5 +97,49 @@ export class OpdController {
     @Body() body: Record<string, unknown>,
   ) {
     return this.opd.patchVisitMetadata(tenantId ?? 'tenant_dev', id, body);
+  }
+
+  @Post('visits/:id/investigations/upload')
+  uploadInvestigation(
+    @Headers('x-tenant-id') tenantId: string,
+    @Param('id') id: string,
+    @Body()
+    body: {
+      fieldId: string;
+      fileName: string;
+      mimeType: string;
+      sizeBytes: number;
+      dataBase64?: string;
+    },
+  ) {
+    return this.opd.uploadInvestigation(tenantId ?? 'tenant_dev', id, body);
+  }
+
+  @Post('visits/:id/ai-summary')
+  aiSummary(
+    @Headers('x-tenant-id') tenantId: string,
+    @Param('id') id: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.opd.generateNavayuAiSummary(tenantId ?? 'tenant_dev', id, body);
+  }
+
+  /** Navayu MSK workflow — governed transitions (navayu_msk_visit lifecycle). */
+  @Post('visits/:id/msk/transition')
+  mskTransition(
+    @Headers('x-tenant-id') tenantId: string,
+    @Param('id') id: string,
+    @Body() body: MskTransitionBody,
+  ) {
+    return this.opd.transitionMsk(tenantId ?? 'tenant_dev', id, body);
+  }
+
+  @Get('visits/:id/msk/allowed-actions')
+  mskAllowed(
+    @Headers('x-tenant-id') tenantId: string,
+    @Param('id') id: string,
+    @Headers('x-actor-role') actorRole: string | undefined,
+  ) {
+    return this.opd.listMskAllowedActions(tenantId ?? 'tenant_dev', id, actorRole ?? 'receptionist');
   }
 }

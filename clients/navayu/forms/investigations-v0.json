@@ -1,0 +1,30 @@
+{
+  "formId": "navayu.investigations",
+  "version": "v0",
+  "label": "Navayu Investigations Upload",
+  "workflowStep": "msk_exam_complete",
+  "sections": [
+    {
+      "id": "imaging",
+      "label": "Imaging",
+      "fields": [
+        { "id": "mriUpload", "type": "file", "label": "MRI report / images", "accept": "image/*,.pdf" },
+        { "id": "xrayUpload", "type": "file", "label": "X-ray", "accept": "image/*,.pdf" }
+      ]
+    },
+    {
+      "id": "labs",
+      "label": "Laboratory",
+      "fields": [
+        { "id": "bloodUpload", "type": "file", "label": "Blood work / prior labs", "accept": ".pdf,image/*" }
+      ]
+    },
+    {
+      "id": "notes",
+      "label": "Summary",
+      "fields": [
+        { "id": "investigationNotes", "type": "text", "label": "Key findings (free text)" }
+      ]
+    }
+  ]
+}

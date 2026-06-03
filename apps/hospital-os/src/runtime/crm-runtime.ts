@@ -26,6 +26,7 @@ export type PlatformCrmLead = {
   status: string;
   notes?: string | null;
   patientId?: string | null;
+  opdVisitId?: string | null;
   patient?: { id: string; fullName: string; mrn?: string | null };
 };
 
@@ -77,11 +78,22 @@ export async function platformCreateCrmLead(
     stage?: string;
     status?: string;
     priority?: string;
+    opdVisitId?: string;
   },
   branchId?: string,
 ): Promise<PlatformCrmLead> {
   return platformFetch<PlatformCrmLead>(domainBase()!, `/crm/leads?${branchQuery(branchId)}`, {
     method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function platformUpdateCrmLead(
+  id: string,
+  body: Partial<Pick<PlatformCrmLead, 'stage' | 'status' | 'ownerLabel' | 'priority' | 'notes' | 'patientId' | 'opdVisitId'>>,
+): Promise<PlatformCrmLead> {
+  return platformFetch<PlatformCrmLead>(domainBase()!, `/crm/leads/${id}`, {
+    method: 'PATCH',
     body: JSON.stringify(body),
   });
 }

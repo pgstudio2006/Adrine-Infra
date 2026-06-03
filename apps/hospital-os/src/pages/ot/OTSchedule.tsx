@@ -32,6 +32,7 @@ import {
   Scissors, AlertTriangle, ChevronLeft, ChevronRight, RefreshCw
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { pickPlatformRows } from '@/lib/platform/demo-fallback';
 
 type Priority = 'elective' | 'urgent' | 'emergency';
 type SurgeryStatus = 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
@@ -95,7 +96,7 @@ export default function OTSchedule() {
   const [syncBilling, setSyncBilling] = useState(false);
   const { platformOn, loading, cases, error, refresh } = useOtPlatformData();
   const surgeries = useMemo(
-    () => (platformOn ? cases.map(mapOtCaseToScheduleRow) : DEMO_SURGERIES),
+    () => pickPlatformRows(platformOn, cases.map(mapOtCaseToScheduleRow), DEMO_SURGERIES),
     [platformOn, cases],
   );
 

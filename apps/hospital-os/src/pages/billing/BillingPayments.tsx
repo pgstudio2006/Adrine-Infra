@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Search, Plus, Eye, IndianRupee, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { pickPlatformRows } from "@/lib/platform/demo-fallback";
 
 interface Payment {
   id: string;
@@ -70,7 +71,7 @@ export default function BillingPayments() {
   const [payMode, setPayMode] = useState<PaymentMode>("cash");
 
   const payments: Payment[] = useMemo(
-    () => (platformOn ? storePayments : DEMO_PAYMENTS),
+    () => pickPlatformRows(platformOn, storePayments, DEMO_PAYMENTS),
     [platformOn, storePayments],
   );
 

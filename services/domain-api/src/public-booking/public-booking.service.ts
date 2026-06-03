@@ -8,6 +8,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { SchedulingService } from '../scheduling/scheduling.service';
 import { EventBusService } from '../events/event-bus.service';
+import { readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { NAVAYU_BRANCH_CODES, resolveTenantIdFromSlug } from './tenant-slugs';
 
 const SLOT_MINUTES = 30;
@@ -46,6 +48,15 @@ export class PublicBookingService {
       throw new NotFoundException(`Unknown booking tenant slug: ${slug}`);
     }
     return tenantId;
+  }
+
+  getBookingConfig(tenantSlug: string) {
+    const tenantId = this.resolveTenant(tenantSlug);
+    const config = loadClientPublicBookingConfig(tenantSlug);
+    if (!config) {
+      throw new NotFoundException(`No public booking config for slug: ${tenantSlug}`);
+    }
+    return { tenantId, ...config };
   }
 
   async listSlots(tenantSlug: string, branchCode: string, date: string, clientKey: string) {
@@ -131,8 +142,22 @@ export class PublicBookingService {
 
     const phone = body.phone.trim();
     const patientName = body.patientName.trim();
+    const serviceType = body.serviceType.trim();
     if (!phone || !patientName) {
       throw new BadRequestException('patientName and phone are required');
+    }
+    if (!serviceType) {
+      throw new BadRequestException('serviceType is required');
+    }
+
+    const bookingConfig = loadClientPublicBookingConfig(tenantSlug);
+    if (bookingConfig) {
+      const allowed = (bookingConfig.serviceTypes as Array<{ label: string; branchCodes: string[] }>).filter(
+        (s) => s.branchCodes.includes(body.branchCode),
+      );
+      if (allowed.length > 0 && !allowed.some((s) => s.label === serviceType)) {
+        throw new BadRequestException('Invalid serviceType for this branch');
+      }
     }
 
     let patient = await this.prisma.patient.findFirst({
@@ -158,7 +183,7 @@ export class PublicBookingService {
       });
     }
 
-    const resourceLabel = `[${body.branchCode}] ${body.serviceType.trim() || 'Consultation'}`;
+    const resourceLabel = `[${body.branchCode}] ${serviceType}`;
 
     const conflict = await this.prisma.appointment.findFirst({
       where: {
@@ -204,4 +229,22 @@ export class PublicBookingService {
       );
     }
   }
+}
+
+function repoRoot(): string {
+  const cwd = process.cwd();
+  if (existsSync(join(cwd, 'clients', 'navayu', 'public-booking-config.json'))) {
+    return cwd;
+  }
+  if (existsSync(join(cwd, '..', '..', 'clients', 'navayu', 'public-booking-config.json'))) {
+    return join(cwd, '..', '..');
+  }
+  return cwd;
+}
+
+function loadClientPublicBookingConfig(slug: string): Record<string, unknown> | undefined {
+  if (slug.toLowerCase() !== 'navayu') return undefined;
+  const path = join(repoRoot(), 'clients', 'navayu', 'public-booking-config.json');
+  if (!existsSync(path)) return undefined;
+  return JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
 }

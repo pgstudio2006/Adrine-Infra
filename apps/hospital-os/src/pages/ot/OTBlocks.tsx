@@ -13,6 +13,7 @@ import {
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { OperationsModulePage } from '@/components/operations/OperationsModulePage';
+import { allowDemoFallback } from '@/lib/platform/demo-fallback';
 
 interface BlockSchedule {
   id: string;
@@ -45,7 +46,9 @@ const item = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transiti
 
 export default function OTBlocks() {
   const [selectedDay, setSelectedDay] = useState<string>('All');
-  const [blocks, setBlocks] = useState(DEMO_BLOCKS);
+  const [blocks, setBlocks] = useState<BlockSchedule[]>(() =>
+    allowDemoFallback() ? DEMO_BLOCKS : [],
+  );
 
   const filtered = useMemo(() => {
     return selectedDay === 'All' ? blocks : blocks.filter(b => b.dayOfWeek === selectedDay);

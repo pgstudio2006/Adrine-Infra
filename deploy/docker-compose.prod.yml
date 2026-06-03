@@ -90,15 +90,35 @@ services:
   hospital-os:
     profiles: ['frontend']
     build:
-      context: ../apps/hospital-os
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: apps/hospital-os/Dockerfile
       args:
         VITE_PLATFORM_RUNTIME: ${VITE_PLATFORM_RUNTIME:-true}
         VITE_KERNEL_API_URL: ${VITE_KERNEL_API_URL:-http://localhost:3001}
         VITE_DOMAIN_API_URL: ${VITE_DOMAIN_API_URL:-http://localhost:3002}
+        VITE_PATIENT_APP_URL: ${VITE_PATIENT_APP_URL:-http://localhost:3101}
     restart: unless-stopped
     ports:
       - '${HOSPITAL_OS_PORT:-8080}:80'
+    depends_on:
+      - kernel-api
+      - domain-api
+    networks:
+      - adrine_internal
+
+  patient-app:
+    profiles: ['frontend']
+    build:
+      context: ..
+      dockerfile: apps/patient-app/Dockerfile
+      args:
+        NEXT_PUBLIC_PLATFORM_RUNTIME: ${NEXT_PUBLIC_PLATFORM_RUNTIME:-true}
+        NEXT_PUBLIC_KERNEL_API_URL: ${NEXT_PUBLIC_KERNEL_API_URL:-http://localhost:3001}
+        NEXT_PUBLIC_DOMAIN_API_URL: ${NEXT_PUBLIC_DOMAIN_API_URL:-http://localhost:3002}
+        NEXT_PUBLIC_DEV_TENANT_ID: ${NEXT_PUBLIC_DEV_TENANT_ID:-tenant_navayu}
+    restart: unless-stopped
+    ports:
+      - '${PATIENT_APP_PORT:-3101}:3000'
     depends_on:
       - kernel-api
       - domain-api

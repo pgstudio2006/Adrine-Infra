@@ -3,6 +3,7 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  Headers,
   Param,
   Post,
   Query,
@@ -26,6 +27,7 @@ export class AuthController {
 
   @Post('login')
   login(
+    @Headers('x-tenant-id') headerTenantId: string | undefined,
     @Body()
     body: {
       email: string;
@@ -34,7 +36,12 @@ export class AuthController {
       branchId?: string;
     },
   ) {
-    return this.auth.login(body);
+    const tenantId =
+      body.tenantId?.trim() ||
+      headerTenantId?.trim() ||
+      process.env.NAVAYU_DEFAULT_TENANT_ID ||
+      'tenant_navayu';
+    return this.auth.login({ ...body, tenantId });
   }
 
   @Post('dev-login')
@@ -109,5 +116,10 @@ export class PublicTenantController {
   @Get(':slug/branches')
   branchesBySlug(@Param('slug') slug: string) {
     return this.auth.listBranchesForSlug(slug);
+  }
+
+  @Get(':slug/booking-config')
+  bookingConfigBySlug(@Param('slug') slug: string) {
+    return this.auth.getPublicBookingConfig(slug);
   }
 }

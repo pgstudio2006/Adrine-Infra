@@ -40,6 +40,7 @@ import { OtModule } from './ot/ot.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { DialysisModule } from './dialysis/dialysis.module';
 import { PublicBookingModule } from './public-booking/public-booking.module';
+import { NavayuModule } from './navayu/navayu.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { PublicBookingModule } from './public-booking/public-booking.module';
     EmrModule,
     SchedulingModule,
     PublicBookingModule,
+    NavayuModule,
     CrmModule,
     BillingModule,
     OpdModule,

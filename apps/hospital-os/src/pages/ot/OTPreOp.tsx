@@ -14,6 +14,7 @@ import { useOtPlatformData } from '@/hooks/useOtPlatformData';
 import { useAuth } from '@/contexts/AuthContext';
 import { platformOtTransition } from '@/runtime/ot-runtime';
 import { guardOtTransition } from '@/operations/ot-inventory-dialysis-guards';
+import { allowDemoFallback, pickPlatformRows } from '@/lib/platform/demo-fallback';
 
 interface PreOpCase {
   id: string;
@@ -99,8 +100,7 @@ export default function OTPreOp() {
   }, [platformOn, cases]);
 
   const preOpCases: PreOpCase[] = useMemo(() => {
-    if (platformOn) {
-      return platformPreOpCases.map((c) => ({
+    return pickPlatformRows(platformOn && platformPreOpCases.length > 0, platformPreOpCases.map((c) => ({
         id: c.id,
         patient: c.patient?.fullName ?? '—',
         uhid: c.patient?.mrn ?? c.id,
@@ -111,13 +111,11 @@ export default function OTPreOp() {
           : '—',
         room: c.otRoom?.code ?? 'TBD',
         checklist: { consent: false, labResults: false, imaging: false, fasting: false, preOpEval: false, bloodReserve: false, markingSite: false, ivAccess: false },
-        whoPhase: c.state === 'preop_ready' ? 'sign_in' : 'pending',
+        whoPhase: c.state === 'preop_ready' ? 'sign_in' as const : 'pending' as const,
         anesthesiaClearance: false,
         allergies: [],
         bloodGroup: '—',
-      }));
-    }
-    return DEMO_CASES_PREOP;
+      })), DEMO_CASES_PREOP);
   }, [platformOn, platformPreOpCases]);
 
   const activeCase = useMemo(() => {

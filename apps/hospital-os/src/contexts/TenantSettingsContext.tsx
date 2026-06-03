@@ -15,9 +15,11 @@ import {
 } from '@/config/tenantSettings';
 import { TenantSettingsContext, TenantSettingsContextType } from '@/contexts/tenantSettingsStore';
 import { getCounsellorCrmTabs, getEffectiveTabVisibility, NavUserContext, resolveNavProfile } from '@/config/routeAccess';
+import { isNavRouteVisible } from '@/config/nav-visibility';
 import { getServerTenantSettings, loadBranchConfig } from '@/runtime/branch-config';
 import { getPlatformSession, isPlatformRuntimeEnabled } from '@/runtime/platform-session';
 import { UserRole } from '@/types/roles';
+import { listEnabledRoles } from '@engines/packs';
 
 const STORAGE_KEY = 'adrine_tenant_settings';
 
@@ -136,15 +138,11 @@ export function TenantSettingsProvider({ children }: { children: React.ReactNode
   }
 
   function getAvailableRoles() {
-    return (Object.keys(settings.roles) as UserRole[]).filter((role) => {
-      if (!settings.roles[role].enabled) {
-        return false;
-      }
-
+    const enabled = listEnabledRoles(settings) as UserRole[];
+    return enabled.filter((role) => {
       if (role === 'crm_manager' && !settings.featureFlags.patientRelationsEnabled) {
         return false;
       }
-
       return true;
     });
   }
@@ -169,6 +167,10 @@ export function TenantSettingsProvider({ children }: { children: React.ReactNode
 
     const visibleTabs = roleTabs
       .filter((tab) => {
+        if (!isNavRouteVisible(tab.path)) {
+          return false;
+        }
+
         if (!getEffectiveTabVisibility(settings, role, tab.key, ctx)) {
           return false;
         }
@@ -202,6 +204,9 @@ export function TenantSettingsProvider({ children }: { children: React.ReactNode
 
     const seen = new Set<string>();
     return [...visibleTabs, ...crmExtras].filter((tab) => {
+      if (!isNavRouteVisible(tab.path)) {
+        return false;
+      }
       if (seen.has(tab.path)) {
         return false;
       }

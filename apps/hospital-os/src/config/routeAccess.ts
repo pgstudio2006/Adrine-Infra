@@ -1,4 +1,5 @@
 import { ROLE_BASE_PATH, ROLE_TABS, RoleTab } from '@/config/roleNavigation';
+import { isNavRouteVisible } from '@/config/nav-visibility';
 import { NavProfile, NavProfileMatch, TenantSettings } from '@/config/tenantSettings';
 import { UserRole } from '@/types/roles';
 
@@ -119,6 +120,10 @@ export function canAccessRoute(
   const normalized = normalizePath(path);
   if (PUBLIC_PATHS.has(normalized)) {
     return true;
+  }
+
+  if (!isNavRouteVisible(normalized)) {
+    return false;
   }
 
   if (!settings.roles[ctx.role]?.enabled) {

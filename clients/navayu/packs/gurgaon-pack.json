@@ -414,6 +414,9 @@
       "packages": {
         "visible": true
       },
+      "counselling": {
+        "visible": true
+      },
       "health-plans": {
         "visible": false
       },
@@ -789,6 +792,9 @@
             "visible": false
           },
           "packages": {
+            "visible": true
+          },
+          "counselling": {
             "visible": true
           },
           "health-plans": {

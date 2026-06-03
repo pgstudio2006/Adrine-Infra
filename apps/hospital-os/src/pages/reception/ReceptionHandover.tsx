@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { allowDemoFallback } from '@/lib/platform/demo-fallback';
+import { PlatformEmptyState } from '@/components/platform/PlatformEmptyState';
 
 interface HandoverNote {
   id: string;
@@ -73,7 +75,9 @@ export default function ReceptionHandover() {
   useHospital();
   useClinicalPlatformListSync({ queue: false, patients: false, appointments: false, departmentWorklists: false, ipd: false });
 
-  const [handovers, setHandovers] = useState<HandoverNote[]>(DEMO_HANDOVERS);
+  const [handovers, setHandovers] = useState<HandoverNote[]>(() =>
+    allowDemoFallback() ? DEMO_HANDOVERS : [],
+  );
   const [filter, setFilter] = useState<ShiftFilter>('all');
 
   // Form state

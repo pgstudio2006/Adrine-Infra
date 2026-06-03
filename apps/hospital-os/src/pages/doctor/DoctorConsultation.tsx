@@ -22,23 +22,35 @@ import { useConsultationBlockers } from '@/hooks/useConsultationBlockers';
 import { useOperationalRouteGuard } from '@/hooks/useOperationalRouteGuard';
 import { formatWaitMinutes } from '@/lib/opd/queue-presenters';
 import { NavayuIntakePanel } from '@/components/navayu/NavayuIntakePanel';
-import { NavayuLumbarMskForm } from '@/components/navayu/NavayuLumbarMskForm';
+import { NavayuSeniorReviewForm } from '@/components/navayu/NavayuSeniorReviewForm';
 import { NavayuAiSummaryPanel } from '@/components/navayu/NavayuAiSummaryPanel';
+import { NavayuMskWorkflowStrip } from '@/components/navayu/NavayuMskWorkflowStrip';
+import { NavayuMskExamPanel } from '@/components/navayu/NavayuMskExamPanel';
+import { NavayuInvestigationsPanel } from '@/components/navayu/NavayuInvestigationsPanel';
+import { NavayuProtocolMapPanel } from '@/components/navayu/NavayuProtocolMapPanel';
 import {
   isNavayuTenant,
   isNavayuSeniorDoctor,
   loadNavayuLumbarExam,
+  loadNavayuSeniorReview,
   loadNavayuVisitMetadata,
   saveNavayuLumbarExam,
+  saveNavayuSeniorReview,
+  type NavayuFormValues,
   type NavayuLumbarExamData,
+  type NavayuProtocolMapData,
   type NavayuRegistrationMetadata,
+  type NavayuSeniorReviewData,
 } from '@/lib/navayu/navayu-forms';
 import {
   canUseNavayuRuntime,
   MSK_STATE_LABELS,
   platformAdvanceMskState,
   platformLoadNavayuVisitBundle,
-  platformSaveNavayuLumbarExam,
+  platformSaveNavayuMskExams,
+  platformSaveNavayuInvestigations,
+  platformHandoffProtocolToCounsellor,
+  platformSaveNavayuSeniorReview,
   type NavayuIntakeData,
   type NavayuVisitBundle,
 } from '@/lib/navayu/navayu-runtime';
@@ -238,11 +250,21 @@ export default function DoctorConsultation() {
   const [navayuLumbarExam, setNavayuLumbarExam] = useState<NavayuLumbarExamData>(() =>
     patientId ? loadNavayuLumbarExam(patientId) : {},
   );
+  const [navayuSeniorReview, setNavayuSeniorReview] = useState<NavayuSeniorReviewData>(() =>
+    patientId ? loadNavayuSeniorReview(patientId) : {},
+  );
   const [navayuBundle, setNavayuBundle] = useState<NavayuVisitBundle>({});
+  const [navayuMskExams, setNavayuMskExams] = useState<Record<string, NavayuFormValues>>({});
+  const [navayuInvestigations, setNavayuInvestigations] = useState<NavayuFormValues>({});
+  const [navayuProtocolMap, setNavayuProtocolMap] = useState<NavayuProtocolMapData>({
+    protocolId: '',
+    stageId: '',
+  });
 
   useEffect(() => {
     if (!patientId) return;
     setNavayuLumbarExam(loadNavayuLumbarExam(patientId));
+    setNavayuSeniorReview(loadNavayuSeniorReview(patientId));
 
     const localReg =
       (patient?.visitMetadata?.navayu as NavayuRegistrationMetadata | undefined) ??
@@ -259,10 +281,25 @@ export default function DoctorConsultation() {
           registration: bundle.registration ?? localReg,
           intake: bundle.intake,
           lumbarExam: bundle.lumbarExam,
+          mskExams: bundle.mskExams,
+          investigations: bundle.investigations,
+          protocolMap: bundle.protocolMap,
           mskLifecycleState: bundle.mskLifecycleState,
         });
+        if (bundle.mskExams && Object.keys(bundle.mskExams).length > 0) {
+          setNavayuMskExams(bundle.mskExams);
+        }
         if (bundle.lumbarExam && Object.keys(bundle.lumbarExam).length > 0) {
           setNavayuLumbarExam(bundle.lumbarExam);
+          setNavayuMskExams((prev) => ({
+            ...prev,
+            'navayu.exam.lumbar': bundle.lumbarExam as NavayuFormValues,
+          }));
+        }
+        if (bundle.investigations) setNavayuInvestigations(bundle.investigations);
+        if (bundle.protocolMap) setNavayuProtocolMap(bundle.protocolMap);
+        if (bundle.seniorReview && Object.keys(bundle.seniorReview).length > 0) {
+          setNavayuSeniorReview(bundle.seniorReview);
         }
       });
     } else {
@@ -270,13 +307,51 @@ export default function DoctorConsultation() {
     }
   }, [patientId, opdVisitId, patient?.visitMetadata]);
 
-  const handleNavayuLumbarChange = (next: NavayuLumbarExamData) => {
-    setNavayuLumbarExam(next);
-    if (patientId) {
-      saveNavayuLumbarExam(patientId, next);
+  const handleNavayuMskExamChange = (formId: string, values: NavayuFormValues) => {
+    const nextExams = { ...navayuMskExams, [formId]: values };
+    setNavayuMskExams(nextExams);
+    if (formId === 'navayu.exam.lumbar') {
+      const lumbar = values as NavayuLumbarExamData;
+      setNavayuLumbarExam(lumbar);
+      if (patientId) saveNavayuLumbarExam(patientId, lumbar);
     }
     if (opdVisitId && canUseNavayuRuntime()) {
-      void platformSaveNavayuLumbarExam(opdVisitId, next, navayuSenior ? 'ai_summary_ready' : 'associate_eval');
+      void platformSaveNavayuMskExams(opdVisitId, nextExams, navayuSenior).then((state) => {
+        setNavayuBundle((prev) => ({
+          ...prev,
+          mskLifecycleState: state,
+          mskExams: nextExams,
+          lumbarExam: (nextExams['navayu.exam.lumbar'] as NavayuLumbarExamData) ?? prev.lumbarExam,
+        }));
+      });
+    }
+  };
+
+  const handleNavayuInvestigationsChange = (next: NavayuFormValues) => {
+    setNavayuInvestigations(next);
+    if (opdVisitId && canUseNavayuRuntime()) {
+      void platformSaveNavayuInvestigations(opdVisitId, next);
+    }
+  };
+
+  const handleNavayuProtocolChange = (next: NavayuProtocolMapData) => {
+    setNavayuProtocolMap(next);
+    if (opdVisitId && canUseNavayuRuntime() && next.protocolId && next.stageId) {
+      void platformHandoffProtocolToCounsellor(opdVisitId, next).then((mskState) => {
+        setNavayuBundle((prev) => ({ ...prev, protocolMap: next, mskLifecycleState: mskState }));
+      });
+    }
+  };
+
+  const handleNavayuSeniorReviewChange = (next: NavayuSeniorReviewData) => {
+    setNavayuSeniorReview(next);
+    if (patientId) {
+      saveNavayuSeniorReview(patientId, next);
+    }
+    if (opdVisitId && canUseNavayuRuntime()) {
+      void platformSaveNavayuSeniorReview(opdVisitId, next).then(() => {
+        setNavayuBundle((prev) => ({ ...prev, seniorReview: next, mskLifecycleState: 'senior_consult' }));
+      });
     }
   };
 
@@ -377,10 +452,12 @@ export default function DoctorConsultation() {
       consultationFee: 800,
     });
     if (ok && navayuMode && opdVisitId && canUseNavayuRuntime()) {
-      void platformAdvanceMskState(
-        opdVisitId,
-        navayuSenior ? 'senior_consult' : 'msk_exam_complete',
-      );
+      if (navayuSenior) {
+        void platformSaveNavayuSeniorReview(opdVisitId, navayuSeniorReview);
+        void platformAdvanceMskState(opdVisitId, 'navayu_classified');
+      } else if (navayuBundle.mskLifecycleState !== 'ai_summary_ready') {
+        void platformAdvanceMskState(opdVisitId, 'msk_exam_complete');
+      }
     }
     if (ok) navigate(-1);
   };
@@ -508,7 +585,18 @@ export default function DoctorConsultation() {
               <ConsultationVitals vitals={vitals} onChange={setVitals} />
               <ConsultationComplaints complaints={complaints} onChange={setComplaints} hpiNotes={hpiNotes} onHPIChange={setHpiNotes} />
               {navayuMode && !navayuSenior ? (
-                <NavayuLumbarMskForm value={navayuLumbarExam} onChange={handleNavayuLumbarChange} />
+                <>
+                  <NavayuMskExamPanel
+                    bodyRegions={navayuRegistration?.bodyRegions ?? ['back']}
+                    examsByFormId={navayuMskExams}
+                    onExamChange={handleNavayuMskExamChange}
+                  />
+                  <NavayuInvestigationsPanel
+                    visitId={opdVisitId}
+                    value={navayuInvestigations}
+                    onChange={handleNavayuInvestigationsChange}
+                  />
+                </>
               ) : (
                 <>
                   <ConsultationExamination findings={examFindings} onChange={setExamFindings} />
@@ -542,12 +630,37 @@ export default function DoctorConsultation() {
         {/* Right Column */}
         <motion.div {...fadeIn(3)} className="max-h-[calc(100vh-200px)] overflow-y-auto pr-1 space-y-3">
           {navayuMode ? (
-            <NavayuAiSummaryPanel
-              seniorQueue={navayuSenior}
-              registration={navayuRegistration}
-              intake={navayuIntake}
-              lumbarExam={navayuLumbarExam}
-            />
+            <>
+              <NavayuAiSummaryPanel
+                visitId={opdVisitId}
+                seniorQueue={navayuSenior}
+                registration={navayuRegistration}
+                intake={navayuIntake}
+                lumbarExam={navayuLumbarExam}
+              />
+              {navayuSenior ? (
+                <>
+                  <NavayuSeniorReviewForm
+                    value={navayuSeniorReview}
+                    onChange={handleNavayuSeniorReviewChange}
+                  />
+                  <NavayuProtocolMapPanel value={navayuProtocolMap} onChange={handleNavayuProtocolChange} />
+                  {navayuBundle.mskLifecycleState === 'protocol_mapped' &&
+                  navayuProtocolMap.protocolId &&
+                  navayuProtocolMap.stageId ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => navigate('/billing-dept/counselling')}
+                    >
+                      Hand off to counsellor desk
+                    </Button>
+                  ) : null}
+                </>
+              ) : null}
+            </>
           ) : null}
           <ConsultationRightPanel
             advice={advice} onAdviceChange={setAdvice}

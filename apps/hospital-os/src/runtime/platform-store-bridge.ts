@@ -475,6 +475,24 @@ function mapPlatformAppointmentStatus(
   return 'scheduled';
 }
 
+function parseAppointmentResourceLabel(resourceLabel: string): {
+  doctor: string;
+  department: string;
+} {
+  const online = resourceLabel.match(/^\[([^\]]+)\]\s*(.+)$/);
+  if (online) {
+    return {
+      doctor: 'Online booking',
+      department: online[2]?.trim() || 'Consultation',
+    };
+  }
+  const labelParts = resourceLabel.split(' — ');
+  return {
+    doctor: labelParts[0]?.trim() || 'Unassigned',
+    department: labelParts[1]?.trim() || 'General Medicine',
+  };
+}
+
 export function mapPlatformAppointmentRow(
   row: PlatformAppointment,
   patients: HospitalPatient[],
@@ -485,9 +503,10 @@ export function mapPlatformAppointmentRow(
   const start = new Date(row.startAt);
   const end = new Date(row.endAt);
   const durationMin = Math.max(15, Math.round((end.getTime() - start.getTime()) / 60_000) || 30);
-  const labelParts = row.resourceLabel.split(' — ');
-  const doctor = labelParts[0]?.trim() || pt?.assignedDoctor || 'Unassigned';
-  const department = labelParts[1]?.trim() || pt?.department || 'General Medicine';
+  const { doctor, department } = parseAppointmentResourceLabel(row.resourceLabel);
+  const doctorResolved = doctor === 'Unassigned' ? pt?.assignedDoctor || doctor : doctor;
+  const departmentResolved =
+    department === 'General Medicine' && pt?.department ? pt.department : department;
   const visit = visitByAppointmentId.get(row.id);
   const time = start.toLocaleTimeString('en-IN', {
     hour: '2-digit',
@@ -500,9 +519,9 @@ export function mapPlatformAppointmentRow(
     platformAppointmentId: row.id,
     uhid,
     patientName: pt?.name ?? row.patient?.fullName ?? 'Unknown',
-    phone: pt?.phone ?? '',
-    doctor,
-    department,
+    phone: pt?.phone ?? row.patient?.mrn ?? '',
+    doctor: doctorResolved,
+    department: departmentResolved,
     date: start.toISOString().split('T')[0] ?? '',
     time,
     duration: durationMin,

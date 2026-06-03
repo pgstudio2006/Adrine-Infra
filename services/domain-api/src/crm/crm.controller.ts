@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, Query, Req } from '@nestjs/c
 import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import type { RequestWithTenant } from '../tenant/tenant.middleware';
+import { resolveRequestBranchId } from '../tenant/branch.util';
 import { CrmService } from './crm.service';
 
 @ApiTags('crm')
@@ -15,7 +16,7 @@ export class CrmController {
   }
 
   private branch(req: Request, queryBranch?: string) {
-    return queryBranch ?? req.header('x-branch-id') ?? 'branch_main';
+    return resolveRequestBranchId(req as RequestWithTenant, queryBranch);
   }
 
   @Get('summary')
@@ -30,8 +31,9 @@ export class CrmController {
     @Req() req: Request,
     @Query('branchId') branchId?: string,
     @Query('stage') stage?: string,
+    @Query('opdVisitId') opdVisitId?: string,
   ) {
-    return this.crm.listLeads(this.tenant(req), this.branch(req, branchId), stage);
+    return this.crm.listLeads(this.tenant(req), this.branch(req, branchId), stage, opdVisitId);
   }
 
   @Post('leads')
@@ -41,6 +43,7 @@ export class CrmController {
     @Body()
     body: {
       patientId?: string;
+      opdVisitId?: string;
       fullName: string;
       phone?: string;
       email?: string;
@@ -70,6 +73,7 @@ export class CrmController {
       priority: string;
       notes: string;
       patientId: string;
+      opdVisitId: string;
     }>,
   ) {
     return this.crm.updateLead(this.tenant(req), id, body);

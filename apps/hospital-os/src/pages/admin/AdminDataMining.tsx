@@ -10,6 +10,8 @@ import {
   Activity, Globe, FileText, Layers, PieChart as PieIcon
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area } from 'recharts';
+import { allowDemoFallback } from '@/lib/platform/demo-fallback';
+import { PlatformEmptyState } from '@/components/platform/PlatformEmptyState';
 
 const fadeIn = (i: number) => ({
   initial: { opacity: 0, y: 12 },
@@ -64,9 +66,27 @@ const populationInsights = [
 ];
 
 export default function AdminDataMining() {
+  const demoOn = allowDemoFallback();
   const handleExportReport = (type: string) => {
     toast.success(`${type} report exported (anonymized)`);
   };
+
+  if (!demoOn) {
+    return (
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
+            <Database className="w-5 h-5 text-primary" /> Healthcare Data Mining
+          </h1>
+          <p className="text-sm text-muted-foreground">Population-level analytics, disease prevalence and anonymized health insights</p>
+        </div>
+        <PlatformEmptyState
+          title="Analytics not connected"
+          message="Population analytics and data-mining dashboards require platform analytics APIs. Local demo disease statistics are disabled unless VITE_ALLOW_DEMO_DATA=true in dev."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

@@ -5,7 +5,11 @@ import {
 } from '@nestjs/common';
 import {
   evaluateOpdTransition,
+  evaluateMskTransition,
+  listAllowedMskActions,
   listAllowedOpdActions,
+  resolveMskState,
+  type MskValidationContext,
   type OpdValidationContext,
   type OpdVisitState,
 } from '@adrine/hospital-operations';
@@ -25,6 +29,15 @@ export type OpdTransitionBody = {
   actorRole: string;
   reason?: string;
   context?: OpdValidationContext;
+  payload?: Record<string, unknown>;
+};
+
+export type MskTransitionBody = {
+  action: string;
+  actorId?: string;
+  actorRole: string;
+  context?: MskValidationContext;
+  branchOverrides?: Record<string, boolean>;
   payload?: Record<string, unknown>;
 };
 
@@ -369,12 +382,19 @@ export class OpdService {
           urgent,
         },
       },
-      mskLifecycleState: 'intake_complete',
     });
+
+    const mskResult = await this.transitionMsk(tenantId, visitId, {
+      action: 'complete_intake',
+      actorRole: 'receptionist',
+      context: { intakeSubmitted: true },
+    });
+
+    const updated = mskResult.visit;
 
     await this.platformEvents.record({
       tenantId,
-      branchId: visit.branchId,
+      branchId: updated.branchId,
       eventName: 'navayu.intake_submitted',
       resourceType: 'opd_visit',
       resourceId: visitId,
@@ -382,10 +402,73 @@ export class OpdService {
         formId: body.formId,
         urgent,
         vas: body.answers.vas,
+        mskState: mskResult.nextState,
       },
     });
 
-    return { ok: true, visit, urgent };
+    return { ok: true, visit: updated, urgent };
+  }
+
+  /** Governed Navayu MSK workflow transitions (navayu_msk_visit lifecycle). */
+  async transitionMsk(tenantId: string, visitId: string, body: MskTransitionBody) {
+    const visit = await this.getVisit(tenantId, visitId);
+    const meta =
+      visit.metadata && typeof visit.metadata === 'object' && !Array.isArray(visit.metadata)
+        ? (visit.metadata as Record<string, unknown>)
+        : {};
+    const currentState = resolveMskState(meta.mskLifecycleState);
+
+    const result = evaluateMskTransition({
+      mskState: currentState,
+      action: body.action,
+      actorRole: body.actorRole,
+      validationContext: body.context,
+      branchOverrides: body.branchOverrides,
+    });
+
+    if (!result.ok) {
+      throw new BadRequestException(result.reason);
+    }
+
+    const metadataPatch: Record<string, unknown> = {
+      mskLifecycleState: result.nextState,
+      ...(body.payload ?? {}),
+    };
+
+    const updated = await this.patchVisitMetadata(tenantId, visitId, metadataPatch);
+
+    await this.platformEvents.record({
+      tenantId,
+      branchId: visit.branchId,
+      eventName: `navayu.msk.${body.action}`,
+      resourceType: 'opd_visit',
+      resourceId: visitId,
+      payload: {
+        from: currentState,
+        to: result.nextState,
+        action: body.action,
+        actorRole: body.actorRole,
+      },
+    });
+
+    return {
+      visit: updated,
+      previousState: currentState,
+      nextState: result.nextState,
+    };
+  }
+
+  async listMskAllowedActions(tenantId: string, visitId: string, actorRole: string) {
+    const visit = await this.getVisit(tenantId, visitId);
+    const meta =
+      visit.metadata && typeof visit.metadata === 'object' && !Array.isArray(visit.metadata)
+        ? (visit.metadata as Record<string, unknown>)
+        : {};
+    const state = resolveMskState(meta.mskLifecycleState);
+    return {
+      state,
+      allowed: listAllowedMskActions(state, actorRole),
+    };
   }
 
   /** Chronological timeline for a patient (visits, transitions, Navayu MSK milestones). */
@@ -468,6 +551,76 @@ export class OpdService {
         });
       }
 
+      const investigations = navayu.investigations as Record<string, unknown> | undefined;
+      const uploads = investigations?.uploads as unknown[] | undefined;
+      if (uploads?.length) {
+        items.push({
+          id: `navayu-investigations-${visit.id}`,
+          type: 'navayu_investigations',
+          title: 'Investigations uploaded',
+          description: `${uploads.length} file(s) on record`,
+          timestamp: String((uploads[uploads.length - 1] as { uploadedAt?: string })?.uploadedAt ?? visit.updatedAt?.toISOString() ?? visit.createdAt.toISOString()),
+          visitId: visit.id,
+        });
+      }
+
+      const protocolMap = navayu.protocolMap as Record<string, unknown> | undefined;
+      if (protocolMap?.mappedAt) {
+        items.push({
+          id: `navayu-protocol-${visit.id}`,
+          type: 'navayu_protocol_mapped',
+          title: 'Protocol mapped',
+          description: `${String(protocolMap.protocolId ?? '—')} · ${String(protocolMap.stageId ?? '—')}`,
+          timestamp: String(protocolMap.mappedAt),
+          visitId: visit.id,
+        });
+      }
+
+      const seniorReview = navayu.seniorReview as Record<string, unknown> | undefined;
+      if (seniorReview?.savedAt) {
+        items.push({
+          id: `navayu-senior-${visit.id}`,
+          type: 'navayu_senior_review',
+          title: 'Senior doctor consultation',
+          description: [
+            seniorReview.pathwayDecision ? `Pathway: ${String(seniorReview.pathwayDecision)}` : null,
+            seniorReview.confirmedDiagnosis
+              ? `Dx: ${String(seniorReview.confirmedDiagnosis)}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' · '),
+          timestamp: String(seniorReview.savedAt),
+          visitId: visit.id,
+        });
+      }
+
+      const counselling = navayu.counselling as Record<string, unknown> | undefined;
+      if (counselling?.counsellorAt) {
+        items.push({
+          id: `navayu-counselling-${visit.id}`,
+          type: 'navayu_counselling',
+          title: 'Package counselling',
+          description: `${String(counselling.packageName ?? 'Package')} · ${String(counselling.tierLabel ?? '—')}`,
+          timestamp: String(counselling.counsellorAt),
+          visitId: visit.id,
+        });
+      }
+
+      const followUp = navayu.followUp as Record<string, unknown> | undefined;
+      if (followUp?.bookedAt) {
+        items.push({
+          id: `navayu-followup-${visit.id}`,
+          type: 'navayu_follow_up',
+          title: 'Follow-up scheduled',
+          description: followUp.scheduledStart
+            ? `${String(followUp.resourceLabel ?? 'Follow-up')} · ${String(followUp.scheduledStart)}`
+            : String(followUp.resourceLabel ?? 'Follow-up booked'),
+          timestamp: String(followUp.bookedAt),
+          visitId: visit.id,
+        });
+      }
+
       for (const tr of visit.transitions) {
         items.push({
           id: tr.id,
@@ -482,6 +635,150 @@ export class OpdService {
 
     items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     return { patientId, items };
+  }
+
+  /** Navayu investigation upload stub — persists metadata under navayu.investigations.uploads (max 2MB base64). */
+  async uploadInvestigation(
+    tenantId: string,
+    visitId: string,
+    body: {
+      fieldId: string;
+      fileName: string;
+      mimeType: string;
+      sizeBytes: number;
+      dataBase64?: string;
+    },
+  ) {
+    const maxBytes = 2 * 1024 * 1024;
+    if (body.sizeBytes > maxBytes) {
+      throw new Error(`File exceeds ${maxBytes} byte UAT limit`);
+    }
+
+    const storageKey = `navayu/${visitId}/${body.fieldId}/${Date.now()}_${body.fileName}`;
+    const upload = {
+      fieldId: body.fieldId,
+      fileName: body.fileName,
+      mimeType: body.mimeType,
+      sizeBytes: body.sizeBytes,
+      uploadedAt: new Date().toISOString(),
+      storageKey,
+      hasData: !!body.dataBase64,
+    };
+
+    const visit = await this.getVisit(tenantId, visitId);
+    const meta =
+      visit.metadata && typeof visit.metadata === 'object' && !Array.isArray(visit.metadata)
+        ? (visit.metadata as Record<string, unknown>)
+        : {};
+    const navayu =
+      meta.navayu && typeof meta.navayu === 'object' && !Array.isArray(meta.navayu)
+        ? (meta.navayu as Record<string, unknown>)
+        : {};
+    const investigations =
+      navayu.investigations && typeof navayu.investigations === 'object' && !Array.isArray(navayu.investigations)
+        ? (navayu.investigations as Record<string, unknown>)
+        : {};
+    const uploads = Array.isArray(investigations.uploads) ? [...investigations.uploads] : [];
+    uploads.push(upload);
+
+    const fieldList = Array.isArray(investigations[body.fieldId])
+      ? [...(investigations[body.fieldId] as unknown[])]
+      : [];
+    fieldList.push(upload);
+
+    await this.patchVisitMetadata(tenantId, visitId, {
+      navayu: {
+        investigations: {
+          ...investigations,
+          uploads,
+          [body.fieldId]: fieldList,
+        },
+      },
+    });
+
+    await this.platformEvents.record({
+      tenantId,
+      branchId: visit.branchId,
+      eventName: 'navayu.investigation_uploaded',
+      resourceType: 'opd_visit',
+      resourceId: visitId,
+      payload: { fieldId: body.fieldId, fileName: body.fileName, storageKey },
+    });
+
+    return { ok: true, upload };
+  }
+
+  /** Navayu MSK AI summary — LLM when OPENROUTER_API_KEY or AI_GATEWAY_URL is set; else rule-based. */
+  async generateNavayuAiSummary(
+    tenantId: string,
+    visitId: string,
+    body: Record<string, unknown>,
+  ) {
+    const openRouterKey = process.env.OPENROUTER_API_KEY?.trim();
+    const aiGatewayUrl = process.env.AI_GATEWAY_URL?.trim();
+
+    if (!openRouterKey && !aiGatewayUrl) {
+      return {
+        mode: 'blocked' as const,
+        requiredEnv: 'OPENROUTER_API_KEY or AI_GATEWAY_URL',
+        blockedReason:
+          'LLM clinical summary requires OPENROUTER_API_KEY or AI_GATEWAY_URL on domain-api. UAT uses rule-based v1 in Hospital OS.',
+      };
+    }
+
+    const prompt = JSON.stringify(body).slice(0, 6000);
+    try {
+      if (openRouterKey) {
+        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${openRouterKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: process.env.OPENROUTER_MODEL ?? 'openai/gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content:
+                  'You are a clinical documentation assistant for MSK spine/joint visits. Output 3-5 bullet sections: Registration, Intake, Exam scores, Investigations, Suggested next steps. Be concise; flag urgent red flags.',
+              },
+              { role: 'user', content: prompt },
+            ],
+            max_tokens: 800,
+          }),
+        });
+        if (!res.ok) {
+          throw new Error(`OpenRouter ${res.status}`);
+        }
+        const json = (await res.json()) as {
+          choices?: Array<{ message?: { content?: string } }>;
+        };
+        const text = json.choices?.[0]?.message?.content ?? '';
+        const lines = text.split('\n').filter((l) => l.trim());
+        return {
+          mode: 'llm' as const,
+          sections: [
+            {
+              label: 'AI Clinical Summary (LLM)',
+              lines: lines.length ? lines : [text],
+            },
+          ],
+        };
+      }
+
+      return {
+        mode: 'blocked' as const,
+        requiredEnv: 'OPENROUTER_API_KEY',
+        blockedReason: 'AI_GATEWAY_URL is set but Navayu MSK summary routing is not implemented in ai-gateway v0.1 stub.',
+      };
+    } catch (err) {
+      return {
+        mode: 'blocked' as const,
+        requiredEnv: 'OPENROUTER_API_KEY',
+        blockedReason: err instanceof Error ? err.message : 'LLM request failed',
+      };
+    }
   }
 }
 

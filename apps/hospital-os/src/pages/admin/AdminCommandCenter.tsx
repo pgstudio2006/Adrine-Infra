@@ -117,7 +117,9 @@ export default function AdminCommandCenter() {
             <Radio className="w-5 h-5 text-primary animate-pulse" /> Central Command Center
           </h1>
           <p className="text-sm text-muted-foreground">
-            {platformOn ? 'Unified real-time hospital operations from domain command + analytics' : 'Local store fallback — enable platform runtime for live snapshot'}
+            {platformOn
+              ? `Branch ${snapshot?.branchId ?? '—'} · domain command snapshot`
+              : 'Enable platform runtime for live branch snapshot'}
           </p>
         </div>
         <div className="text-right">

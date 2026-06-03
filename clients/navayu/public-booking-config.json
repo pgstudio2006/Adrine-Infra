@@ -1,0 +1,38 @@
+{
+  "tenantSlug": "navayu",
+  "title": "Book at Navayu",
+  "subtitle": "Spine & Joint Care — select your center, service, and time",
+  "slotMinutes": 30,
+  "serviceTypes": [
+    {
+      "code": "msk_consult",
+      "label": "MSK Consultation",
+      "branchCodes": ["gurgaon"]
+    },
+    {
+      "code": "general_opd",
+      "label": "General OPD",
+      "branchCodes": ["gurgaon", "pataudi"]
+    }
+  ],
+  "patientFields": [
+    {
+      "key": "patientName",
+      "label": "Full name",
+      "type": "text",
+      "required": true
+    },
+    {
+      "key": "phone",
+      "label": "Phone",
+      "type": "tel",
+      "required": true
+    },
+    {
+      "key": "email",
+      "label": "Email (optional)",
+      "type": "email",
+      "required": false
+    }
+  ]
+}

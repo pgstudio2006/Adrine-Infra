@@ -1,0 +1,25 @@
+{
+  "formId": "navayu.exam.shoulder",
+  "version": "v0",
+  "label": "Navayu Shoulder MSK Exam",
+  "workflowStep": "associate_eval",
+  "sections": [
+    {
+      "id": "scores",
+      "label": "Scores",
+      "fields": [
+        { "id": "dash", "type": "calculator", "calculatorId": "dash", "label": "DASH" },
+        { "id": "spadi", "type": "calculator", "calculatorId": "spadi", "label": "SPADI" },
+        { "id": "vas", "type": "calculator", "calculatorId": "vas", "label": "VAS" }
+      ]
+    },
+    {
+      "id": "exam",
+      "label": "Shoulder examination",
+      "fields": [
+        { "id": "romNotes", "type": "text", "label": "ROM notes" },
+        { "id": "impingementTests", "type": "text", "label": "Impingement / instability tests" }
+      ]
+    }
+  ]
+}

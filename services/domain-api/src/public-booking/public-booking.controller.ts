@@ -28,6 +28,12 @@ export class PublicBookingController {
     return this.booking.listSlots(tenantSlug, branch, date, clientKey(req));
   }
 
+  @Get(':tenantSlug/config')
+  @ApiOperation({ summary: 'Public booking UI config (service types, fields)' })
+  config(@Param('tenantSlug') tenantSlug: string) {
+    return this.booking.getBookingConfig(tenantSlug);
+  }
+
   @Post(':tenantSlug/appointments')
   @ApiOperation({ summary: 'Create a public online appointment (no auth)' })
   create(

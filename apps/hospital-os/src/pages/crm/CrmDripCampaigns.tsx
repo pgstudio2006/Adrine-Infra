@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { AppSelect } from '@/components/ui/app-select';
 import { toast } from 'sonner';
+import { allowDemoFallback } from '@/lib/platform/demo-fallback';
+import { PlatformEmptyState } from '@/components/platform/PlatformEmptyState';
 
 // ── Types ──
 interface DripStep {
@@ -133,7 +135,9 @@ const statusBadge = (status: DripCampaign['status']) => {
 
 export default function CrmDripCampaigns() {
   const { patients } = useHospital();
-  const [campaigns, setCampaigns] = useState<DripCampaign[]>(DEMO_CAMPAIGNS);
+  const [campaigns, setCampaigns] = useState<DripCampaign[]>(() =>
+    allowDemoFallback() ? DEMO_CAMPAIGNS : [],
+  );
   const [selectedCampaign, setSelectedCampaign] = useState<DripCampaign | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
@@ -242,7 +246,7 @@ export default function CrmDripCampaigns() {
             <div className="hidden sm:flex items-center gap-6 text-center">
               <div><p className="text-lg font-bold text-emerald-600">{stats.totalSent}</p><p className="text-[10px] text-muted-foreground">Total Sent</p></div>
               <div><p className="text-lg font-bold text-blue-600">{stats.avgOpenRate}%</p><p className="text-[10px] text-muted-foreground">Read Rate</p></div>
-              <div><p className="text-lg font-bold text-violet-600">12</p><p className="text-[10px] text-muted-foreground">Replies Today</p></div>
+              <div><p className="text-lg font-bold text-violet-600">{allowDemoFallback() ? '12' : '—'}</p><p className="text-[10px] text-muted-foreground">Replies Today</p></div>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="text-xs gap-1">
@@ -276,7 +280,10 @@ export default function CrmDripCampaigns() {
         {/* List */}
         <div className="space-y-3">
           <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider text-xs">Campaigns ({campaigns.length})</p>
-          {campaigns.map(c => (
+          {campaigns.length === 0 ? (
+            <PlatformEmptyState message="No drip campaigns yet. Create one or enable VITE_ALLOW_DEMO_DATA for sample campaigns in local dev." />
+          ) : (
+          campaigns.map(c => (
             <motion.div
               key={c.id}
               initial={{ opacity: 0, y: 8 }}
@@ -326,7 +333,8 @@ export default function CrmDripCampaigns() {
                 </div>
               </div>
             </motion.div>
-          ))}
+          ))
+          )}
         </div>
 
         {/* Detail panel */}

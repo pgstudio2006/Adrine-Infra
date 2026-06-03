@@ -37,7 +37,7 @@
       "id": "severity",
       "label": "Pain severity",
       "fields": [
-        { "id": "vas", "type": "number", "label": "Pain score (0–10)", "min": 0, "max": 10 }
+        { "id": "vas", "type": "calculator", "calculatorId": "vas", "label": "Pain score (VAS)" }
       ]
     },
     {
