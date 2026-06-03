@@ -2,11 +2,13 @@ import { bootstrapOtel } from '@adrine/otel-bootstrap';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { configurePlatformCors } from './configure-cors';
 
 async function bootstrap() {
   bootstrapOtel('domain-api');
 
   const app = await NestFactory.create(AppModule);
+  configurePlatformCors(app);
 
   const config = new DocumentBuilder()
     .setTitle('Adrine Domain API')
