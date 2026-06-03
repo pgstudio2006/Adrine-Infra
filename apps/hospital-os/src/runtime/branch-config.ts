@@ -3,6 +3,7 @@ import { platformGetEffectivePolicies } from './governance-runtime';
 import { getPlatformSession, isPlatformRuntimeEnabled } from './platform-session';
 
 const STORAGE_KEY = 'adrine_branch_config';
+const TENANT_FORMS_KEY = 'adrine_tenant_forms_server';
 
 export type BranchConfigMap = Record<string, boolean | number | string | unknown>;
 
@@ -20,6 +21,16 @@ export async function loadBranchConfig(): Promise<BranchConfigMap | null> {
     ]);
 
     const billing = effectivePolicies.billing as Record<string, unknown> | undefined;
+    const serverTenantSettings = legacyConfig['tenant.settings'];
+    if (serverTenantSettings && typeof serverTenantSettings === 'object') {
+      sessionStorage.setItem('adrine_tenant_settings_server', JSON.stringify(serverTenantSettings));
+    }
+
+    const serverTenantForms = legacyConfig['tenant.forms'];
+    if (serverTenantForms && typeof serverTenantForms === 'object') {
+      sessionStorage.setItem(TENANT_FORMS_KEY, JSON.stringify(serverTenantForms));
+    }
+
     const merged: BranchConfigMap = {
       ...legacyConfig,
       ...flattenPolicies(effectivePolicies),
@@ -49,6 +60,31 @@ function flattenPolicies(policies: Record<string, unknown>): BranchConfigMap {
     }
   }
   return out;
+}
+
+/** Server-persisted UAT form definitions from BranchConfig key `tenant.forms`. */
+export function getServerTenantForms(): Record<string, unknown> | null {
+  const raw = sessionStorage.getItem(TENANT_FORMS_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Server-persisted tenant customization from BranchConfig key `tenant.settings`. */
+export function getServerTenantSettings(): unknown | null {
+  const raw = sessionStorage.getItem('adrine_tenant_settings_server');
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
 }
 
 export function getBranchConfigOverrides(): Record<string, boolean> {

@@ -58,3 +58,24 @@ export function kernelBase(): string | undefined {
 export function domainBase(): string | undefined {
   return process.env.NEXT_PUBLIC_DOMAIN_API_URL;
 }
+
+export function isPlatformRuntimeEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_PLATFORM_RUNTIME === 'true';
+}
+
+/** Turn browser "Failed to fetch" into actionable text for collaborators. */
+export function formatLoginFetchError(err: unknown): string {
+  if (err instanceof PlatformApiError) return err.message;
+  const raw = err instanceof Error ? err.message : 'Sign-in failed';
+  const isNetwork =
+    raw === 'Failed to fetch' ||
+    raw.includes('NetworkError') ||
+    raw.includes('fetch failed');
+  if (!isNetwork) return raw;
+
+  const kernel = kernelBase() ?? 'http://localhost:3001';
+  return (
+    `Cannot reach kernel API (${kernel}). On your PC, start kernel-api and domain-api ` +
+    `(see docs/COLLABORATOR_LOCAL_SETUP.md), or set NEXT_PUBLIC_PLATFORM_RUNTIME=false in .env.local for demo-only sign-in.`
+  );
+}

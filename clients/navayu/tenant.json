@@ -1,0 +1,10 @@
+{
+  "tenantId": "tenant_navayu",
+  "orgName": "Navayu Spine & Joint Care",
+  "legalName": "Navayu Spine & Joint Care Pvt Ltd",
+  "templatePack": "navayu_msk",
+  "adminEmail": "admin@navayuhealth.in",
+  "adminName": "Navayu Admin",
+  "legacySubscriptionPlan": "design_partner",
+  "tenantSubscriptionPlan": "free_trial"
+}

@@ -1,0 +1,43 @@
+{
+  "formId": "navayu.exam.lumbar",
+  "version": "v0",
+  "label": "Navayu Lumbar MSK Exam",
+  "sections": [
+    {
+      "id": "scores",
+      "label": "Scores",
+      "fields": [
+        { "id": "odi", "type": "number", "label": "ODI (%)", "min": 0, "max": 100 },
+        { "id": "vas", "type": "number", "label": "VAS (0–10)", "min": 0, "max": 10 }
+      ]
+    },
+    {
+      "id": "exam",
+      "label": "Lumbar examination",
+      "fields": [
+        {
+          "id": "slrt",
+          "type": "select",
+          "label": "Straight leg raise",
+          "options": [
+            { "value": "negative", "label": "Negative" },
+            { "value": "positive_left", "label": "Positive left" },
+            { "value": "positive_right", "label": "Positive right" },
+            { "value": "positive_bilateral", "label": "Positive bilateral" }
+          ]
+        },
+        {
+          "id": "femoralStretch",
+          "type": "select",
+          "label": "Femoral stretch test",
+          "options": [
+            { "value": "negative", "label": "Negative" },
+            { "value": "positive", "label": "Positive" }
+          ]
+        },
+        { "id": "gait", "type": "text", "label": "Gait / posture notes" },
+        { "id": "neuroNotes", "type": "text", "label": "Neurological findings" }
+      ]
+    }
+  ]
+}

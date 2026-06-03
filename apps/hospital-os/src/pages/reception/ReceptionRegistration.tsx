@@ -6,7 +6,7 @@ import { RegistrationJourneyType } from '@/config/tenantSettings';
 import {
   Search, UserPlus, Phone, CreditCard, Shield, ChevronRight, X, Check, User, FileText,
   AlertTriangle, Upload, Heart, MapPin, Camera, Scale, Merge, GitMerge,
-  Building2, BadgeCheck, Globe, Eye, History, Clock
+  Building2, BadgeCheck, Globe, Eye, History, Clock, Copy, Link2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -18,6 +18,19 @@ import { useClinicalPlatformListSync } from '@/hooks/useClinicalPlatformListSync
 import { InlinePlatformError } from '@/components/opd/InlinePlatformError';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import {
+  NavayuRegistrationFields,
+  createDefaultNavayuRegistrationState,
+  toNavayuRegistrationMetadata,
+  type NavayuRegistrationFormState,
+} from '@/components/navayu/NavayuRegistrationFields';
+import {
+  buildNavayuRegistrationNotes,
+  isNavayuTenant,
+  NAVAYU_CLINICAL_DEPARTMENTS,
+  saveNavayuVisitMetadata,
+} from '@/lib/navayu/navayu-forms';
+import { maybeCreateNavayuCrmLead } from '@/lib/navayu/navayu-crm';
 
 // ── Types ──
 interface Patient {
@@ -84,9 +97,16 @@ const validatePhone = (phone: string) => /^[6-9]\d{9}$/.test(phone);
 const validateAadhaar = (aadhaar: string) => /^\d{4}\s?\d{4}\s?\d{4}$/.test(aadhaar.replace(/\s/g, ''));
 const validateABHA = (abha: string) => /^\d{2}-\d{4}-\d{4}-\d{4}$/.test(abha);
 
+function patientIntakeUrl(visitId: string): string {
+  const base =
+    (import.meta.env.VITE_PATIENT_APP_URL as string | undefined) ?? 'http://localhost:3101';
+  return `${base.replace(/\/$/, '')}/intake?visitId=${encodeURIComponent(visitId)}`;
+}
+
 export default function ReceptionRegistration() {
   const { patients: storePatients, startFrontDeskVisit, createEmergencyCase, refreshPatientsFromPlatform, backfillPlatformPatientId } = useHospital();
   const { settings } = useTenantSettings();
+  const navayuMode = isNavayuTenant();
   const defaultPatientType = settings.registration.patientTypes[0]?.label ?? 'OPD';
   const [mode, setMode] = useState<'list' | 'new' | 'emergency' | 'merge' | 'abha-lookup'>('list');
   const [registrationTab, setRegistrationTab] = useState<'full' | 'walkin'>('full');
@@ -135,6 +155,9 @@ export default function ReceptionRegistration() {
     branch: 'Main Hospital',
     documents: [] as { name: string; type: string }[],
   });
+  const [navayuFields, setNavayuFields] = useState<NavayuRegistrationFormState>(createDefaultNavayuRegistrationState);
+
+  const routingDepartments = navayuMode ? NAVAYU_CLINICAL_DEPARTMENTS : settings.registration.departments;
 
   useEffect(() => {
     if (isPlatformRuntimeEnabled()) {
@@ -163,7 +186,7 @@ export default function ReceptionRegistration() {
       const hasPatientType = settings.registration.patientTypes.some((item) => item.label === current.patientType);
       const nextPatientType = hasPatientType ? current.patientType : settings.registration.patientTypes[0]?.label ?? 'OPD';
 
-      const hasDepartment = !current.department || settings.registration.departments.includes(current.department);
+      const hasDepartment = !current.department || routingDepartments.includes(current.department);
       const nextDepartment = hasDepartment ? current.department : '';
 
       if (nextPatientType === current.patientType && nextDepartment === current.department) {
@@ -176,7 +199,7 @@ export default function ReceptionRegistration() {
         department: nextDepartment,
       };
     });
-  }, [settings.registration.patientTypes, settings.registration.departments]);
+  }, [settings.registration.patientTypes, routingDepartments]);
 
   // Emergency quick-form
   const [emergencyForm, setEmergencyForm] = useState({
@@ -214,6 +237,9 @@ export default function ReceptionRegistration() {
     }
     if (stepIdx === 3) {
       if (!formData.department.trim()) errors.department = 'Select department to route the patient';
+      if (navayuMode && !navayuFields.hearAboutNavayu) {
+        errors.hearAboutNavayu = 'Select how the patient heard about Navayu';
+      }
     }
     if (stepIdx === 4) {
       if (formData.aadhaar && !validateAadhaar(formData.aadhaar)) errors.aadhaar = 'Invalid Aadhaar format (12 digits)';
@@ -248,6 +274,34 @@ export default function ReceptionRegistration() {
 
   const newUHID = `UHID-${(240000 + storePatients.length + 1).toString()}`;
   const calculatedAge = formData.dob ? Math.floor((Date.now() - new Date(formData.dob).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null;
+
+  const buildNavayuVisitPayload = () => {
+    if (!navayuMode || !navayuFields.hearAboutNavayu) {
+      return { visitMetadata: undefined, navayuNotes: undefined as string | undefined };
+    }
+    const metadata = toNavayuRegistrationMetadata(navayuFields);
+    return {
+      visitMetadata: { navayu: metadata },
+      navayuNotes: buildNavayuRegistrationNotes(metadata),
+    };
+  };
+
+  const afterNavayuRegistration = async (
+    uhid: string,
+    patientName: string,
+    phone: string,
+    platformPatientId?: string,
+  ) => {
+    if (!navayuMode || !navayuFields.hearAboutNavayu) return;
+    const metadata = toNavayuRegistrationMetadata(navayuFields);
+    saveNavayuVisitMetadata(uhid, metadata);
+    await maybeCreateNavayuCrmLead({
+      fullName: patientName,
+      phone,
+      platformPatientId,
+      metadata,
+    });
+  };
 
   const filtered = storePatients.filter(p => {
     if (!search) return true;
@@ -643,12 +697,18 @@ export default function ReceptionRegistration() {
         setValidationErrors({
           firstName: !formData.firstName.trim() ? 'Name required' : '',
           phone: !validatePhone(formData.phone) ? 'Valid 10-digit mobile required' : '',
+          hearAboutNavayu: navayuMode && !navayuFields.hearAboutNavayu ? 'Referral source required' : '',
         });
+        return;
+      }
+      if (navayuMode && !navayuFields.hearAboutNavayu) {
+        setValidationErrors({ hearAboutNavayu: 'Select how the patient heard about Navayu' });
         return;
       }
       setPlatformError(null);
       try {
         const patientName = `${formData.firstName} ${formData.lastName}`.trim();
+        const { visitMetadata, navayuNotes } = buildNavayuVisitPayload();
         const result = startFrontDeskVisit({
           patient: {
             name: patientName,
@@ -657,20 +717,25 @@ export default function ReceptionRegistration() {
             phone: formData.phone,
             category: formData.category,
             patientType: 'OPD',
-            department: formData.department || 'General Medicine',
+            department: formData.department || routingDepartments[0] || 'Spine & MSK',
             assignedDoctor: formData.assignedDoctor || DOCTORS[0],
             branch: formData.branch,
+            referralSource: navayuFields.hearAboutNavayu || formData.referralSource,
+            visitMetadata,
           },
           appointmentDate: new Date().toISOString().split('T')[0],
           appointmentTime: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }),
           appointmentType: 'new',
-          notes: 'Walk-in fast path registration',
+          notes: navayuNotes ?? 'Walk-in fast path registration',
+          visitMetadata,
           initialBillingItems: [{ description: 'OPD walk-in registration', amount: 250 }],
         });
+        void afterNavayuRegistration(result.uhid, patientName, formData.phone);
         setDemoResult({ patientName, ...result });
         setMode('list');
         setRegistrationTab('full');
         setStep(0);
+        setNavayuFields(createDefaultNavayuRegistrationState());
         navigate('/reception/queue');
       } catch (e) {
         setPlatformError(e instanceof Error ? e.message : 'Walk-in registration failed');
@@ -724,7 +789,7 @@ export default function ReceptionRegistration() {
                 <AppSelect
                   value={formData.department}
                   onValueChange={(value) => updateField('department', value)}
-                  options={['General Medicine', 'Cardiology', 'Orthopedics', 'Pediatrics', 'Dermatology'].map((d) => ({ value: d, label: d }))}
+                  options={(navayuMode ? routingDepartments : ['General Medicine', 'Cardiology', 'Orthopedics', 'Pediatrics', 'Dermatology']).map((d) => ({ value: d, label: d }))}
                   className="px-3 py-2 rounded-lg border bg-background text-sm"
                 />
                 <AppSelect
@@ -734,6 +799,13 @@ export default function ReceptionRegistration() {
                   className="px-3 py-2 rounded-lg border bg-background text-sm sm:col-span-2"
                 />
               </div>
+              {navayuMode && (
+                <NavayuRegistrationFields
+                  value={navayuFields}
+                  onChange={setNavayuFields}
+                  errors={{ hearAboutNavayu: validationErrors.hearAboutNavayu }}
+                />
+              )}
               <Button className="w-full sm:w-auto" onClick={handleWalkInFast}>
                 Register walk-in & go to queue
               </Button>
@@ -870,40 +942,41 @@ export default function ReceptionRegistration() {
                   />
                 </div>
               </div>
-              {/* Referral */}
-              <div className="border-t pt-4 mt-4">
-                <h3 className="text-sm font-semibold mb-3">Referral Information</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">Referral Source</label>
-                    <AppSelect
-                      value={formData.referralSource}
-                      onValueChange={(value) => updateField('referralSource', value)}
-                      options={[
-                        { value: 'walk-in', label: 'Walk-in' },
-                        { value: 'doctor-referral', label: 'Doctor Referral' },
-                        { value: 'hospital-referral', label: 'Hospital Referral' },
-                        { value: 'clinic-referral', label: 'Clinic Referral' },
-                        { value: 'online', label: 'Online Booking' },
-                        { value: 'emergency', label: 'Emergency / 108' },
-                      ]}
-                      className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">Referring Doctor</label>
-                    <input value={formData.referringDoctor} onChange={e => updateField('referringDoctor', e.target.value)} className="w-full px-3 py-2 rounded-lg border bg-background text-sm" placeholder="Doctor name" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">Referring Hospital</label>
-                    <input value={formData.referringHospital} onChange={e => updateField('referringHospital', e.target.value)} className="w-full px-3 py-2 rounded-lg border bg-background text-sm" placeholder="Hospital name" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">Referring Clinic</label>
-                    <input value={formData.referringClinic} onChange={e => updateField('referringClinic', e.target.value)} className="w-full px-3 py-2 rounded-lg border bg-background text-sm" placeholder="Clinic name" />
+              {!navayuMode && (
+                <div className="border-t pt-4 mt-4">
+                  <h3 className="text-sm font-semibold mb-3">Referral Information</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                      <label className="text-sm font-medium mb-1 block">Referral Source</label>
+                      <AppSelect
+                        value={formData.referralSource}
+                        onValueChange={(value) => updateField('referralSource', value)}
+                        options={[
+                          { value: 'walk-in', label: 'Walk-in' },
+                          { value: 'doctor-referral', label: 'Doctor Referral' },
+                          { value: 'hospital-referral', label: 'Hospital Referral' },
+                          { value: 'clinic-referral', label: 'Clinic Referral' },
+                          { value: 'online', label: 'Online Booking' },
+                          { value: 'emergency', label: 'Emergency / 108' },
+                        ]}
+                        className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-1 block">Referring Doctor</label>
+                      <input value={formData.referringDoctor} onChange={e => updateField('referringDoctor', e.target.value)} className="w-full px-3 py-2 rounded-lg border bg-background text-sm" placeholder="Doctor name" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-1 block">Referring Hospital</label>
+                      <input value={formData.referringHospital} onChange={e => updateField('referringHospital', e.target.value)} className="w-full px-3 py-2 rounded-lg border bg-background text-sm" placeholder="Hospital name" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-1 block">Referring Clinic</label>
+                      <input value={formData.referringClinic} onChange={e => updateField('referringClinic', e.target.value)} className="w-full px-3 py-2 rounded-lg border bg-background text-sm" placeholder="Clinic name" />
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -1151,7 +1224,7 @@ export default function ReceptionRegistration() {
                     onValueChange={(value) => updateField('department', value)}
                     options={[
                       { value: '', label: 'Select department' },
-                      ...settings.registration.departments.map((department) => ({ value: department, label: department })),
+                      ...routingDepartments.map((department) => ({ value: department, label: department })),
                     ]}
                     className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
                   />
@@ -1166,6 +1239,13 @@ export default function ReceptionRegistration() {
                   <textarea value={formData.chronicDiseases} onChange={e => updateField('chronicDiseases', e.target.value)} className="w-full px-3 py-2 rounded-lg border bg-background text-sm" rows={2} placeholder="e.g., Diabetes, Hypertension..." />
                 </div>
               </div>
+              {navayuMode && (
+                <NavayuRegistrationFields
+                  value={navayuFields}
+                  onChange={setNavayuFields}
+                  errors={{ hearAboutNavayu: validationErrors.hearAboutNavayu }}
+                />
+              )}
             </div>
           )}
 
@@ -1375,10 +1455,20 @@ export default function ReceptionRegistration() {
               const registrationPatientType = formData.patientType;
               const journeyPatientType = selectedJourneyType;
 
+              if (navayuMode && !navayuFields.hearAboutNavayu) {
+                setValidationErrors({ hearAboutNavayu: 'Select how the patient heard about Navayu' });
+                setStep(3);
+                return;
+              }
+
               const existingMatch = duplicatePhoneWarning ?? duplicateWarning;
               if (existingMatch?.uhid) {
                 await backfillPlatformPatientId(existingMatch.uhid);
               }
+
+              const { visitMetadata, navayuNotes } = buildNavayuVisitPayload();
+              const registrationNotes = navayuNotes
+                ?? `Front-desk demo visit for ${registrationPatientType} (journey: ${journeyPatientType})`;
 
               const result = startFrontDeskVisit({
                 patient: {
@@ -1399,7 +1489,7 @@ export default function ReceptionRegistration() {
                   category: formData.category,
                   patientType: journeyPatientType,
                   registrationPatientType,
-                  department: formData.department || 'General Medicine',
+                  department: formData.department || routingDepartments[0] || 'General Medicine',
                   assignedDoctor: formData.assignedDoctor || 'Dr. A. Shah',
                   allergies: formData.allergies || undefined,
                   chronicDiseases: formData.chronicDiseases || undefined,
@@ -1409,7 +1499,7 @@ export default function ReceptionRegistration() {
                   tpaProvider: formData.tpaProvider || undefined,
                   tpaPolicyNo: formData.tpaPolicyNo || undefined,
                   tpaPreAuthStatus: formData.preAuthStatus,
-                  referralSource: formData.referralSource || undefined,
+                  referralSource: navayuFields.hearAboutNavayu || formData.referralSource || undefined,
                   referralDoctor: formData.referringDoctor || undefined,
                   referralHospital: formData.referringHospital || undefined,
                   referralClinic: formData.referringClinic || undefined,
@@ -1417,8 +1507,10 @@ export default function ReceptionRegistration() {
                   mlcPoliceCase: formData.mlcPoliceCase || undefined,
                   mlcReportingAuthority: formData.mlcReportingAuthority || undefined,
                   mlcIncidentDescription: formData.mlcIncidentDescription || undefined,
+                  visitMetadata,
                 },
-                notes: `Front-desk demo visit for ${registrationPatientType} (journey: ${journeyPatientType})`,
+                notes: registrationNotes,
+                visitMetadata,
                 initialBillingItems: [
                   {
                     description: `${registrationPatientType} registration and front-desk processing`,
@@ -1430,10 +1522,12 @@ export default function ReceptionRegistration() {
                   },
                 ],
               });
+              void afterNavayuRegistration(result.uhid, patientName, formData.phone);
               setDemoResult({
                 patientName,
                 ...result,
               });
+              setNavayuFields(createDefaultNavayuRegistrationState());
               setMode('list'); setStep(0);
             }}
               className="px-6 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2">
@@ -1503,6 +1597,33 @@ export default function ReceptionRegistration() {
                 {demoResult.admissionId ? ` · Admission ${demoResult.admissionId}` : ''}
               </p>
             </div>
+            {(() => {
+              const intakeVisitId = demoResult.appointmentId ?? demoResult.uhid;
+              const intakeUrl = patientIntakeUrl(intakeVisitId);
+              return (
+                <div className="rounded-lg border border-dashed p-3 space-y-2 w-full lg:w-auto lg:min-w-[20rem]">
+                  <p className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
+                    <Link2 className="w-3.5 h-3.5" /> Patient tablet intake (Navayu UAT)
+                  </p>
+                  <p className="text-xs font-mono break-all text-foreground/80">{intakeUrl}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Open on tablet or scan QR from this URL · visitId={intakeVisitId}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(intakeUrl);
+                      toast.success('Intake link copied', {
+                        description: 'Paste into patient app or tablet browser.',
+                      });
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-background transition-colors"
+                  >
+                    <Copy className="w-3.5 h-3.5" /> Copy intake URL
+                  </button>
+                </div>
+              );
+            })()}
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => navigate('/reception/queue')}

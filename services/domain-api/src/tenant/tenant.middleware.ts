@@ -8,6 +8,10 @@ export type RequestWithTenant = Request & { tenantId?: string };
 @Injectable()
 export class TenantMiddleware implements NestMiddleware {
   use(req: RequestWithTenant, _res: Response, next: NextFunction) {
+    if (req.tenantId) {
+      return next();
+    }
+
     const header = req.header('x-tenant-id');
     const tenantId =
       header ?? (process.env.NODE_ENV !== 'production' ? DEV_DEFAULT_TENANT : undefined);

@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { AuthService } from './auth.service';
@@ -14,6 +24,19 @@ export class AuthController {
     private readonly mfa: MfaService,
   ) {}
 
+  @Post('login')
+  login(
+    @Body()
+    body: {
+      email: string;
+      password: string;
+      tenantId?: string;
+      branchId?: string;
+    },
+  ) {
+    return this.auth.login(body);
+  }
+
   @Post('dev-login')
   devLogin(
     @Body()
@@ -25,13 +48,23 @@ export class AuthController {
       branchId?: string;
     },
   ) {
+    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEV_LOGIN !== 'true') {
+      throw new ForbiddenException('dev-login is disabled in production');
+    }
     return this.auth.devLogin(body);
+  }
+
+  /** Branch picker for hospital-os login (no auth). */
+  @Get('branches')
+  branches(@Query('tenantId') tenantId?: string) {
+    const tid = tenantId ?? process.env.NAVAYU_DEFAULT_TENANT_ID ?? 'tenant_navayu';
+    return this.auth.listBranchesForTenant(tid);
   }
 
   @Post('dev-token')
   devToken(@Body() body: { sub?: string }) {
     return {
-      message: 'Use POST /auth/dev-login for a signed JWT with tenant and branch claims.',
+      message: 'Use POST /auth/login or POST /auth/dev-login for a signed JWT.',
       sub: body.sub ?? 'dev-user',
     };
   }
@@ -64,5 +97,17 @@ export class AuthController {
     @Body() body: { sessionId?: string },
   ) {
     return this.auth.revokeSession(req.user!, body.sessionId);
+  }
+}
+
+/** Public tenant discovery for online booking embeds. */
+@ApiTags('public')
+@Controller('public/tenants')
+export class PublicTenantController {
+  constructor(private readonly auth: AuthService) {}
+
+  @Get(':slug/branches')
+  branchesBySlug(@Param('slug') slug: string) {
+    return this.auth.listBranchesForSlug(slug);
   }
 }

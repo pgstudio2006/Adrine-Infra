@@ -20,6 +20,8 @@ import {
   platformRecordMetering,
   platformRegisterOpdPatient,
 } from '@/runtime/opd-runtime';
+import { platformSaveNavayuRegistration } from '@/lib/navayu/navayu-runtime';
+import type { NavayuRegistrationMetadata } from '@/lib/navayu/navayu-forms';
 import {
   canUseSchedulingRuntime,
   platformBookAppointment,
@@ -149,6 +151,8 @@ export interface HospitalPatient {
   mlcReportingAuthority?: string;
   mlcIncidentDescription?: string;
   welcomeSmsSentAt?: string;
+  /** Tenant-specific visit metadata (Navayu MSK registration, etc.) */
+  visitMetadata?: Record<string, unknown>;
 }
 
 export type PatientJourneyType = HospitalPatient['patientType'];
@@ -1037,6 +1041,7 @@ interface HospitalStore {
     appointmentDuration?: number;
     appointmentType?: HospitalAppointment['type'];
     notes?: string;
+    visitMetadata?: Record<string, unknown>;
     initialBillingItems?: { description: string; amount: number }[];
   }) => {
     uhid: string;
@@ -1661,6 +1666,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     appointmentDuration?: number;
     appointmentType?: HospitalAppointment['type'];
     notes?: string;
+    visitMetadata?: Record<string, unknown>;
     initialBillingItems?: { description: string; amount: number }[];
   }) => {
     const registeredOn = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -1680,6 +1686,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
       ...data.patient,
       uhid,
       registeredOn,
+      visitMetadata: data.visitMetadata ?? data.patient.visitMetadata,
     };
 
     setPatients(prev => [patient, ...prev]);
@@ -1856,6 +1863,8 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
             ),
           );
 
+          let platformVisitId = visit.id;
+
           if (appointmentId) {
             let activeVisit = visit;
             const from = getClientOpdState(activeVisit.state, 'registered');
@@ -1925,8 +1934,18 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
               ['opd.registration', 'opd.check_in', 'opd.department_routed', 'opd.token_issued'],
               activeVisit.id,
             );
+            platformVisitId = activeVisit.id;
           } else {
             await platformRecordMetering(['opd.registration'], visit.id);
+          }
+
+          const navayuMeta = data.visitMetadata?.navayu as NavayuRegistrationMetadata | undefined;
+          if (navayuMeta?.hearAboutNavayu) {
+            try {
+              await platformSaveNavayuRegistration(platformVisitId, navayuMeta);
+            } catch {
+              /* local visit metadata still available */
+            }
           }
         } catch (err) {
           toast.error('Platform front-desk sync failed', {

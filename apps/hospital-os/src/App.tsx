@@ -611,7 +611,7 @@ function AppRoutes() {
   }
 
   const basePath = ROLE_BASE_PATH[user.role] || "/";
-  const tabs = getTabsForRole(user.role) || [];
+  const tabs = getTabsForRole(user.role, { department: user.department, name: user.name }) || [];
 
   return (
     <Routes>

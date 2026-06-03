@@ -20,15 +20,46 @@ function kernelApiConfigured(): boolean {
   return Boolean(url?.trim());
 }
 
+type AuthUserPayload = {
+  sub: string;
+  tenantId: string;
+  branchId: string;
+  role: string;
+  name: string;
+  email: string;
+};
+
 interface AuthContextType {
   user: User | null;
   login: (role: UserRole, name: string, options?: { department?: string }) => void;
+  loginWithCredentials: (
+    email: string,
+    password: string,
+    options?: { branchId?: string },
+  ) => Promise<boolean>;
   logout: () => void;
   canAccess: (module: ModuleKey) => boolean;
   platformConnected: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
+
+async function applyPlatformAuth(auth: { accessToken: string; user: AuthUserPayload }) {
+  if (!auth.user.tenantId || !auth.user.branchId) {
+    throw new Error('Kernel session missing tenant or branch scope');
+  }
+  setPlatformSession({
+    accessToken: auth.accessToken,
+    tenantId: auth.user.tenantId,
+    branchId: auth.user.branchId,
+    userId: auth.user.sub,
+    email: auth.user.email,
+    name: auth.user.name,
+    role: auth.user.role,
+  });
+  await Promise.all([loadBranchConfig(), loadEffectiveModules(auth.user.branchId)]);
+  return auth.user;
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
@@ -45,16 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const restore = async () => {
       try {
-        const me = await platformFetch<{
-          user: {
-            sub: string;
-            tenantId: string;
-            branchId: string;
-            role: string;
-            name: string;
-            email: string;
-          };
-        }>(kernel, '/auth/me');
+        const me = await platformFetch<{ user: AuthUserPayload | null }>(kernel, '/auth/me');
         if (!me.user) {
           clearPlatformSession();
           setPlatformConnected(false);
@@ -80,92 +102,117 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void restore();
   }, []);
 
-  const login = useCallback((role: UserRole, name: string, options?: { department?: string }) => {
-    const run = async () => {
-      const newUser: User = {
-        id: crypto.randomUUID(),
-        name,
-        role,
-        department: options?.department,
-      };
+  const persistUser = useCallback((newUser: User) => {
+    setUser(newUser);
+    localStorage.setItem('adrine_user', JSON.stringify(newUser));
+  }, []);
 
-      if (isPlatformRuntimeEnabled()) {
-        const kernel = import.meta.env.VITE_KERNEL_API_URL as string | undefined;
-        if (isProductionHospitalOs() && !kernel) {
-          toast.error('Platform auth not configured', {
-            description:
-              'Set VITE_KERNEL_API_URL (and OIDC when available). Mock-only login is disabled in production builds.',
-          });
-          return;
-        }
-        if (kernel) {
-          try {
-            const email = `${role}@adrine.local`;
-            const auth = await platformFetch<{
-              accessToken: string;
-              user: {
-                sub: string;
-                tenantId: string;
-                branchId: string;
-                role: string;
-                name: string;
-                email: string;
-              };
-            }>(kernel, '/auth/dev-login', {
-              method: 'POST',
-              body: JSON.stringify({
-                email,
-                fullName: name,
-                role,
-                tenantId: import.meta.env.VITE_DEV_TENANT_ID ?? 'tenant_dev',
-              }),
-            });
-            if (!auth.user.tenantId || !auth.user.branchId) {
-              throw new Error('Kernel session missing tenant or branch scope');
-            }
-            newUser.id = auth.user.sub;
-            setPlatformSession({
-              accessToken: auth.accessToken,
-              tenantId: auth.user.tenantId,
-              branchId: auth.user.branchId,
-              userId: auth.user.sub,
-              email: auth.user.email,
-              name: auth.user.name,
-              role: auth.user.role,
-            });
-            setPlatformConnected(true);
-            await Promise.all([
-              loadBranchConfig(),
-              loadEffectiveModules(auth.user.branchId),
-            ]);
-            if (isProductionHospitalOs()) {
-              toast.message('Platform session active', {
-                description: `Branch ${auth.user.branchId} · tenant ${auth.user.tenantId}. Use OIDC when VITE_OIDC_ISSUER is configured.`,
-              });
-            }
-          } catch (err) {
-            setPlatformConnected(false);
-            toast.error('Platform login failed', {
-              description: err instanceof Error ? err.message : 'Check kernel-api and CORS.',
-            });
-            if (isProductionHospitalOs()) {
-              return;
-            }
-          }
-        } else if (!kernelApiConfigured()) {
-          toast.warning('Running without kernel session', {
-            description:
-              'VITE_PLATFORM_RUNTIME is on but VITE_KERNEL_API_URL is unset — APIs use dev tenant headers only.',
-          });
-        }
+  const loginWithCredentials = useCallback(
+    async (email: string, password: string, options?: { branchId?: string }) => {
+      const kernel = import.meta.env.VITE_KERNEL_API_URL as string | undefined;
+      if (!kernel) {
+        toast.error('Platform auth not configured', {
+          description: 'Set VITE_KERNEL_API_URL for password login.',
+        });
+        return false;
       }
 
-      setUser(newUser);
-      localStorage.setItem('adrine_user', JSON.stringify(newUser));
-    };
+      try {
+        const auth = await platformFetch<{
+          accessToken: string;
+          user: AuthUserPayload;
+        }>(kernel, '/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({
+            email: email.trim(),
+            password,
+            tenantId: import.meta.env.VITE_DEV_TENANT_ID ?? 'tenant_navayu',
+            branchId: options?.branchId,
+          }),
+        });
 
-    void run();
-  }, []);
+        const profile = await applyPlatformAuth(auth);
+        setPlatformConnected(true);
+
+        persistUser({
+          id: profile.sub,
+          name: profile.name,
+          role: profile.role as UserRole,
+        });
+
+        toast.success('Signed in', {
+          description: `${profile.name} · ${profile.role}`,
+        });
+        return true;
+      } catch (err) {
+        setPlatformConnected(false);
+        toast.error('Login failed', {
+          description: err instanceof Error ? err.message : 'Check email, password, and branch.',
+        });
+        return false;
+      }
+    },
+    [persistUser],
+  );
+
+  const login = useCallback(
+    (role: UserRole, name: string, options?: { department?: string }) => {
+      const run = async () => {
+        const newUser: User = {
+          id: crypto.randomUUID(),
+          name,
+          role,
+          department: options?.department,
+        };
+
+        if (isPlatformRuntimeEnabled()) {
+          const kernel = import.meta.env.VITE_KERNEL_API_URL as string | undefined;
+          if (isProductionHospitalOs() && !kernel) {
+            toast.error('Platform auth not configured', {
+              description:
+                'Set VITE_KERNEL_API_URL (and OIDC when available). Mock-only login is disabled in production builds.',
+            });
+            return;
+          }
+          if (kernel && !isProductionHospitalOs()) {
+            try {
+              const email = `${role}@adrine.local`;
+              const auth = await platformFetch<{
+                accessToken: string;
+                user: AuthUserPayload;
+              }>(kernel, '/auth/dev-login', {
+                method: 'POST',
+                body: JSON.stringify({
+                  email,
+                  fullName: name,
+                  role,
+                  tenantId: import.meta.env.VITE_DEV_TENANT_ID ?? 'tenant_dev',
+                }),
+              });
+              const profile = await applyPlatformAuth(auth);
+              newUser.id = profile.sub;
+              setPlatformConnected(true);
+            } catch (err) {
+              setPlatformConnected(false);
+              toast.error('Platform login failed', {
+                description: err instanceof Error ? err.message : 'Check kernel-api and CORS.',
+              });
+            }
+          } else if (!kernelApiConfigured()) {
+            toast.warning('Running without kernel session', {
+              description:
+                'VITE_PLATFORM_RUNTIME is on but VITE_KERNEL_API_URL is unset — APIs use dev tenant headers only.',
+            });
+          }
+        }
+
+        persistUser(newUser);
+      };
+
+      void run();
+    },
+    [persistUser],
+  );
 
   const logout = useCallback(() => {
     setUser(null);
@@ -183,7 +230,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, canAccess, platformConnected }}>
+    <AuthContext.Provider
+      value={{ user, login, loginWithCredentials, logout, canAccess, platformConnected }}
+    >
       {children}
     </AuthContext.Provider>
   );

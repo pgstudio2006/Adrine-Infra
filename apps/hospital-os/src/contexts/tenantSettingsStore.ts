@@ -10,6 +10,7 @@ import {
   TenantRoleConfig,
   TenantSettings,
 } from '@/config/tenantSettings';
+import { NavUserContext } from '@/config/routeAccess';
 import { UserRole } from '@/types/roles';
 
 export interface TenantSettingsContextType {
@@ -25,7 +26,7 @@ export interface TenantSettingsContextType {
   getRoleLabel: (role: UserRole) => string;
   getRoleDescription: (role: UserRole) => string;
   getAvailableRoles: () => UserRole[];
-  getTabsForRole: (role: UserRole) => RoleTab[];
+  getTabsForRole: (role: UserRole, partialCtx?: Partial<NavUserContext>) => RoleTab[];
 }
 
 export const TenantSettingsContext = createContext<TenantSettingsContextType | null>(null);

@@ -1,0 +1,53 @@
+{
+  "version": "v0",
+  "description": "Navayu protocol library stub — future Protocol Engine seed (Disc Care, Frozen Shoulder, Knee OA, AVN).",
+  "protocols": [
+    {
+      "id": "disc_care",
+      "label": "Disc Care",
+      "specialty": "Spine",
+      "stages": [
+        { "id": "stage_1", "label": "Stage 1 — Acute pain control", "components": ["physio", "medication", "activity_modification"] },
+        { "id": "stage_2", "label": "Stage 2 — Functional restoration", "components": ["structured_physio", "core_strengthening"] },
+        { "id": "stage_3", "label": "Stage 3 — Regenerative options", "components": ["ozone", "dscb", "epidural"] },
+        { "id": "stage_4", "label": "Stage 4 — Maintenance", "components": ["home_program", "follow_up"] }
+      ]
+    },
+    {
+      "id": "frozen_shoulder",
+      "label": "Frozen Shoulder",
+      "specialty": "Shoulder",
+      "stages": [
+        { "id": "freezing", "label": "Freezing", "components": ["pain_management", "gentle_mobility"] },
+        { "id": "frozen", "label": "Frozen", "components": ["capsular_stretch", "hydrodilatation"] },
+        { "id": "thawing", "label": "Thawing", "components": ["strengthening", "prp_optional", "ozone_optional"] }
+      ]
+    },
+    {
+      "id": "knee_oa",
+      "label": "Knee Osteoarthritis",
+      "specialty": "Knee",
+      "stages": [
+        { "id": "kl_1_2", "label": "KL Grade 1–2", "components": ["physio", "weight_management", "viscosupplementation"] },
+        { "id": "kl_3", "label": "KL Grade 3", "components": ["prp", "gfc", "bracing"] },
+        { "id": "kl_4", "label": "KL Grade 4", "components": ["bmac", "surgical_referral"] }
+      ]
+    },
+    {
+      "id": "avn",
+      "label": "Avascular Necrosis (AVN)",
+      "specialty": "Hip",
+      "stages": [
+        { "id": "ficat_1", "label": "Ficat I", "components": ["protected_weight_bearing", "bisphosphonates"] },
+        { "id": "ficat_2", "label": "Ficat II", "components": ["core_decompression", "eboo"] },
+        { "id": "ficat_3_4", "label": "Ficat III–IV", "components": ["joint_preservation", "arthroplasty_referral"] }
+      ]
+    }
+  ],
+  "packageTiers": [
+    { "id": "basic", "label": "Basic" },
+    { "id": "advanced", "label": "Advanced" },
+    { "id": "regenerative", "label": "Regenerative" },
+    { "id": "premium", "label": "Premium" }
+  ]
+}

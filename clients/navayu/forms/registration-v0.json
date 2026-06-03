@@ -1,0 +1,68 @@
+{
+  "formId": "navayu.reception.registration",
+  "version": "v0",
+  "label": "Navayu Reception Registration",
+  "sections": [
+    {
+      "id": "referral",
+      "label": "Referral source",
+      "fields": [
+        {
+          "id": "hearAboutNavayu",
+          "type": "select",
+          "label": "How did you hear about Navayu?",
+          "required": true,
+          "options": [
+            { "value": "google", "label": "Google" },
+            { "value": "instagram", "label": "Instagram" },
+            { "value": "facebook", "label": "Facebook" },
+            { "value": "youtube", "label": "YouTube" },
+            { "value": "existing_patient", "label": "Existing Patient" },
+            { "value": "doctor_referral", "label": "Doctor Referral" },
+            { "value": "gp_referral", "label": "GP Referral" },
+            { "value": "corporate_camp", "label": "Corporate Camp" },
+            { "value": "walk_in", "label": "Walk-in" },
+            { "value": "newspaper", "label": "Newspaper" },
+            { "value": "village_camp", "label": "Village Camp" },
+            { "value": "website", "label": "Website" },
+            { "value": "other", "label": "Other" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lifestyle",
+      "label": "Lifestyle snapshot",
+      "fields": [
+        { "id": "smoker", "type": "boolean", "label": "Smoker" },
+        { "id": "alcohol", "type": "boolean", "label": "Alcohol use" },
+        { "id": "diabetes", "type": "boolean", "label": "Diabetes" },
+        { "id": "htn", "type": "boolean", "label": "Hypertension" },
+        { "id": "thyroid", "type": "boolean", "label": "Thyroid disorder" },
+        { "id": "obesity", "type": "boolean", "label": "Obesity" },
+        { "id": "prevSurgery", "type": "boolean", "label": "Previous surgery" },
+        { "id": "steroidUse", "type": "boolean", "label": "Steroid use" },
+        { "id": "sportsInjury", "type": "boolean", "label": "Sports injury history" }
+      ]
+    },
+    {
+      "id": "pain_regions",
+      "label": "Pain regions",
+      "fields": [
+        {
+          "id": "bodyRegions",
+          "type": "multiselect",
+          "label": "Affected regions",
+          "options": [
+            { "value": "neck", "label": "Neck" },
+            { "value": "back", "label": "Back / lumbar" },
+            { "value": "knee", "label": "Knee" },
+            { "value": "shoulder", "label": "Shoulder" },
+            { "value": "hip", "label": "Hip" },
+            { "value": "multiple", "label": "Multiple regions" }
+          ]
+        }
+      ]
+    }
+  ]
+}

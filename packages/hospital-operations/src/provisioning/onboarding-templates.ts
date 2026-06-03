@@ -32,6 +32,19 @@ export const ONBOARDING_TEMPLATE_PACKS: readonly OnboardingTemplatePack[] = [
     workflowTemplateCodes: ['ed_triage', 'lab_critical', 'bed_rapid'],
     policyTemplateKeys: ['ed.triage_required', 'lab.critical_verify', 'bed.conflict_guard'],
   },
+  {
+    code: 'navayu_msk',
+    label: 'Navayu MSK Clinic',
+    description: 'Spine & joint specialty: OPD MSK visit, pharmacy, CRM, and analytics.',
+    defaultModules: ['OPD', 'Pharmacy', 'Analytics', 'CRM'],
+    workflowTemplateCodes: ['navayu_msk_visit', 'opd_standard'],
+    policyTemplateKeys: [
+      'billing.require_encounter_close',
+      'opd.queue_required',
+      'msk.intake_required',
+      'msk.ai_summary_before_senior',
+    ],
+  },
 ] as const;
 
 export function getOnboardingTemplate(code: string): OnboardingTemplatePack | undefined {

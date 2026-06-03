@@ -32,4 +32,17 @@ export const OPERATIONAL_TEMPLATE_PACKS: readonly OperationalTemplatePackDef[] =
     workflowLifecycleIds: ['opd_visit', 'lab_order', 'bed_allocation'],
     policyKeys: ['ed.triage_required', 'lab.critical_verify'],
   },
+  {
+    code: 'navayu_msk',
+    label: 'Navayu MSK Clinic',
+    description: 'MSK specialty OPD with pharmacy, CRM, and analytics.',
+    modules: ['OPD', 'Pharmacy', 'Analytics', 'CRM'],
+    workflowLifecycleIds: ['navayu_msk_visit', 'opd_visit', 'pharmacy_fulfillment'],
+    policyKeys: [
+      'billing.require_encounter_close',
+      'opd.queue_required',
+      'msk.intake_required',
+      'msk.ai_summary_before_senior',
+    ],
+  },
 ] as const;

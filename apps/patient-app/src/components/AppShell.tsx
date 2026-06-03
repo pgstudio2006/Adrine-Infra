@@ -17,18 +17,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  const isPublicRoute = pathname === '/login' || pathname === '/intake';
+
   useEffect(() => {
-    if (!loading && !session && pathname !== '/login') {
+    if (!loading && !session && !isPublicRoute) {
       router.replace('/login');
     }
-  }, [loading, session, pathname, router]);
+  }, [loading, session, isPublicRoute, router]);
 
   if (loading) {
     return <p className="muted">Loading…</p>;
   }
 
   if (!session) {
-    return <>{children}</>;
+    return (
+      <div className={pathname === '/intake' ? 'shell intake-shell-public' : undefined}>
+        {children}
+      </div>
+    );
   }
 
   return (

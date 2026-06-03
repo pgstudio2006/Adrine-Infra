@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiHeader, ApiTags } from '@nestjs/swagger';
 import { OpdService, type OpdTransitionBody } from './opd.service';
 
@@ -36,6 +36,15 @@ export class OpdController {
     return this.opd.getActiveForPatient(tenantId ?? 'tenant_dev', patientId);
   }
 
+  /** Patient timeline — visits, MSK milestones, OPD transitions. */
+  @Get('visits/patient/:patientId/timeline')
+  patientTimeline(
+    @Headers('x-tenant-id') tenantId: string,
+    @Param('patientId') patientId: string,
+  ) {
+    return this.opd.getPatientTimeline(tenantId ?? 'tenant_dev', patientId);
+  }
+
   /** Queue / consultation board for a branch (Hospital OS hydration). */
   @Get('visits/board')
   board(
@@ -63,5 +72,30 @@ export class OpdController {
     @Body() body: OpdTransitionBody,
   ) {
     return this.opd.transition(tenantId ?? 'tenant_dev', id, body);
+  }
+
+  /** Navayu patient intake (tablet) — merges answers into visit metadata. */
+  @Post('visits/:id/intake')
+  intake(
+    @Headers('x-tenant-id') tenantId: string,
+    @Param('id') id: string,
+    @Body()
+    body: {
+      formId: string;
+      version: string;
+      answers: Record<string, unknown>;
+    },
+  ) {
+    return this.opd.submitIntake(tenantId ?? 'tenant_dev', id, body);
+  }
+
+  /** Merge Navayu / visit-specific metadata without a full OPD transition. */
+  @Patch('visits/:id/metadata')
+  patchMetadata(
+    @Headers('x-tenant-id') tenantId: string,
+    @Param('id') id: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.opd.patchVisitMetadata(tenantId ?? 'tenant_dev', id, body);
   }
 }

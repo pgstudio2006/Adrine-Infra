@@ -321,4 +321,188 @@ export class OpdService {
       orderBy: { createdAt: 'asc' },
     });
   }
+
+  /** Deep-merge visit metadata (Navayu MSK registration, exams, lifecycle state). */
+  async patchVisitMetadata(
+    tenantId: string,
+    visitId: string,
+    patch: Record<string, unknown>,
+  ) {
+    const visit = await this.getVisit(tenantId, visitId);
+    const existing =
+      visit.metadata && typeof visit.metadata === 'object' && !Array.isArray(visit.metadata)
+        ? (visit.metadata as Record<string, unknown>)
+        : {};
+    const merged = deepMergeMetadata(existing, patch);
+    return this.prisma.opdVisit.update({
+      where: { id: visitId },
+      data: { metadata: merged as object },
+      include: { patient: true },
+    });
+  }
+
+  /** Patient tablet intake — persists answers under metadata.navayu.intake. */
+  async submitIntake(
+    tenantId: string,
+    visitId: string,
+    body: {
+      formId: string;
+      version: string;
+      answers: Record<string, unknown>;
+    },
+  ) {
+    const redFlags = Array.isArray(body.answers.redFlag)
+      ? (body.answers.redFlag as string[])
+      : Array.isArray(body.answers.redFlags)
+        ? (body.answers.redFlags as string[])
+        : [];
+    const urgent =
+      redFlags.length > 0 && !redFlags.every((flag) => flag === 'none');
+
+    const visit = await this.patchVisitMetadata(tenantId, visitId, {
+      navayu: {
+        intake: {
+          formId: body.formId,
+          version: body.version,
+          answers: body.answers,
+          submittedAt: new Date().toISOString(),
+          urgent,
+        },
+      },
+      mskLifecycleState: 'intake_complete',
+    });
+
+    await this.platformEvents.record({
+      tenantId,
+      branchId: visit.branchId,
+      eventName: 'navayu.intake_submitted',
+      resourceType: 'opd_visit',
+      resourceId: visitId,
+      payload: {
+        formId: body.formId,
+        urgent,
+        vas: body.answers.vas,
+      },
+    });
+
+    return { ok: true, visit, urgent };
+  }
+
+  /** Chronological timeline for a patient (visits, transitions, Navayu MSK milestones). */
+  async getPatientTimeline(tenantId: string, patientId: string) {
+    const visits = await this.prisma.opdVisit.findMany({
+      where: { tenantId, patientId },
+      include: {
+        transitions: { orderBy: { createdAt: 'asc' } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 25,
+    });
+
+    const items: Array<{
+      id: string;
+      type: string;
+      title: string;
+      description: string;
+      timestamp: string;
+      visitId?: string;
+    }> = [];
+
+    for (const visit of visits) {
+      const meta =
+        visit.metadata && typeof visit.metadata === 'object' && !Array.isArray(visit.metadata)
+          ? (visit.metadata as Record<string, unknown>)
+          : {};
+      const navayu =
+        meta.navayu && typeof meta.navayu === 'object' && !Array.isArray(meta.navayu)
+          ? (meta.navayu as Record<string, unknown>)
+          : {};
+      const mskState = typeof meta.mskLifecycleState === 'string' ? meta.mskLifecycleState : undefined;
+
+      items.push({
+        id: `visit-${visit.id}`,
+        type: 'visit',
+        title: `OPD visit · ${visit.state}`,
+        description: [visit.department, visit.assignedDoctor, mskState ? `MSK: ${mskState}` : null]
+          .filter(Boolean)
+          .join(' · '),
+        timestamp: visit.createdAt.toISOString(),
+        visitId: visit.id,
+      });
+
+      if (navayu.hearAboutNavayu || navayu.registeredAt) {
+        items.push({
+          id: `navayu-reg-${visit.id}`,
+          type: 'navayu_registration',
+          title: 'Navayu MSK registration',
+          description: `Referral: ${String(navayu.hearAboutNavayu ?? '—')}`,
+          timestamp: String(navayu.registeredAt ?? visit.createdAt.toISOString()),
+          visitId: visit.id,
+        });
+      }
+
+      const intake = navayu.intake as Record<string, unknown> | undefined;
+      if (intake?.submittedAt) {
+        const answers = intake.answers as Record<string, unknown> | undefined;
+        items.push({
+          id: `navayu-intake-${visit.id}`,
+          type: 'navayu_intake',
+          title: intake.urgent ? 'Patient intake · URGENT flags' : 'Patient intake completed',
+          description: answers?.complaintText
+            ? String(answers.complaintText)
+            : `VAS ${answers?.vas ?? '—'}/10`,
+          timestamp: String(intake.submittedAt),
+          visitId: visit.id,
+        });
+      }
+
+      const lumbar = navayu.lumbarExam as Record<string, unknown> | undefined;
+      if (lumbar?.savedAt) {
+        items.push({
+          id: `navayu-exam-${visit.id}`,
+          type: 'navayu_msk_exam',
+          title: 'Junior MSK lumbar exam',
+          description: `ODI ${lumbar.odi ?? '—'}% · VAS ${lumbar.vas ?? '—'}/10 · SLR ${lumbar.slrt ?? '—'}`,
+          timestamp: String(lumbar.savedAt),
+          visitId: visit.id,
+        });
+      }
+
+      for (const tr of visit.transitions) {
+        items.push({
+          id: tr.id,
+          type: 'opd_transition',
+          title: `OPD · ${tr.action}`,
+          description: `${tr.fromState} → ${tr.toState}`,
+          timestamp: tr.createdAt.toISOString(),
+          visitId: visit.id,
+        });
+      }
+    }
+
+    items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return { patientId, items };
+  }
+}
+
+function deepMergeMetadata(
+  base: Record<string, unknown>,
+  patch: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...base };
+  for (const [key, value] of Object.entries(patch)) {
+    if (
+      value &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      out[key] &&
+      typeof out[key] === 'object' &&
+      !Array.isArray(out[key])
+    ) {
+      out[key] = deepMergeMetadata(out[key] as Record<string, unknown>, value as Record<string, unknown>);
+    } else {
+      out[key] = value;
+    }
+  }
+  return out;
 }

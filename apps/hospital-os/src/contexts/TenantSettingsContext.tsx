@@ -14,6 +14,9 @@ import {
   coerceTenantSettings,
 } from '@/config/tenantSettings';
 import { TenantSettingsContext, TenantSettingsContextType } from '@/contexts/tenantSettingsStore';
+import { getCounsellorCrmTabs, getEffectiveTabVisibility, NavUserContext, resolveNavProfile } from '@/config/routeAccess';
+import { getServerTenantSettings, loadBranchConfig } from '@/runtime/branch-config';
+import { getPlatformSession, isPlatformRuntimeEnabled } from '@/runtime/platform-session';
 import { UserRole } from '@/types/roles';
 
 const STORAGE_KEY = 'adrine_tenant_settings';
@@ -30,6 +33,19 @@ export function TenantSettingsProvider({ children }: { children: React.ReactNode
       ? settings.branding.organizationName
       : settings.branding.platformName;
   }, [settings]);
+
+  useEffect(() => {
+    if (!isPlatformRuntimeEnabled()) return;
+    const server = getServerTenantSettings();
+    if (server) {
+      setSettings(coerceTenantSettings(server));
+      return;
+    }
+    void loadBranchConfig().then(() => {
+      const loaded = getServerTenantSettings();
+      if (loaded) setSettings(coerceTenantSettings(loaded));
+    });
+  }, []);
 
   function updateBranding(patch: Partial<TenantBranding>) {
     setSettings((current) => ({
@@ -133,16 +149,27 @@ export function TenantSettingsProvider({ children }: { children: React.ReactNode
     });
   }
 
-  function getTabsForRole(role: UserRole) {
+  function buildNavContext(role: UserRole, partial?: Partial<NavUserContext>): NavUserContext {
+    const session = getPlatformSession();
+    return {
+      role,
+      department: partial?.department,
+      email: partial?.email ?? session?.email,
+      name: partial?.name,
+    };
+  }
+
+  function getTabsForRole(role: UserRole, partialCtx?: Partial<NavUserContext>) {
+    const ctx = buildNavContext(role, partialCtx);
     const roleTabs = mergeOperationalTabs(role);
     if (!roleTabs.length) {
       console.error(`No tabs found for role: ${role}`);
       return [];
     }
-    return roleTabs
+
+    const visibleTabs = roleTabs
       .filter((tab) => {
-        const tabSettings = settings.navigation[role][tab.key];
-        if (!tabSettings?.visible) {
+        if (!getEffectiveTabVisibility(settings, role, tab.key, ctx)) {
           return false;
         }
 
@@ -150,7 +177,10 @@ export function TenantSettingsProvider({ children }: { children: React.ReactNode
           return false;
         }
 
-        if ((role === 'crm_manager' || tab.path.startsWith('/crm') || tab.path === '/admin/crm') && !settings.featureFlags.patientRelationsEnabled) {
+        if (
+          (role === 'crm_manager' || tab.path.startsWith('/crm') || tab.path === '/admin/crm') &&
+          !settings.featureFlags.patientRelationsEnabled
+        ) {
           return false;
         }
 
@@ -160,6 +190,24 @@ export function TenantSettingsProvider({ children }: { children: React.ReactNode
         ...tab,
         label: settings.navigation[role][tab.key]?.label ?? tab.label,
       }));
+
+    const profile = resolveNavProfile(settings, ctx);
+    const crmExtras =
+      profile?.allowedRoutePrefixes?.some((prefix) => prefix.startsWith('/crm'))
+        ? getCounsellorCrmTabs(settings, ctx).map((tab) => ({
+            ...tab,
+            label: settings.navigation.crm_manager[tab.key]?.label ?? tab.label,
+          }))
+        : [];
+
+    const seen = new Set<string>();
+    return [...visibleTabs, ...crmExtras].filter((tab) => {
+      if (seen.has(tab.path)) {
+        return false;
+      }
+      seen.add(tab.path);
+      return true;
+    });
   }
 
   return (

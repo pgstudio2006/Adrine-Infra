@@ -39,6 +39,7 @@ import { ProvidersModule } from './providers/providers.module';
 import { OtModule } from './ot/ot.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { DialysisModule } from './dialysis/dialysis.module';
+import { PublicBookingModule } from './public-booking/public-booking.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { DialysisModule } from './dialysis/dialysis.module';
     EncounterModule,
     EmrModule,
     SchedulingModule,
+    PublicBookingModule,
     CrmModule,
     BillingModule,
     OpdModule,

@@ -132,11 +132,77 @@ body {
   font-size: 0.9rem;
 }
 
-.form input {
+.form input,
+.form select,
+.form textarea {
   padding: 0.55rem 0.65rem;
   border: 1px solid var(--border);
   border-radius: 0.5rem;
   font: inherit;
+}
+
+.form textarea {
+  resize: vertical;
+  min-height: 4.5rem;
+}
+
+.intake-page {
+  max-width: 32rem;
+}
+
+.intake-form {
+  max-width: none;
+}
+
+.intake-section {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.intake-section legend {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.checkbox-group {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.checkbox-row input {
+  margin-top: 0.2rem;
+}
+
+.vas-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.toast {
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.toast.success {
+  background: var(--accent-soft);
+  color: #115e59;
+  border: 1px solid #99f6e4;
+}
+
+.intake-shell-public .intake-page {
+  margin: 2rem auto;
 }
 
 .error {

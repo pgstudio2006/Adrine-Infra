@@ -3,7 +3,12 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../src/contexts/AuthContext';
-import { PlatformApiError } from '../../src/runtime/platform-client';
+import {
+  PlatformApiError,
+  formatLoginFetchError,
+  isPlatformRuntimeEnabled,
+  kernelBase,
+} from '../../src/runtime/platform-client';
 
 export default function LoginPage() {
   const { login, session } = useAuth();
@@ -27,9 +32,7 @@ export default function LoginPage() {
       const msg =
         err instanceof PlatformApiError
           ? err.message
-          : err instanceof Error
-            ? err.message
-            : 'Sign-in failed';
+          : formatLoginFetchError(err);
       setError(msg);
     } finally {
       setSubmitting(false);
@@ -40,8 +43,14 @@ export default function LoginPage() {
     <div className="login-page">
       <h1>Sign in</h1>
       <p className="muted">
-        Dev login uses kernel <code>/auth/dev-login</code> and links your clinical record via
-        domain-api. Set <code>NEXT_PUBLIC_PLATFORM_RUNTIME=true</code> against a local stack.
+        {isPlatformRuntimeEnabled() ? (
+          <>
+            Live mode: calls kernel at <code>{kernelBase() ?? '(set NEXT_PUBLIC_KERNEL_API_URL)'}</code>.
+            APIs must run on <strong>this computer</strong> or use staging URLs in <code>.env.local</code>.
+          </>
+        ) : (
+          <>Demo mode: no backend required. Set <code>NEXT_PUBLIC_PLATFORM_RUNTIME=true</code> for live APIs.</>
+        )}
       </p>
       <form className="form" onSubmit={onSubmit}>
         <label>

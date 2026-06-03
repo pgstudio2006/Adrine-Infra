@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { User, Hash } from 'lucide-react';
 
@@ -9,6 +10,7 @@ export type OpdPatientContextBarProps = {
   tokenNo?: number;
   opdState?: string;
   waitLabel?: string;
+  extra?: ReactNode;
 };
 
 export function PatientContextBar({
@@ -19,6 +21,7 @@ export function PatientContextBar({
   tokenNo,
   opdState,
   waitLabel,
+  extra,
 }: OpdPatientContextBarProps) {
   return (
     <div className="rounded-lg border border-border/80 bg-card px-4 py-3" role="region" aria-label="OPD patient context">
@@ -59,6 +62,7 @@ export function PatientContextBar({
           {doctor && (
             <span className="text-[10px] text-muted-foreground">{doctor}</span>
           )}
+          {extra}
         </div>
       </div>
     </div>

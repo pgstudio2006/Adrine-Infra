@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, Play, SkipForward, Megaphone } from 'lucide-react';
@@ -12,6 +12,20 @@ import { useClinicalPlatformListSync } from '@/hooks/useClinicalPlatformListSync
 import { formatWaitMinutes } from '@/lib/opd/queue-presenters';
 import { PlatformConnectivityStrip } from '@/components/PlatformConnectivityStrip';
 import { isPlatformAuthoritative } from '@/runtime/platform-store-bridge';
+import { NavayuAiSummaryPanel } from '@/components/navayu/NavayuAiSummaryPanel';
+import {
+  isNavayuTenant,
+  isNavayuSeniorDoctor,
+  loadNavayuLumbarExam,
+  loadNavayuVisitMetadata,
+} from '@/lib/navayu/navayu-forms';
+import {
+  canUseNavayuRuntime,
+  platformLoadNavayuVisitBundle,
+  type NavayuVisitBundle,
+} from '@/lib/navayu/navayu-runtime';
+import type { NavayuRegistrationMetadata } from '@/lib/navayu/navayu-forms';
+import { getPlatformSession } from '@/runtime/platform-session';
 
 const fadeIn = (i: number) => ({
   initial: { opacity: 0, y: 12 },
@@ -30,6 +44,8 @@ const statusStyle: Record<string, string> = {
 export default function DoctorQueue() {
   const { updateQueueStatus, nextQueuePatient, patients } = useHospital();
   const { isDoctor, doctorName, department, queue } = useDoctorScope();
+  const navayuMode = isNavayuTenant();
+  const navayuSenior = isNavayuSeniorDoctor(getPlatformSession()?.email);
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
   useClinicalPlatformListSync({ queue: true, departmentWorklists: false, ipd: false });
@@ -49,6 +65,31 @@ export default function DoctorQueue() {
           : undefined,
     [called, current, patients],
   );
+
+  const [navayuBundle, setNavayuBundle] = useState<NavayuVisitBundle>({});
+
+  useEffect(() => {
+    if (!activePatient?.uhid) {
+      setNavayuBundle({});
+      return;
+    }
+    const localReg =
+      (activePatient.visitMetadata?.navayu as NavayuRegistrationMetadata | undefined) ??
+      loadNavayuVisitMetadata(activePatient.uhid) ??
+      undefined;
+    const localExam = loadNavayuLumbarExam(activePatient.uhid);
+    if (canUseNavayuRuntime() && activePatient.platformOpdVisitId) {
+      void platformLoadNavayuVisitBundle(activePatient.platformOpdVisitId).then((bundle) => {
+        setNavayuBundle({
+          registration: bundle?.registration ?? localReg,
+          intake: bundle?.intake,
+          lumbarExam: bundle?.lumbarExam ?? localExam,
+        });
+      });
+    } else {
+      setNavayuBundle({ registration: localReg, lumbarExam: localExam });
+    }
+  }, [activePatient?.uhid, activePatient?.platformOpdVisitId, activePatient?.visitMetadata]);
 
   const handleNext = () => {
     if (!doctorName) return;
@@ -94,6 +135,15 @@ export default function DoctorQueue() {
 
       {isPlatformAuthoritative() ? (
         <PlatformConnectivityStrip detail="Your queue is scoped to assigned department and refreshed from the OPD board." />
+      ) : null}
+
+      {navayuMode && navayuSenior && activePatient ? (
+        <NavayuAiSummaryPanel
+          seniorQueue
+          registration={navayuBundle.registration}
+          intake={navayuBundle.intake}
+          lumbarExam={navayuBundle.lumbarExam}
+        />
       ) : null}
 
       {called ? (

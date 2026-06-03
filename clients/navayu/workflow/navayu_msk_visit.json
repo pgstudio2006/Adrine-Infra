@@ -1,0 +1,77 @@
+{
+  "lifecycleId": "navayu_msk_visit",
+  "name": "Navayu MSK Visit",
+  "description": "Reception → patient intake → junior MSK exam → AI summary → senior consult → classification → protocol → counselling → package → close.",
+  "metadata": {
+    "initial": "registered",
+    "extendsLifecycle": "opd_visit",
+    "states": [
+      "registered",
+      "intake_pending",
+      "intake_complete",
+      "associate_eval",
+      "msk_exam_complete",
+      "ai_summary_ready",
+      "senior_consult",
+      "navayu_classified",
+      "protocol_mapped",
+      "counselling",
+      "package_planned",
+      "closed"
+    ],
+    "transitions": [
+      { "from": "registered", "to": "intake_pending", "action": "send_intake_link" },
+      { "from": "intake_pending", "to": "intake_complete", "action": "complete_intake" },
+      { "from": "intake_complete", "to": "associate_eval", "action": "start_associate_eval" },
+      { "from": "associate_eval", "to": "msk_exam_complete", "action": "complete_msk_exam" },
+      { "from": "msk_exam_complete", "to": "ai_summary_ready", "action": "generate_ai_summary" },
+      { "from": "ai_summary_ready", "to": "senior_consult", "action": "start_senior_consult" },
+      { "from": "senior_consult", "to": "navayu_classified", "action": "classify_diagnosis" },
+      { "from": "navayu_classified", "to": "protocol_mapped", "action": "map_protocol" },
+      { "from": "protocol_mapped", "to": "counselling", "action": "start_counselling" },
+      { "from": "counselling", "to": "package_planned", "action": "plan_package" },
+      { "from": "package_planned", "to": "closed", "action": "close_visit" }
+    ]
+  },
+  "transitionOverrides": {
+    "send_intake_link": {
+      "roles": ["receptionist", "admin"],
+      "branchConfigKeys": ["msk.intake_required"]
+    },
+    "complete_intake": {
+      "roles": ["receptionist", "admin", "doctor"]
+    },
+    "start_associate_eval": {
+      "roles": ["doctor"],
+      "validations": ["intake_submitted"]
+    },
+    "complete_msk_exam": {
+      "roles": ["doctor"],
+      "validations": ["msk_exam_form_complete"]
+    },
+    "generate_ai_summary": {
+      "roles": ["admin", "doctor"],
+      "branchConfigKeys": ["msk.ai_summary_before_senior"]
+    },
+    "start_senior_consult": {
+      "roles": ["doctor"],
+      "validations": ["ai_summary_ready"]
+    },
+    "classify_diagnosis": {
+      "roles": ["doctor"]
+    },
+    "map_protocol": {
+      "roles": ["doctor"]
+    },
+    "start_counselling": {
+      "roles": ["billing", "crm_manager", "receptionist"]
+    },
+    "plan_package": {
+      "roles": ["billing", "crm_manager"]
+    },
+    "close_visit": {
+      "roles": ["doctor", "receptionist", "admin"],
+      "branchConfigKeys": ["billing.require_encounter_close"]
+    }
+  }
+}

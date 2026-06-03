@@ -1,0 +1,78 @@
+{
+  "users": [
+    {
+      "email": "admin@navayuhealth.in",
+      "fullName": "Navayu Administrator",
+      "role": "admin",
+      "branchCode": "gurgaon"
+    },
+    {
+      "email": "reception@navayuhealth.in",
+      "fullName": "Navayu Reception",
+      "role": "receptionist",
+      "branchCode": "gurgaon"
+    },
+    {
+      "email": "reception.pataudi@navayuhealth.in",
+      "fullName": "Pataudi Reception",
+      "role": "receptionist",
+      "branchCode": "pataudi"
+    },
+    {
+      "email": "doctor@pataudi.navayuhealth.in",
+      "fullName": "Dr. Pataudi Physician",
+      "role": "doctor",
+      "branchCode": "pataudi"
+    },
+    {
+      "email": "nurse@pataudi.navayuhealth.in",
+      "fullName": "Pataudi Nurse",
+      "role": "nurse",
+      "branchCode": "pataudi"
+    },
+    {
+      "email": "billing@pataudi.navayuhealth.in",
+      "fullName": "Pataudi Billing",
+      "role": "billing",
+      "branchCode": "pataudi"
+    },
+    {
+      "email": "junior@navayuhealth.in",
+      "fullName": "Dr. Junior MSK Associate",
+      "role": "doctor",
+      "branchCode": "gurgaon",
+      "department": "MSK"
+    },
+    {
+      "email": "senior@navayuhealth.in",
+      "fullName": "Dr. Senior MSK Consultant",
+      "role": "doctor",
+      "branchCode": "gurgaon",
+      "department": "MSK"
+    },
+    {
+      "email": "counsellor@navayuhealth.in",
+      "fullName": "Navayu Counsellor",
+      "role": "billing",
+      "branchCode": "gurgaon"
+    },
+    {
+      "email": "crm@navayuhealth.in",
+      "fullName": "Navayu CRM Manager",
+      "role": "crm_manager",
+      "branchCode": "gurgaon"
+    },
+    {
+      "email": "nurse@navayuhealth.in",
+      "fullName": "Navayu Nurse",
+      "role": "nurse",
+      "branchCode": "gurgaon"
+    },
+    {
+      "email": "pharmacy@navayuhealth.in",
+      "fullName": "Navayu Pharmacist",
+      "role": "pharmacist",
+      "branchCode": "gurgaon"
+    }
+  ]
+}

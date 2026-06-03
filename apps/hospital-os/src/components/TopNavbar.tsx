@@ -76,7 +76,7 @@ export default function TopNavbar() {
 
   if (!user) return null;
 
-  const tabs = getTabsForRole(user.role) ?? [];
+  const tabs = getTabsForRole(user.role, { department: user.department, name: user.name }) ?? [];
   const { guardedNavigate } = useOperationalRouteGuard();
   const unreadCount = notifications.filter((n) => !n.read).length;
 

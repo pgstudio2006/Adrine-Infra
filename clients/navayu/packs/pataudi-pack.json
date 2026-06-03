@@ -1,0 +1,745 @@
+{
+  "roles": {
+    "admin": {
+      "label": "Administrator",
+      "description": "Pataudi mini-hospital admin",
+      "enabled": true
+    },
+    "doctor": {
+      "label": "Doctor",
+      "description": "OPD, IPD, labs, radiology",
+      "enabled": true
+    },
+    "nurse": {
+      "label": "Nurse",
+      "description": "Ward and bedside care",
+      "enabled": true
+    },
+    "receptionist": {
+      "label": "Reception",
+      "description": "Registration and front desk",
+      "enabled": true
+    },
+    "lab_technician": {
+      "label": "Lab Technician",
+      "description": "LIMS worklists and verification",
+      "enabled": true
+    },
+    "pharmacist": {
+      "label": "Pharmacist",
+      "description": "Pharmacy dispensing",
+      "enabled": true
+    },
+    "billing": {
+      "label": "Billing & Finance",
+      "description": "Hospital billing operations",
+      "enabled": true
+    },
+    "radiologist": {
+      "label": "Radiologist",
+      "description": "Disabled at Pataudi",
+      "enabled": false
+    },
+    "ot_coordinator": {
+      "label": "OT Coordinator",
+      "description": "Disabled at Pataudi",
+      "enabled": false
+    },
+    "inventory_manager": {
+      "label": "Inventory Manager",
+      "description": "Disabled at Pataudi",
+      "enabled": false
+    },
+    "emergency": {
+      "label": "Emergency / ER",
+      "description": "Disabled at Pataudi",
+      "enabled": false
+    },
+    "hr_manager": {
+      "label": "HR & Staff",
+      "description": "Disabled at Pataudi",
+      "enabled": false
+    },
+    "scheduler": {
+      "label": "Scheduling",
+      "description": "Disabled at Pataudi",
+      "enabled": false
+    },
+    "dialysis_tech": {
+      "label": "Dialysis Unit",
+      "description": "Disabled at Pataudi",
+      "enabled": false
+    },
+    "crm_manager": {
+      "label": "CRM & Patient Relations",
+      "description": "Disabled at Pataudi",
+      "enabled": false
+    }
+  },
+  "navigation": {
+    "admin": {
+      "dashboard": {
+        "visible": true
+      },
+      "morning-briefing": {
+        "visible": false
+      },
+      "command-center": {
+        "visible": false
+      },
+      "mortality": {
+        "visible": false
+      },
+      "ai-workflow": {
+        "visible": false
+      },
+      "disease-mapping": {
+        "visible": false
+      },
+      "data-mining": {
+        "visible": false
+      },
+      "kaizen": {
+        "visible": false
+      },
+      "revenue-cycle": {
+        "visible": false
+      },
+      "treatment-success": {
+        "visible": false
+      },
+      "staff": {
+        "visible": true
+      },
+      "departments": {
+        "visible": true
+      },
+      "finance": {
+        "visible": true
+      },
+      "expenses": {
+        "visible": true
+      },
+      "approvals": {
+        "visible": true
+      },
+      "claims": {
+        "visible": true
+      },
+      "doctor-sharing": {
+        "visible": false
+      },
+      "mrd": {
+        "visible": false
+      },
+      "mis": {
+        "visible": true
+      },
+      "audit": {
+        "visible": true
+      },
+      "phonebook": {
+        "visible": false
+      },
+      "crm": {
+        "visible": false
+      },
+      "settings": {
+        "visible": true
+      }
+    },
+    "doctor": {
+      "dashboard": {
+        "visible": true
+      },
+      "patients": {
+        "visible": true
+      },
+      "queue": {
+        "visible": true
+      },
+      "schedule": {
+        "visible": true
+      },
+      "labs": {
+        "visible": true
+      },
+      "radiology": {
+        "visible": true
+      },
+      "ipd": {
+        "visible": true
+      },
+      "analytics": {
+        "visible": true
+      }
+    },
+    "nurse": {
+      "dashboard": {
+        "visible": true
+      },
+      "shift": {
+        "visible": true
+      },
+      "task-board": {
+        "visible": true
+      },
+      "ward": {
+        "visible": true
+      },
+      "admissions": {
+        "visible": true
+      },
+      "tasks": {
+        "visible": true
+      },
+      "orders": {
+        "visible": true
+      },
+      "medications": {
+        "visible": true
+      },
+      "vitals": {
+        "visible": true
+      },
+      "assessments": {
+        "visible": true
+      },
+      "care-plan": {
+        "visible": true
+      },
+      "io": {
+        "visible": true
+      },
+      "discharge": {
+        "visible": true
+      },
+      "reports": {
+        "visible": true
+      }
+    },
+    "receptionist": {
+      "dashboard": {
+        "visible": true
+      },
+      "flow-hub": {
+        "visible": true
+      },
+      "registration": {
+        "visible": true
+      },
+      "appointments": {
+        "visible": true
+      },
+      "checkin": {
+        "visible": true
+      },
+      "queue": {
+        "visible": true
+      },
+      "billing": {
+        "visible": true
+      },
+      "beds": {
+        "visible": true
+      },
+      "ipd": {
+        "visible": true
+      },
+      "visitors": {
+        "visible": true
+      },
+      "handover": {
+        "visible": true
+      },
+      "enquiries": {
+        "visible": true
+      },
+      "branches": {
+        "visible": true
+      },
+      "feedback": {
+        "visible": true
+      }
+    },
+    "lab_technician": {
+      "dashboard": {
+        "visible": true
+      },
+      "orders": {
+        "visible": true
+      },
+      "phlebotomy": {
+        "visible": true
+      },
+      "accession": {
+        "visible": true
+      },
+      "worklist": {
+        "visible": true
+      },
+      "sections": {
+        "visible": true
+      },
+      "samples": {
+        "visible": true
+      },
+      "entry": {
+        "visible": true
+      },
+      "verification": {
+        "visible": true
+      },
+      "critical": {
+        "visible": true
+      },
+      "amendments": {
+        "visible": true
+      },
+      "reports": {
+        "visible": true
+      },
+      "audit": {
+        "visible": true
+      },
+      "tat": {
+        "visible": true
+      },
+      "billing-handoff": {
+        "visible": true
+      },
+      "storage": {
+        "visible": true
+      },
+      "catalog": {
+        "visible": true
+      },
+      "qc": {
+        "visible": true
+      },
+      "analyzers": {
+        "visible": true
+      },
+      "referral": {
+        "visible": true
+      },
+      "consumables": {
+        "visible": true
+      },
+      "histo": {
+        "visible": true
+      }
+    },
+    "pharmacist": {
+      "dashboard": {
+        "visible": true
+      },
+      "prescriptions": {
+        "visible": true
+      },
+      "inventory": {
+        "visible": true
+      },
+      "drugs": {
+        "visible": true
+      },
+      "reports": {
+        "visible": true
+      },
+      "billing": {
+        "visible": true
+      },
+      "suppliers": {
+        "visible": true
+      },
+      "purchase": {
+        "visible": true
+      },
+      "schedule-h": {
+        "visible": false
+      },
+      "queries": {
+        "visible": true
+      },
+      "formulary": {
+        "visible": false
+      },
+      "indent": {
+        "visible": true
+      },
+      "returns": {
+        "visible": true
+      },
+      "narcotics": {
+        "visible": false
+      },
+      "expiry": {
+        "visible": false
+      },
+      "audit": {
+        "visible": false
+      },
+      "barcode": {
+        "visible": false
+      },
+      "counseling": {
+        "visible": false
+      },
+      "refills": {
+        "visible": false
+      },
+      "compounding": {
+        "visible": false
+      },
+      "cold-chain": {
+        "visible": false
+      },
+      "interactions": {
+        "visible": false
+      }
+    },
+    "billing": {
+      "dashboard": {
+        "visible": true
+      },
+      "invoices": {
+        "visible": true
+      },
+      "payments": {
+        "visible": true
+      },
+      "ipd-billing": {
+        "visible": true
+      },
+      "packages": {
+        "visible": true
+      },
+      "health-plans": {
+        "visible": false
+      },
+      "revenue": {
+        "visible": true
+      },
+      "insurance": {
+        "visible": true
+      },
+      "pre-auth": {
+        "visible": false
+      },
+      "tpa-charges": {
+        "visible": false
+      },
+      "reconciliation": {
+        "visible": false
+      },
+      "gst": {
+        "visible": false
+      },
+      "finance": {
+        "visible": false
+      },
+      "reports": {
+        "visible": true
+      },
+      "charge-master": {
+        "visible": true
+      },
+      "tpa-desk": {
+        "visible": false
+      },
+      "copay": {
+        "visible": false
+      },
+      "ecl": {
+        "visible": false
+      },
+      "claims": {
+        "visible": false
+      },
+      "denials": {
+        "visible": false
+      },
+      "pharmacy-billing": {
+        "visible": false
+      },
+      "corporate-billing": {
+        "visible": false
+      },
+      "cashier": {
+        "visible": true
+      },
+      "copay-audit": {
+        "visible": false
+      },
+      "scheme-billing": {
+        "visible": false
+      },
+      "settlement": {
+        "visible": false
+      }
+    },
+    "radiologist": {
+      "dashboard": {
+        "visible": false
+      },
+      "orders": {
+        "visible": false
+      },
+      "worklist": {
+        "visible": false
+      },
+      "reports": {
+        "visible": false
+      },
+      "critical": {
+        "visible": false
+      },
+      "templates": {
+        "visible": false
+      },
+      "schedule": {
+        "visible": false
+      },
+      "contrast": {
+        "visible": false
+      },
+      "tat": {
+        "visible": false
+      },
+      "amendments": {
+        "visible": false
+      },
+      "peer-review": {
+        "visible": false
+      },
+      "dose": {
+        "visible": false
+      },
+      "telerad": {
+        "visible": false
+      },
+      "pacs": {
+        "visible": false
+      },
+      "modality-worklist": {
+        "visible": false
+      },
+      "settings": {
+        "visible": false
+      }
+    },
+    "ot_coordinator": {
+      "dashboard": {
+        "visible": false
+      },
+      "board": {
+        "visible": false
+      },
+      "schedule": {
+        "visible": false
+      },
+      "rooms": {
+        "visible": false
+      },
+      "teams": {
+        "visible": false
+      },
+      "preop": {
+        "visible": false
+      },
+      "intraop": {
+        "visible": false
+      },
+      "postop": {
+        "visible": false
+      },
+      "inventory": {
+        "visible": false
+      },
+      "reports": {
+        "visible": false
+      },
+      "analytics": {
+        "visible": false
+      }
+    },
+    "inventory_manager": {
+      "dashboard": {
+        "visible": false
+      },
+      "issue": {
+        "visible": false
+      },
+      "grn": {
+        "visible": false
+      },
+      "catalog": {
+        "visible": false
+      },
+      "stock-entry": {
+        "visible": false
+      },
+      "distribution": {
+        "visible": false
+      },
+      "requisitions": {
+        "visible": false
+      },
+      "procurement": {
+        "visible": false
+      },
+      "adjustments": {
+        "visible": false
+      },
+      "equipment": {
+        "visible": false
+      },
+      "reports": {
+        "visible": false
+      }
+    },
+    "emergency": {
+      "dashboard": {
+        "visible": false
+      },
+      "triage": {
+        "visible": false
+      },
+      "cases": {
+        "visible": false
+      },
+      "treatment": {
+        "visible": false
+      },
+      "orders": {
+        "visible": false
+      },
+      "observation": {
+        "visible": false
+      },
+      "mlc": {
+        "visible": false
+      },
+      "ambulance": {
+        "visible": false
+      },
+      "reports": {
+        "visible": false
+      }
+    },
+    "hr_manager": {
+      "dashboard": {
+        "visible": false
+      },
+      "staff": {
+        "visible": false
+      },
+      "scheduling": {
+        "visible": false
+      },
+      "attendance": {
+        "visible": false
+      },
+      "leave": {
+        "visible": false
+      },
+      "credentials": {
+        "visible": false
+      },
+      "training": {
+        "visible": false
+      },
+      "performance": {
+        "visible": false
+      },
+      "reports": {
+        "visible": false
+      }
+    },
+    "scheduler": {
+      "dashboard": {
+        "visible": false
+      },
+      "book": {
+        "visible": false
+      },
+      "calendar": {
+        "visible": false
+      },
+      "doctors": {
+        "visible": false
+      },
+      "resources": {
+        "visible": false
+      },
+      "waitlist": {
+        "visible": false
+      },
+      "teleconsult": {
+        "visible": false
+      },
+      "reports": {
+        "visible": false
+      }
+    },
+    "dialysis_tech": {
+      "dashboard": {
+        "visible": false
+      },
+      "patients": {
+        "visible": false
+      },
+      "schedule": {
+        "visible": false
+      },
+      "session": {
+        "visible": false
+      },
+      "machines": {
+        "visible": false
+      },
+      "consumables": {
+        "visible": false
+      },
+      "billing": {
+        "visible": false
+      },
+      "reports": {
+        "visible": false
+      }
+    },
+    "crm_manager": {
+      "dashboard": {
+        "visible": false
+      },
+      "leads": {
+        "visible": false
+      },
+      "lifecycle": {
+        "visible": false
+      },
+      "campaigns": {
+        "visible": false
+      },
+      "drip-campaigns": {
+        "visible": false
+      },
+      "experience": {
+        "visible": false
+      },
+      "reports": {
+        "visible": false
+      }
+    }
+  },
+  "featureFlags": {
+    "whiteLabelMode": true,
+    "telemedicineEnabled": false,
+    "patientRelationsEnabled": false,
+    "formBuilderEnabled": true,
+    "customFieldsEnabled": true,
+    "workflowDesignerEnabled": false,
+    "apiAccessEnabled": false
+  },
+  "navProfiles": {}
+}

@@ -69,6 +69,20 @@ export interface TenantFormTemplateConfig {
 
 export type TenantFormTemplates = Record<TenantFormTemplateKey, TenantFormTemplateConfig>;
 
+export interface NavProfileMatch {
+  role?: UserRole;
+  department?: string;
+  emailPattern?: string;
+  namePattern?: string;
+}
+
+export interface NavProfile {
+  match: NavProfileMatch;
+  navigationPatches?: Partial<Record<UserRole, Record<string, Partial<TenantNavigationItemConfig>>>>;
+  /** Cross-role route prefixes (e.g. counsellor billing → /crm/*). */
+  allowedRoutePrefixes?: string[];
+}
+
 export interface TenantSettings {
   branding: TenantBranding;
   roles: Record<UserRole, TenantRoleConfig>;
@@ -76,6 +90,7 @@ export interface TenantSettings {
   featureFlags: Record<TenantFeatureFlag, boolean>;
   registration: TenantRegistrationConfig;
   forms: TenantFormTemplates;
+  navProfiles?: Record<string, NavProfile>;
 }
 
 export const DEFAULT_ROLE_DESCRIPTIONS: Record<UserRole, string> = {
@@ -400,6 +415,7 @@ export function coerceTenantSettings(input: unknown): TenantSettings {
   };
 
   const forms = coerceFormTemplates(formsSource, DEFAULT_TENANT_SETTINGS.forms);
+  const navProfiles = coerceNavProfiles(source.navProfiles);
 
   return {
     branding: {
@@ -419,5 +435,59 @@ export function coerceTenantSettings(input: unknown): TenantSettings {
     featureFlags,
     registration,
     forms,
+    navProfiles,
   };
+}
+
+function coerceNavProfiles(value: unknown): Record<string, NavProfile> | undefined {
+  const source = asRecord(value);
+  const keys = Object.keys(source);
+  if (!keys.length) {
+    return undefined;
+  }
+
+  const profiles: Record<string, NavProfile> = {};
+  keys.forEach((key) => {
+    const profileSource = asRecord(source[key]);
+    const matchSource = asRecord(profileSource.match);
+    const patchesSource = asRecord(profileSource.navigationPatches);
+    const allowedRoutePrefixes = Array.isArray(profileSource.allowedRoutePrefixes)
+      ? profileSource.allowedRoutePrefixes.filter((item): item is string => typeof item === 'string')
+      : undefined;
+
+    const navigationPatches = Object.keys(patchesSource).reduce<
+      Partial<Record<UserRole, Record<string, Partial<TenantNavigationItemConfig>>>>
+    >((result, roleKey) => {
+      if (!ROLE_KEYS.includes(roleKey as UserRole)) {
+        return result;
+      }
+      const rolePatchSource = asRecord(patchesSource[roleKey]);
+      result[roleKey as UserRole] = Object.keys(rolePatchSource).reduce<
+        Record<string, Partial<TenantNavigationItemConfig>>
+      >((tabs, tabKey) => {
+        const tabPatch = asRecord(rolePatchSource[tabKey]);
+        tabs[tabKey] = {
+          ...(typeof tabPatch.label === 'string' ? { label: tabPatch.label } : {}),
+          ...(typeof tabPatch.visible === 'boolean' ? { visible: tabPatch.visible } : {}),
+        };
+        return tabs;
+      }, {});
+      return result;
+    }, {});
+
+    profiles[key] = {
+      match: {
+        ...(typeof matchSource.role === 'string' && ROLE_KEYS.includes(matchSource.role as UserRole)
+          ? { role: matchSource.role as UserRole }
+          : {}),
+        ...(typeof matchSource.department === 'string' ? { department: matchSource.department } : {}),
+        ...(typeof matchSource.emailPattern === 'string' ? { emailPattern: matchSource.emailPattern } : {}),
+        ...(typeof matchSource.namePattern === 'string' ? { namePattern: matchSource.namePattern } : {}),
+      },
+      ...(Object.keys(navigationPatches).length ? { navigationPatches } : {}),
+      ...(allowedRoutePrefixes?.length ? { allowedRoutePrefixes } : {}),
+    };
+  });
+
+  return profiles;
 }

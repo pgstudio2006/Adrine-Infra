@@ -1,11 +1,24 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
+import { hashPassword, verifyPassword } from './password.util';
+import { resolveTenantIdFromSlug } from './tenant-slugs';
 
 export type DevLoginInput = {
   email: string;
   fullName: string;
   role: string;
+  tenantId?: string;
+  branchId?: string;
+};
+
+export type LoginInput = {
+  email: string;
+  password: string;
   tenantId?: string;
   branchId?: string;
 };
@@ -17,7 +30,41 @@ export class AuthService {
     private readonly prisma: PrismaService,
   ) {}
 
+  async login(input: LoginInput) {
+    const email = input.email.trim().toLowerCase();
+    const tenantId = input.tenantId ?? process.env.NAVAYU_DEFAULT_TENANT_ID ?? 'tenant_navayu';
+
+    const user = await this.prisma.platformUser.findUnique({
+      where: { tenantId_email: { tenantId, email } },
+    });
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    if (!verifyPassword(input.password, user.passwordHash)) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    let branchId = input.branchId ?? user.branchId;
+    if (input.branchId && input.branchId !== user.branchId) {
+      const branch = await this.prisma.branch.findFirst({
+        where: { tenantId, id: input.branchId, isActive: true },
+      });
+      if (!branch) {
+        throw new UnauthorizedException('Invalid branch for tenant');
+      }
+      branchId = branch.id;
+    }
+
+    return this.issueSession(user, tenantId, branchId);
+  }
+
   async devLogin(input: DevLoginInput) {
+    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEV_LOGIN !== 'true') {
+      throw new ForbiddenException('dev-login is disabled in production');
+    }
+
     const tenantId = input.tenantId ?? 'tenant_dev';
     let branchId = input.branchId;
 
@@ -52,26 +99,31 @@ export class AuthService {
       },
     });
 
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      name: user.fullName,
-      role: user.role,
-      tenantId,
-      branchId: user.branchId,
-    };
+    return this.issueSession(user, tenantId, user.branchId);
+  }
 
-    const session = await this.prisma.userSession.create({
-      data: {
-        userId: user.id,
-        tenantId,
-        branchId: user.branchId,
-      },
+  listBranchesForTenant(tenantId: string) {
+    return this.prisma.branch.findMany({
+      where: { tenantId, isActive: true },
+      select: { id: true, code: true, name: true, timezone: true },
+      orderBy: { name: 'asc' },
     });
+  }
 
-    const accessToken = await this.jwt.signAsync({ ...payload, sessionId: session.id });
+  listBranchesForSlug(slug: string) {
+    const tenantId = resolveTenantIdFromSlug(slug);
+    if (!tenantId) {
+      throw new UnauthorizedException('Unknown tenant slug');
+    }
+    return this.listBranchesForTenant(tenantId).then((branches) => ({
+      tenantId,
+      slug: slug.toLowerCase(),
+      branches,
+    }));
+  }
 
-    return { accessToken, user: payload, sessionId: session.id };
+  resolveTenantSlug(slug: string): string | undefined {
+    return resolveTenantIdFromSlug(slug);
   }
 
   async revokeSession(user: { sub: string; tenantId?: string }, sessionId?: string) {
@@ -87,6 +139,33 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
     return { revoked: 'all_active' };
+  }
+
+  private async issueSession(
+    user: { id: string; email: string; fullName: string; role: string; branchId: string },
+    tenantId: string,
+    branchId: string,
+  ) {
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      name: user.fullName,
+      role: user.role,
+      tenantId,
+      branchId,
+    };
+
+    const session = await this.prisma.userSession.create({
+      data: {
+        userId: user.id,
+        tenantId,
+        branchId,
+      },
+    });
+
+    const accessToken = await this.jwt.signAsync({ ...payload, sessionId: session.id });
+
+    return { accessToken, user: payload, sessionId: session.id };
   }
 
   private async seedTenant(tenantId: string) {
@@ -125,3 +204,5 @@ export class AuthService {
     }
   }
 }
+
+export { hashPassword };

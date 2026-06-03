@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Sparkles, Monitor, Tablet, Mic, Camera, ZoomIn, ZoomOut, X as XIcon, Circle, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -21,6 +21,28 @@ import { ConsultationBlockerStrip } from '@/components/opd/ConsultationBlockerSt
 import { useConsultationBlockers } from '@/hooks/useConsultationBlockers';
 import { useOperationalRouteGuard } from '@/hooks/useOperationalRouteGuard';
 import { formatWaitMinutes } from '@/lib/opd/queue-presenters';
+import { NavayuIntakePanel } from '@/components/navayu/NavayuIntakePanel';
+import { NavayuLumbarMskForm } from '@/components/navayu/NavayuLumbarMskForm';
+import { NavayuAiSummaryPanel } from '@/components/navayu/NavayuAiSummaryPanel';
+import {
+  isNavayuTenant,
+  isNavayuSeniorDoctor,
+  loadNavayuLumbarExam,
+  loadNavayuVisitMetadata,
+  saveNavayuLumbarExam,
+  type NavayuLumbarExamData,
+  type NavayuRegistrationMetadata,
+} from '@/lib/navayu/navayu-forms';
+import {
+  canUseNavayuRuntime,
+  MSK_STATE_LABELS,
+  platformAdvanceMskState,
+  platformLoadNavayuVisitBundle,
+  platformSaveNavayuLumbarExam,
+  type NavayuIntakeData,
+  type NavayuVisitBundle,
+} from '@/lib/navayu/navayu-runtime';
+import { getPlatformSession } from '@/runtime/platform-session';
 
 const fadeIn = (i: number) => ({
   initial: { opacity: 0, y: 12 },
@@ -211,6 +233,58 @@ export default function DoctorConsultation() {
   const [leftTab, setLeftTab] = useState<'clinical' | 'orders' | 'photos'>('clinical');
   const [showPreview, setShowPreview] = useState(false);
   const [showAIScribe, setShowAIScribe] = useState(false);
+  const navayuMode = isNavayuTenant();
+  const navayuSenior = isNavayuSeniorDoctor(getPlatformSession()?.email);
+  const [navayuLumbarExam, setNavayuLumbarExam] = useState<NavayuLumbarExamData>(() =>
+    patientId ? loadNavayuLumbarExam(patientId) : {},
+  );
+  const [navayuBundle, setNavayuBundle] = useState<NavayuVisitBundle>({});
+
+  useEffect(() => {
+    if (!patientId) return;
+    setNavayuLumbarExam(loadNavayuLumbarExam(patientId));
+
+    const localReg =
+      (patient?.visitMetadata?.navayu as NavayuRegistrationMetadata | undefined) ??
+      loadNavayuVisitMetadata(patientId) ??
+      undefined;
+
+    if (canUseNavayuRuntime() && opdVisitId) {
+      void platformLoadNavayuVisitBundle(opdVisitId).then((bundle) => {
+        if (!bundle) {
+          setNavayuBundle({ registration: localReg });
+          return;
+        }
+        setNavayuBundle({
+          registration: bundle.registration ?? localReg,
+          intake: bundle.intake,
+          lumbarExam: bundle.lumbarExam,
+          mskLifecycleState: bundle.mskLifecycleState,
+        });
+        if (bundle.lumbarExam && Object.keys(bundle.lumbarExam).length > 0) {
+          setNavayuLumbarExam(bundle.lumbarExam);
+        }
+      });
+    } else {
+      setNavayuBundle({ registration: localReg });
+    }
+  }, [patientId, opdVisitId, patient?.visitMetadata]);
+
+  const handleNavayuLumbarChange = (next: NavayuLumbarExamData) => {
+    setNavayuLumbarExam(next);
+    if (patientId) {
+      saveNavayuLumbarExam(patientId, next);
+    }
+    if (opdVisitId && canUseNavayuRuntime()) {
+      void platformSaveNavayuLumbarExam(opdVisitId, next, navayuSenior ? 'ai_summary_ready' : 'associate_eval');
+    }
+  };
+
+  const navayuRegistration =
+    navayuBundle.registration ??
+    (patient?.visitMetadata?.navayu as NavayuRegistrationMetadata | undefined) ??
+    (patientId ? loadNavayuVisitMetadata(patientId) : null);
+  const navayuIntake: NavayuIntakeData | null = navayuBundle.intake ?? null;
 
   // ── Operational route guard: patient must be queued or in_consultation ──
   const { currentAccess } = useOperationalRouteGuard();
@@ -302,6 +376,12 @@ export default function DoctorConsultation() {
       })),
       consultationFee: 800,
     });
+    if (ok && navayuMode && opdVisitId && canUseNavayuRuntime()) {
+      void platformAdvanceMskState(
+        opdVisitId,
+        navayuSenior ? 'senior_consult' : 'msk_exam_complete',
+      );
+    }
     if (ok) navigate(-1);
   };
 
@@ -338,6 +418,13 @@ export default function DoctorConsultation() {
           queueEntry?.waitMinutes != null
             ? formatWaitMinutes(queueEntry.waitMinutes)
             : undefined
+        }
+        extra={
+          navayuMode && navayuBundle.mskLifecycleState ? (
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-700">
+              MSK: {MSK_STATE_LABELS[navayuBundle.mskLifecycleState] ?? navayuBundle.mskLifecycleState}
+            </span>
+          ) : undefined
         }
       />
 
@@ -411,10 +498,28 @@ export default function DoctorConsultation() {
 
           {leftTab === 'clinical' ? (
             <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
+              {navayuMode && patientId && (
+                <NavayuIntakePanel
+                  uhid={patientId}
+                  visitMetadata={navayuRegistration ?? undefined}
+                  intake={navayuIntake}
+                />
+              )}
               <ConsultationVitals vitals={vitals} onChange={setVitals} />
               <ConsultationComplaints complaints={complaints} onChange={setComplaints} hpiNotes={hpiNotes} onHPIChange={setHpiNotes} />
-              <ConsultationExamination findings={examFindings} onChange={setExamFindings} />
-              <ConsultationDiagnosis diagnoses={diagnoses} onChange={setDiagnoses} />
+              {navayuMode && !navayuSenior ? (
+                <NavayuLumbarMskForm value={navayuLumbarExam} onChange={handleNavayuLumbarChange} />
+              ) : (
+                <>
+                  <ConsultationExamination findings={examFindings} onChange={setExamFindings} />
+                  {!navayuMode ? (
+                    <ConsultationDiagnosis diagnoses={diagnoses} onChange={setDiagnoses} />
+                  ) : null}
+                </>
+              )}
+              {navayuMode ? (
+                <ConsultationDiagnosis diagnoses={diagnoses} onChange={setDiagnoses} />
+              ) : null}
             </div>
           ) : leftTab === 'orders' ? (
             <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
@@ -435,7 +540,15 @@ export default function DoctorConsultation() {
         </motion.div>
 
         {/* Right Column */}
-        <motion.div {...fadeIn(3)} className="max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
+        <motion.div {...fadeIn(3)} className="max-h-[calc(100vh-200px)] overflow-y-auto pr-1 space-y-3">
+          {navayuMode ? (
+            <NavayuAiSummaryPanel
+              seniorQueue={navayuSenior}
+              registration={navayuRegistration}
+              intake={navayuIntake}
+              lumbarExam={navayuLumbarExam}
+            />
+          ) : null}
           <ConsultationRightPanel
             advice={advice} onAdviceChange={setAdvice}
             privateNotes={privateNotes} onPrivateNotesChange={setPrivateNotes}

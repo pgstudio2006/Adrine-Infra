@@ -1,0 +1,114 @@
+# Navayu / Adrine Lite — production reference stack
+# Prefer Coolify separate apps; this compose is for VPS all-in-one or staging.
+# See docs/DEPLOYMENT_HOSTINGER_COOLIFY.md and deploy/coolify/README.md
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-adrine}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-adrine}
+    volumes:
+      - adrine_pg_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-adrine} -d ${POSTGRES_DB:-adrine}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - adrine_internal
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - adrine_redis_prod:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - adrine_internal
+
+  kernel-api:
+    build:
+      context: ..
+      dockerfile: services/kernel-api/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${KERNEL_DATABASE_URL:?set KERNEL_DATABASE_URL}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      PORT: 3001
+      NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3100}
+      FILE_STORAGE: ${FILE_STORAGE:-s3}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_BUCKET: ${S3_BUCKET:-adrine-files}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_REGION: ${S3_REGION:-auto}
+      LOG_JSON: 'true'
+    ports:
+      - '${KERNEL_PORT:-3001}:3001'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - adrine_internal
+
+  domain-api:
+    build:
+      context: ..
+      dockerfile: services/domain-api/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DOMAIN_DATABASE_URL:?set DOMAIN_DATABASE_URL}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      PORT: 3002
+      NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3100}
+      LOG_JSON: 'true'
+    ports:
+      - '${DOMAIN_PORT:-3002}:3002'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - adrine_internal
+
+  # Optional: serve Hospital OS static build behind nginx
+  hospital-os:
+    profiles: ['frontend']
+    build:
+      context: ../apps/hospital-os
+      dockerfile: Dockerfile
+      args:
+        VITE_PLATFORM_RUNTIME: ${VITE_PLATFORM_RUNTIME:-true}
+        VITE_KERNEL_API_URL: ${VITE_KERNEL_API_URL:-http://localhost:3001}
+        VITE_DOMAIN_API_URL: ${VITE_DOMAIN_API_URL:-http://localhost:3002}
+    restart: unless-stopped
+    ports:
+      - '${HOSPITAL_OS_PORT:-8080}:80'
+    depends_on:
+      - kernel-api
+      - domain-api
+    networks:
+      - adrine_internal
+
+volumes:
+  adrine_pg_prod:
+  adrine_redis_prod:
+
+networks:
+  adrine_internal:
+    driver: bridge

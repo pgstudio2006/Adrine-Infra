@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -14,6 +14,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { useHospital } from '@/stores/hospitalStore';
 import { useDoctorScope } from '@/hooks/useDoctorScope';
+import {
+  canUseNavayuRuntime,
+  platformGetPatientTimeline,
+  type NavayuTimelineItem,
+} from '@/lib/navayu/navayu-runtime';
+import { isNavayuTenant } from '@/lib/navayu/navayu-forms';
 
 const fadeIn = (i: number) => ({
   initial: { opacity: 0, y: 12 },
@@ -21,7 +27,7 @@ const fadeIn = (i: number) => ({
   transition: { delay: i * 0.04, duration: 0.3 },
 });
 
-type TimelineItemType = 'visit' | 'admission' | 'lab' | 'radiology' | 'billing' | 'workflow';
+type TimelineItemType = 'visit' | 'admission' | 'lab' | 'radiology' | 'billing' | 'workflow' | 'navayu' | 'platform';
 
 interface TimelineItem {
   id: string;
@@ -39,6 +45,8 @@ const timelineTypeStyle: Record<TimelineItemType, string> = {
   radiology: 'bg-violet-500/10 text-violet-700',
   billing: 'bg-foreground/10 text-foreground',
   workflow: 'bg-muted text-muted-foreground',
+  navayu: 'bg-violet-500/10 text-violet-700',
+  platform: 'bg-sky-500/10 text-sky-700',
 };
 
 const tabs = ['Timeline', 'Clinical', 'Orders', 'Financial'];
@@ -55,6 +63,18 @@ export default function DoctorPatientProfile() {
   const { isDoctor, canAccessPatient, getPatient } = useDoctorScope();
 
   const [activeTab, setActiveTab] = useState('Timeline');
+  const [platformTimeline, setPlatformTimeline] = useState<NavayuTimelineItem[]>([]);
+  const navayuMode = isNavayuTenant();
+
+  useEffect(() => {
+    if (!patientId) return;
+    const scoped = getPatient(patientId);
+    if (!scoped?.platformPatientId || !canUseNavayuRuntime()) {
+      setPlatformTimeline([]);
+      return;
+    }
+    void platformGetPatientTimeline(scoped.platformPatientId).then(setPlatformTimeline);
+  }, [patientId, getPatient]);
 
   if (!isDoctor || !patientId || !canAccessPatient(patientId)) {
     return (
@@ -156,6 +176,36 @@ export default function DoctorPatientProfile() {
         sortValue: parseDate(event.timestamp),
       });
     });
+
+    platformTimeline.forEach((item) => {
+      const type: TimelineItemType = item.type.startsWith('navayu')
+        ? 'navayu'
+        : item.type === 'opd_transition'
+          ? 'platform'
+          : 'visit';
+      items.push({
+        id: `platform-${item.id}`,
+        type,
+        title: item.title,
+        description: item.description,
+        timestamp: item.timestamp,
+        sortValue: parseDate(item.timestamp),
+      });
+    });
+
+    if (navayuMode && patient.visitMetadata?.navayu && platformTimeline.length === 0) {
+      const nav = patient.visitMetadata.navayu as { hearAboutNavayu?: string; registeredAt?: string };
+      if (nav.hearAboutNavayu) {
+        items.push({
+          id: `local-navayu-${patient.uhid}`,
+          type: 'navayu',
+          title: 'Navayu MSK registration (local)',
+          description: `Referral: ${nav.hearAboutNavayu}`,
+          timestamp: nav.registeredAt ?? patient.registeredOn,
+          sortValue: parseDate(nav.registeredAt ?? patient.registeredOn),
+        });
+      }
+    }
 
     return items.sort((a, b) => b.sortValue - a.sortValue);
   })();

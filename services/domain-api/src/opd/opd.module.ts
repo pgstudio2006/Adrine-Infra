@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { EncounterModule } from '../encounter/encounter.module';
 import { PatientModule } from '../patient/patient.module';
 import { SchedulingModule } from '../scheduling/scheduling.module';
@@ -13,7 +13,7 @@ import { OpdService } from './opd.service';
 
 @Module({
   imports: [
-    PatientModule,
+    forwardRef(() => PatientModule),
     EncounterModule,
     SchedulingModule,
     BillingModule,

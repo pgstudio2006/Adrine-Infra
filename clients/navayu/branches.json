@@ -1,0 +1,39 @@
+{
+  "branches": [
+    {
+      "code": "pataudi",
+      "name": "Pataudi Hospital",
+      "timezone": "Asia/Kolkata",
+      "modules": ["OPD", "IPD", "LIMS", "Pharmacy", "Analytics"],
+      "workflowPack": "multi_specialty",
+      "applyTenantSettings": true,
+      "applyTenantForms": true,
+      "policies": {
+        "opd.queue_required": true,
+        "opd.require_consent": true,
+        "scheduling.walk_in_enabled": true,
+        "billing.allow_partial_payment": true,
+        "billing.require_encounter_close": true,
+        "discharge.unified_checklist": true
+      }
+    },
+    {
+      "code": "gurgaon",
+      "name": "Gurgaon Center",
+      "timezone": "Asia/Kolkata",
+      "modules": ["OPD", "Pharmacy", "Analytics", "CRM"],
+      "workflowPack": "navayu_msk",
+      "applyTenantSettings": true,
+      "applyTenantForms": true,
+      "policies": {
+        "opd.queue_required": true,
+        "opd.require_consent": true,
+        "scheduling.walk_in_enabled": true,
+        "billing.allow_partial_payment": true,
+        "billing.require_encounter_close": true,
+        "msk.intake_required": true,
+        "msk.ai_summary_before_senior": true
+      }
+    }
+  ]
+}

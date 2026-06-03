@@ -103,9 +103,10 @@ const generateTicketId = () => {
 };
 
 export default function LoginPage() {
-  const { login, platformConnected } = useAuth();
+  const { login, loginWithCredentials, platformConnected } = useAuth();
   const platformRuntime = isPlatformRuntimeEnabled();
   const kernelUrl = import.meta.env.VITE_KERNEL_API_URL as string | undefined;
+  const tenantId = (import.meta.env.VITE_DEV_TENANT_ID as string | undefined) ?? 'tenant_navayu';
   const existingSession = getPlatformSession();
   const { patients, appointments } = useHospital();
   const { settings, getAvailableRoles, getRoleDescription, getRoleLabel } = useTenantSettings();
@@ -113,6 +114,11 @@ export default function LoginPage() {
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [selectedDoctor, setSelectedDoctor] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [selectedBranchId, setSelectedBranchId] = useState('');
+  const [branches, setBranches] = useState<Array<{ id: string; code: string; name: string }>>([]);
+  const [credentialSubmitting, setCredentialSubmitting] = useState(false);
   const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
   const [ticketForm, setTicketForm] = useState<TicketFormState>(createInitialTicketForm());
 
@@ -183,6 +189,27 @@ export default function LoginPage() {
 
   const roles = getAvailableRoles();
   const doctorSelectionIncomplete = selectedRole === 'doctor' && (!selectedDepartment || !selectedDoctor);
+  const useCredentialLogin = platformRuntime && Boolean(kernelUrl?.trim());
+
+  useEffect(() => {
+    if (!useCredentialLogin || !kernelUrl) return;
+    const loadBranches = async () => {
+      try {
+        const res = await fetch(
+          `${kernelUrl.replace(/\/$/, '')}/auth/branches?tenantId=${encodeURIComponent(tenantId)}`,
+        );
+        if (!res.ok) return;
+        const data = (await res.json()) as Array<{ id: string; code: string; name: string }>;
+        setBranches(data);
+        if (data.length > 0 && !selectedBranchId) {
+          setSelectedBranchId(data[0].id);
+        }
+      } catch {
+        /* branch picker optional */
+      }
+    };
+    void loadBranches();
+  }, [useCredentialLogin, kernelUrl, tenantId, selectedBranchId]);
 
   const updateTicketForm = <K extends keyof TicketFormState>(field: K, value: TicketFormState[K]) => {
     setTicketForm((current) => ({
@@ -250,6 +277,19 @@ export default function LoginPage() {
     }
   };
 
+  const handleCredentialLogin = async () => {
+    if (!loginEmail.trim() || !loginPassword) {
+      toast.error('Enter email and password');
+      return;
+    }
+    setCredentialSubmitting(true);
+    const ok = await loginWithCredentials(loginEmail, loginPassword, {
+      branchId: selectedBranchId || undefined,
+    });
+    setCredentialSubmitting(false);
+    if (ok) navigate('/dashboard');
+  };
+
   const handleLogin = () => {
     if (!selectedRole) return;
 
@@ -305,6 +345,62 @@ export default function LoginPage() {
           </div>
         </div>
 
+        {useCredentialLogin ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-md mx-auto mb-12 border border-border/70 rounded-md bg-card p-6 space-y-4"
+          >
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <KeyRound className="w-4 h-4" />
+              Staff sign-in
+            </div>
+            <label className="space-y-1.5 block">
+              <span className="text-xs font-semibold text-muted-foreground">Email</span>
+              <Input
+                type="email"
+                autoComplete="username"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                placeholder="admin@navayuhealth.in"
+              />
+            </label>
+            <label className="space-y-1.5 block">
+              <span className="text-xs font-semibold text-muted-foreground">Password</span>
+              <Input
+                type="password"
+                autoComplete="current-password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+            </label>
+            {branches.length > 0 && (
+              <label className="space-y-1.5 block">
+                <span className="text-xs font-semibold text-muted-foreground">Branch</span>
+                <AppSelect
+                  value={selectedBranchId || undefined}
+                  onValueChange={setSelectedBranchId}
+                  options={branches.map((b) => ({
+                    value: b.id,
+                    label: `${b.name} (${b.code})`,
+                  }))}
+                  placeholder="Select branch"
+                  className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
+                />
+              </label>
+            )}
+            <button
+              type="button"
+              onClick={() => void handleCredentialLogin()}
+              disabled={credentialSubmitting}
+              className="w-full rounded-md py-3 font-bold tracking-widest uppercase text-xs bg-foreground text-background hover:opacity-90 disabled:opacity-50"
+            >
+              {credentialSubmitting ? 'Signing in…' : 'Sign in'}
+            </button>
+          </motion.div>
+        ) : (
+          <>
         {/* Role Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
           {roles.map((role, i) => {
@@ -536,6 +632,8 @@ export default function LoginPage() {
             </DialogContent>
           </Dialog>
         </div>
+          </>
+        )}
 
         {platformRuntime && (
           <motion.div
@@ -548,10 +646,9 @@ export default function LoginPage() {
               <p className="text-xs font-bold uppercase tracking-wider text-foreground">Platform authentication</p>
             </div>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Staging uses kernel <code className="font-mono text-[10px]">/auth/dev-login</code> with role email{' '}
-              <code className="font-mono text-[10px]">role@adrine.local</code>. Production requires{' '}
-              <code className="font-mono text-[10px]">VITE_KERNEL_API_URL</code>, bearer token, tenant, and branch in session
-              (see <span className="font-medium">ops/PRODUCTION_AUTH.md</span>).
+              Staff sign-in uses kernel <code className="font-mono text-[10px]">/auth/login</code> with provisioned
+              Navayu emails. Dev builds may still use{' '}
+              <code className="font-mono text-[10px]">/auth/dev-login</code> when platform runtime is off.
             </p>
             <div className="mt-2 flex flex-wrap gap-2 text-[10px]">
               <span className={`rounded px-2 py-0.5 border ${kernelUrl ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300' : 'border-amber-500/40 text-amber-700'}`}>

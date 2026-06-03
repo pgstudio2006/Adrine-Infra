@@ -1,0 +1,62 @@
+{
+  "branding": {
+    "platformName": "Navayu Flow",
+    "platformMark": "NAVAYU",
+    "productDescriptor": "Spine & Joint Care Platform",
+    "organizationName": "Navayu Spine & Joint Care",
+    "organizationShortName": "Navayu",
+    "supportEmail": "care@navayuhealth.in",
+    "supportPhone": "+91 124 000 0000",
+    "address": "Gurgaon Center & Pataudi Hospital, Haryana, India",
+    "loginHeadline": "Welcome to Navayu",
+    "loginSubheadline": "AI-assisted MSK care — select your center after sign-in"
+  },
+  "featureFlags": {
+    "whiteLabelMode": true,
+    "telemedicineEnabled": false,
+    "patientRelationsEnabled": true,
+    "formBuilderEnabled": true,
+    "customFieldsEnabled": true,
+    "workflowDesignerEnabled": false,
+    "apiAccessEnabled": false
+  },
+  "registration": {
+    "departments": [
+      "General Medicine",
+      "Emergency",
+      "MSK / Spine & Joint",
+      "Orthopedics",
+      "Physiotherapy",
+      "Sports Medicine",
+      "Pain Management",
+      "General Surgery",
+      "Gynecology",
+      "Pediatrics",
+      "Internal Medicine",
+      "General Ward / IPD",
+      "Laboratory",
+      "Radiology"
+    ],
+    "patientTypes": [
+      { "label": "OPD", "journeyType": "OPD" },
+      { "label": "IPD", "journeyType": "IPD" },
+      { "label": "Emergency", "journeyType": "Emergency" },
+      { "label": "MSK OPD Visit", "journeyType": "OPD" },
+      { "label": "Spine Consultation", "journeyType": "OPD" },
+      { "label": "Joint / Knee Consultation", "journeyType": "OPD" },
+      { "label": "Sports Injury", "journeyType": "OPD" },
+      { "label": "Follow-up MSK", "journeyType": "OPD" },
+      { "label": "IPD Admission", "journeyType": "IPD" }
+    ]
+  },
+  "forms": {
+    "admissionForm": {
+      "label": "Navayu Admission",
+      "fields": ["UHID", "Branch", "MSK Region", "Referral Source"]
+    },
+    "doctorOrderSheet": {
+      "label": "MSK Order Sheet",
+      "fields": ["Medication Orders", "Physio Referral", "Investigation Orders"]
+    }
+  }
+}

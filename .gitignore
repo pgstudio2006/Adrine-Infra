@@ -27,3 +27,4 @@ Cargo.lock
 crash.log
 override.tf
 .terraform.lock.hcl
+.vercel

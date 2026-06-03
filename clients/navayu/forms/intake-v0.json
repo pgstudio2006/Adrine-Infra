@@ -1,0 +1,64 @@
+{
+  "formId": "navayu.patient.intake",
+  "version": "v0",
+  "label": "Navayu Patient Intake",
+  "sections": [
+    {
+      "id": "complaint",
+      "label": "Chief complaint",
+      "fields": [
+        {
+          "id": "complaintType",
+          "type": "select",
+          "label": "Complaint type",
+          "options": [
+            { "value": "pain", "label": "Pain" },
+            { "value": "stiffness", "label": "Stiffness" },
+            { "value": "weakness", "label": "Weakness" },
+            { "value": "numbness", "label": "Numbness / tingling" },
+            { "value": "other", "label": "Other" }
+          ]
+        },
+        { "id": "complaintText", "type": "text", "label": "Describe your main problem" },
+        {
+          "id": "durationBucket",
+          "type": "select",
+          "label": "Duration",
+          "options": [
+            { "value": "lt_1w", "label": "Less than 1 week" },
+            { "value": "1_4w", "label": "1–4 weeks" },
+            { "value": "1_3m", "label": "1–3 months" },
+            { "value": "gt_3m", "label": "More than 3 months" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "severity",
+      "label": "Pain severity",
+      "fields": [
+        { "id": "vas", "type": "number", "label": "Pain score (0–10)", "min": 0, "max": 10 }
+      ]
+    },
+    {
+      "id": "red_flags",
+      "label": "Red flags",
+      "fields": [
+        {
+          "id": "redFlag",
+          "type": "multiselect",
+          "label": "Any of the following?",
+          "options": [
+            { "value": "fever_weight_loss", "label": "Unexplained fever or weight loss" },
+            { "value": "bowel_bladder", "label": "Bowel or bladder dysfunction" },
+            { "value": "saddle_anesthesia", "label": "Saddle anesthesia" },
+            { "value": "progressive_weakness", "label": "Progressive limb weakness" },
+            { "value": "trauma", "label": "Recent major trauma" },
+            { "value": "night_pain", "label": "Severe night pain" },
+            { "value": "none", "label": "None of the above" }
+          ]
+        }
+      ]
+    }
+  ]
+}

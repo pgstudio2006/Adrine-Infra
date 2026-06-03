@@ -7,10 +7,13 @@
     "dev": "turbo run dev --parallel",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "provision:navayu": "tsx scripts/provision-navayu.ts"
   },
   "devDependencies": {
+    "@adrine/hospital-operations": "workspace:*",
     "eslint": "^9.16.0",
+    "tsx": "^4.19.2",
     "turbo": "^2.3.3",
     "typescript": "^5.7.2"
   },

@@ -179,6 +179,8 @@ flowchart TB
   ctrl --> appPlatform
 ```
 
+
+
 ---
 
 ## 3. Universal engineering principles (non-negotiable)
@@ -217,10 +219,12 @@ Dependency rule (compile-time enforced via package boundaries): `experience -> a
 **Cloud baseline:** AWS, primary region `ap-south-1` (Mumbai). Architecture is region-pluggable from day 1 to enable EU/US later.
 
 **Compute progression:**
+
 - Phase 0-2: **ECS Fargate** (low ops, fast). One service per "plane" deployment unit.
 - Phase 3+: **EKS** (Kubernetes) when team size and service count justify it. Migration is contract-preserving.
 
 **Core managed services:**
+
 - **RDS PostgreSQL** (Multi-AZ, with read replicas in Phase 2+) - primary operational store with row-level security.
 - **ElastiCache Redis** - cache, rate limit, ephemeral state, BullMQ queues for TS services.
 - **S3** - files, reports, DICOM blobs, model artifacts, data lake bronze layer.
@@ -233,6 +237,7 @@ Dependency rule (compile-time enforced via package boundaries): `experience -> a
 - **CloudWatch + AWS Distro for OpenTelemetry** - first-mile telemetry, exported to Grafana stack.
 
 **Polyglot service map:**
+
 - **TypeScript (NestJS for kernel + domain APIs, Next.js for experiences, tRPC where internal):** all kernel services, domain engines, experience BFFs, control plane, public REST/GraphQL.
 - **Go:** event router, notification fan-out workers, integration sync workers, HL7/FHIR adapters at scale (Phase 2+), high-throughput webhook dispatcher.
 - **Rust:** DICOM/PACS streaming, FHIR transformation pipeline at scale, optional immutable audit ledger. **Deferred to Phase 3+** unless a measured hot path forces it earlier.
@@ -256,7 +261,10 @@ flowchart LR
   Users --> Roles[Roles and Permissions]
 ```
 
+
+
 **Isolation strategy (layered):**
+
 - **Logical isolation by default:** every PHI/PII table has `tenant_id`, `branch_id` columns; **PostgreSQL Row-Level Security policies** enforce isolation at the database layer, with a session GUC `app.tenant_id` set per request.
 - **Schema-per-tenant** option for enterprise tier (single-tenant Postgres schema or dedicated database).
 - **Dedicated cluster** option for sovereign deployments (Phase 4+).
@@ -312,6 +320,7 @@ flowchart LR
 **Workflow building blocks:** triggers (event, schedule, manual, webhook), conditions, actions (domain API call, notification, AI agent invocation, integration call), delays, human approvals, escalations, sub-workflows, compensation.
 
 **Examples baked into the platform:**
+
 - OPD patient journey (check-in -> token -> consultation -> Rx -> billing -> follow-up reminder).
 - Critical lab result escalation (notify doctor -> AI triage -> ICU alert if thresholds breached).
 - Discharge summary generation (collect encounter -> AI draft -> doctor review -> patient delivery -> ABDM push).
@@ -324,18 +333,21 @@ flowchart LR
 ## 10. AI and MCP runtime architecture
 
 **AI Gateway (Python/FastAPI):** every AI call in Adrine routes through it.
+
 - **Model router:** OpenAI, Anthropic, Gemini, plus self-hosted (vLLM) for private deployments; routing by capability, cost, latency, tenant policy.
 - **Budget and quotas:** per tenant, per module, per agent, per user.
 - **Policy and guardrails:** PHI redaction in/out, prompt-injection defenses, jailbreak filters, clinical safety policies.
 - **Observability:** every request stored with tokens, cost, latency, model, redaction trace.
 
 **Agent Runtime + MCP Host:**
+
 - **Tool Registry:** typed tools (domain APIs, workflow triggers, integrations) registered with permission scopes.
 - **Agent Runtime:** plans, executes, retries, with a sandboxed execution surface; supports both single-shot agents and long-running agents bound to workflows.
 - **MCP Host:** speaks Model Context Protocol so external MCP servers (and Adrine's own) plug in uniformly. Adrine exposes its own MCP servers for Patient, EMR, Scheduling, Billing - so external agents can be tenant-installed.
 - **Agent Memory:** short-term (conversation), long-term (pgvector + summarization), episodic (workflow context).
 
 **AI agent ecosystem (Phase 2-3):**
+
 - Hospital: discharge summarizer, coding/ICD assistant, ICU monitor, OT scheduler optimizer.
 - Lab: anomaly detection on results, QC automation, reflex testing.
 - Pharma: sales-rep coach, compliance review.
@@ -364,6 +376,7 @@ flowchart LR
 **App model:** an app is a signed bundle declaring required scopes, webhooks, UI surfaces (slots in experience apps), workflows it installs, AI agents it registers, and configuration schema.
 
 **App Runtime:**
+
 - **Frontend:** UI slots in experience shells via micro-frontend contracts (Module Federation) for trusted apps; iframed sandbox for untrusted apps.
 - **Backend:** apps run as serverless functions (Lambda or Cloudflare Workers) talking only to Adrine APIs through scoped tokens, never directly to the database.
 - **Permissions:** OAuth-style consent screen per tenant; admin can revoke and audit.
@@ -408,6 +421,7 @@ These are **capabilities**, not products. Hospital OS, Clinic OS, LIMS, etc. com
 ## 15. Patient ecosystem architecture
 
 **Patient Super App** (mobile-first PWA in Phase 1, native React Native in Phase 2):
+
 - ABHA-linked identity (India), federated identity (global later).
 - Appointments, reports, prescriptions, payments, family profiles, wearable sync, telemedicine, AI health assistant.
 - **Patient Identity Federation:** one patient identity can be linked across many provider tenants without exposing cross-tenant PHI to providers; the patient controls consent.
@@ -584,6 +598,7 @@ adrine/
 ## 24. Scaling strategy (monolith to distributed planes)
 
 **Phase 1-2: Modular monolith per plane.** Two deployable units:
+
 - `kernel-api + domain-api` (one process per environment, scaled horizontally)
 - `experience apps` (independent)
 Plus dedicated services for `ai-gateway`, `workflow-runtime`, `event-router`, `notification-worker`. This is already partly distributed by responsibility, but the **domain monolith stays one process** to keep velocity high.
@@ -601,6 +616,7 @@ Plus dedicated services for `ai-gateway`, `workflow-runtime`, `event-router`, `n
 ## 25. Product strategy and GTM
 
 **Wedge:** Hospital OS + Patient App, sold as a bundle.
+
 - The Hospital OS gives revenue and PHI gravity.
 - The Patient App gives daily-active users and the network effect.
 - Together they tell the "platform" story to investors and to enterprise buyers.
@@ -608,12 +624,14 @@ Plus dedicated services for `ai-gateway`, `workflow-runtime`, `event-router`, `n
 **ICP for Phase 1:** small-to-mid hospitals (50-300 beds) in India, multi-specialty, willing to be design partners. 3-5 design partners by month 4, 10-20 paying tenants by month 9.
 
 **Pricing model:**
+
 - **Base per-bed or per-active-user subscription** (Hospital OS).
 - **Patient App free** to patients, monetized via provider adoption.
 - **Usage-metered platform fees** (AI tokens, workflow runs, API calls, storage) starting Phase 2.
 - **Marketplace revenue share** Phase 4.
 
 **Expansion sequencing:**
+
 1. Hospital OS + Patient App (Phase 1).
 2. Pharmacy + Lab-lite + ABDM (Phase 2).
 3. Claims + Telemedicine + Radiology + App Platform alpha (Phase 3).
@@ -657,6 +675,8 @@ gantt
   Multi-region, residency, HIPAA attestation, SOC 2 Type II, Clinical Adrine models :p5, after p4, 36w
 ```
 
+
+
 ---
 
 ## 28. Phase 1 (MVP) detailed scope - the only phase that matters right now
@@ -677,6 +697,7 @@ gantt
 - **Compliance baseline:** DPDP-compliant onboarding flow, consent capture, encryption at rest, audit log, data-export endpoint, deletion workflow.
 
 **Explicit non-goals in Phase 1:**
+
 - No marketplace.
 - No app platform.
 - No public developer APIs (private beta only).

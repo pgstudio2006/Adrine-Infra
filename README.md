@@ -36,8 +36,12 @@ Development tenant header: `x-tenant-id: tenant_dev` (non-production only).
 
 ## Documentation
 
+- **[Adrine platform vision](docs/ADRINE_PLATFORM_VISION.md)** — multi-tenant OS, seven engines, no-hardcoding principle
+- **[Navayu implementation spec](clients/navayu/NAVAYU_IMPLEMENTATION_SPEC.md)** — first specialty client: Pataudi + Gurgaon, MSK workflow, phased delivery
+- **[Navayu provisioning](clients/navayu/PROVISIONING.md)** — `pnpm provision:navayu` seed script and UAT dev-login accounts
 - **[Current features & workflows](docs/CURRENT_FEATURES_AND_WORKFLOWS.md)** — what ships today, role map, end-to-end flows
-- **[Deploy Hospital OS on Vercel](docs/DEPLOY_VERCEL.md)** — live UI hosting
+- **[Deploy Hospital OS on Vercel](docs/DEPLOY_VERCEL.md)** — live UI hosting (optional if using Coolify for frontend)
+- **[Hostinger + Coolify + R2 (Adrine Lite)](docs/DEPLOYMENT_HOSTINGER_COOLIFY.md)** — low-cost VPS tier for Navayu / ~10 small hospitals
 - **Patient mobile app (separate repo):** [github.com/pgstudio2006/Adrine-Patient-App](https://github.com/pgstudio2006/Adrine-Patient-App) — for team access without full infra monorepo
 - **[Role module plans](docs/ROLE_MODULES/README.md)** — per-role depth (Reception, Doctor, Nurse, …)
 

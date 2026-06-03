@@ -1,11 +1,11 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { OrchestrationModule } from '../orchestration/orchestration.module';
 import { EscalationModule } from '../escalation/escalation.module';
 import { CommandController } from './command.controller';
 import { OperationalCommandService } from './operational-command.service';
 
 @Module({
-  imports: [OrchestrationModule, EscalationModule],
+  imports: [OrchestrationModule, forwardRef(() => EscalationModule)],
   controllers: [CommandController],
   providers: [OperationalCommandService],
   exports: [OperationalCommandService],
