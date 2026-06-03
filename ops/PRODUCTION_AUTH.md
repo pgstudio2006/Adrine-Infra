@@ -11,6 +11,14 @@ Hospital OS must not rely on mock role cards alone when `VITE_PLATFORM_RUNTIME=t
 | `VITE_DOMAIN_API_URL` | Clinical runtime base URL |
 | `VITE_DEV_TENANT_ID` | Dev/staging tenant until OIDC signup exists |
 
+**kernel-api and domain-api (runtime):**
+
+| Variable | Example |
+|----------|---------|
+| `CORS_ORIGINS` | `https://hms.adrine.in,https://book.adrine.in` |
+
+Without `CORS_ORIGINS`, the APIs do not send `Access-Control-Allow-Origin` and browser login from Hospital OS fails.
+
 ## Session shape
 
 After login, `sessionStorage` holds `adrine_platform_session` with:
