@@ -1,150 +1,167 @@
-# Navayu Wave 0 — Coolify Deploy Status
+# Navayu Wave 0 — Coolify Deploy Status (adrine.in)
 
-**Updated:** 2026-06-03 (session 3 — continued deployment)  
+**Updated:** 2026-06-03 (session 4 — adrine.in domains)  
 **Coolify:** http://187.127.129.209:8000  
 **Project UUID:** `umn8vjfqrqn7jglfr8wqee0i`  
 **Environment UUID:** `fzhhu9uv8kltz49e51qxp58h` (production)  
 **Server UUID:** `gsk4hshqgd09oemlj9z9d6n5` (localhost)  
 **Destination UUID:** `kt0mkddiavm0eo3afpjzlseu`  
-**GitHub App UUID:** `e10vr7ere12wqtvz14rkydsw` (lucky-llama-evx5km2ml1nobo1d0l)
+**GitHub App UUID:** `e10vr7ere12wqtvz14rkydsw`  
+**Repo / branch:** `pgstudio2006/Adrine-Infra` @ `f0986ba` (master)
+
+**Domains (adrine.in only — not navayuhealth.in):** see [ADRINE_IN_DNS.md](./ADRINE_IN_DNS.md)
 
 ---
 
-## Current status (dashboard dots)
+## Executive summary
 
-| Resource | Status | Action |
-|----------|--------|--------|
-| **adrine-postgres** | 🟢 Running | OK |
-| **adrine-redis** | 🔴 Down | Clear wrong port mapping, **Save**, **Start** — [config](http://187.127.129.209:8000/project/umn8vjfqrqn7jglfr8wqee0i/environment/fzhhu9uv8kltz49e51qxp58h/database/owztayjm22pvffyu0x7xjpls) |
-| **adrine--infra (kernel)** | 🔴 Down | Fix Redis first, then **Deploy** — [app](http://187.127.129.209:8000/project/umn8vjfqrqn7jglfr8wqee0i/environment/fzhhu9uv8kltz49e51qxp58h/application/t36wqfoh1hj88qrizvbr0q9h) |
-
-**Redis misconfiguration:** Ports Mappings must be **empty** (not `3000:5432`). That mapping is for Postgres and prevents Redis from starting.
-
----
-
-## Completed
-
-### 1. PostgreSQL — `adrine-postgres` ✅ RUNNING
-
-| Field | Value |
-|-------|-------|
-| Resource UUID | `dp2gns8ygjh0w20s84z7kofl` |
-| Config URL | http://187.127.129.209:8000/project/umn8vjfqrqn7jglfr8wqee0i/environment/fzhhu9uv8kltz49e51qxp58h/database/dp2gns8ygjh0w20s84z7kofl |
-| Internal URL | `postgres://adrine:AdrineNavayu2026%21Pg@adrine-postgres:5432/adrine_kernel` |
-
-### 2. Redis — `adrine-redis` 🔴 STOPPED (fix ports, then Start)
-
-| Field | Value |
-|-------|-------|
-| Resource UUID | `owztayjm22pvffyu0x7xjpls` |
-| Internal URL | `redis://default:OAbFqBZHLoa2hGNiEYKzwuDf0XnxBy5YCSTklcTszVZH4meDJtdiDa9pZ9gXF90c@adrine-redis:6379/0` |
-
-### 3. Coolify API — ✅ ENABLED (session 3)
-
-Settings → Advanced → **API Access** was disabled; enabled via Livewire (`is_api_enabled=true`).
-
-Next: create token at http://187.127.129.209:8000/security/api-tokens with permissions **root, write, deploy, read, read:sensitive**, then use `scripts/coolify-deploy-navayu.ps1 -ApiToken "..."` for reliable PATCH/deploy.
+| Area | Status |
+|------|--------|
+| PostgreSQL | ✅ Running |
+| Redis | ✅ Running (healthy) |
+| Traefik proxy | 🔴 **Exited** — blocks HTTPS on adrine.in subdomains |
+| kernel-api app | 🔴 Config incomplete; last deploy **failed** |
+| domain-api / hospital-os / patient-app | ❌ Not created |
+| API automation | ⚠️ Deploy works; **write** blocked without token with root+write |
 
 ---
 
-## In progress / blocked
+## What succeeded (this session)
 
-### 4. kernel-api — `adrine-kernel` ❌ EXITED (config not persisting)
+1. **Redis `adrine-redis`** — API reports `running:healthy`, port mappings cleared, not publicly exposed.
+2. **PostgreSQL `adrine-postgres`** — Still running (`dp2gns8ygjh0w20s84z7kofl`).
+3. **Coolify API** — Enabled; API tokens created (deploy/read; **write** still blocked on PATCH/create until you mint a token with **root + write** checked in UI).
+4. **Kernel deploy triggered** — `GET /api/v1/deploy?uuid=t36wqfoh1hj88qrizvbr0q9h&force=true` queued deployment `e8pzptb9i0nswbxt1jteac3c` on commit `f0986ba` (build failed — see below).
+5. **`NODE_ENV` on kernel** — Already **runtime-only** (`is_buildtime=false`) in Coolify env.
+
+---
+
+## What failed / blocked
+
+### Kernel deploy `e8pzptb9i0nswbxt1jteac3c` — FAILED
+
+- **Status:** `failed` (~06/03/2026 11:45 UTC)
+- **Root cause:** App still has **empty `dockerfile_location`** and FQDN still sslip.io. Build cannot use `services/kernel-api/Dockerfile`.
+- **API PATCH** returns `403 Missing required permissions: write` with current tokens.
+- **UI Save** via automation does not persist (Alpine `x-model` on Dockerfile + Livewire submit rollback).
+
+### Traefik proxy — EXITED
+
+Server proxy status: `exited`. Until **coolify-proxy** is running, `https://kernel.adrine.in` (and other subdomains) will not route or get Let's Encrypt certs.
+
+**Manual:** Coolify → Servers → localhost → Proxy → **Start**
+
+### Apps not created
+
+Only one application exists: `t36wqfoh1hj88qrizvbr0q9h` (kernel).  
+`POST /applications/private-github-app` requires **write** permission.
+
+| Planned app | Domain | Port | Dockerfile / build |
+|-------------|--------|------|-------------------|
+| adrine-kernel | https://kernel.adrine.in | 3001 | `services/kernel-api/Dockerfile` |
+| adrine-domain | https://domain.adrine.in | 3002 | `services/domain-api/Dockerfile` |
+| adrine-hospital-os | https://hms.adrine.in | 80/443 via proxy | Static: `pnpm --filter @adrine/hospital-os build`, publish `apps/hospital-os/dist` |
+| adrine-patient-app | https://book.adrine.in | 3000 | Nixpacks, base `apps/patient-app` |
+
+---
+
+## DNS — user action at registrar (required)
+
+Add **A records** pointing to **`187.127.129.209`** (TTL 300 recommended for first cutover):
+
+| Host | Type | Value | Coolify service |
+|------|------|-------|-----------------|
+| `kernel` | A | `187.127.129.209` | kernel-api |
+| `domain` | A | `187.127.129.209` | domain-api |
+| `hms` | A | `187.127.129.209` | Hospital OS |
+| `book` | A | `187.127.129.209` | Patient app |
+
+Optional: `@` → `187.127.129.209`, `www` CNAME → `adrine.in`.
+
+**Until DNS propagates**, use IP ports: `:3001` kernel, `:3002` domain, `:8080` HMS, `:3000` book.
+
+Full copy-paste env URLs: [ADRINE_IN_DNS.md](./ADRINE_IN_DNS.md)
+
+---
+
+## Manual steps (priority order) — ~15 min in Coolify UI
+
+### 1. Start Traefik proxy
+
+Servers → **localhost** → Proxy → **Start** (must show running).
+
+### 2. API token with write (one-time)
+
+Security → API Tokens → New → check **root, write, deploy, read, read:sensitive** → Create → save token locally.
+
+Then from PC:
+
+```powershell
+$env:COOLIFY_TOKEN = "<token-with-write>"
+# PATCH example:
+$headers = @{ Authorization = "Bearer $env:COOLIFY_TOKEN"; "Content-Type" = "application/json" }
+$body = @{
+  name = "adrine-kernel"
+  domains = "https://kernel.adrine.in"
+  dockerfile_location = "services/kernel-api/Dockerfile"
+  ports_mappings = "3001:3001"
+  git_commit_sha = "f0986ba"
+} | ConvertTo-Json
+Invoke-RestMethod -Uri "http://187.127.129.209:8000/api/v1/applications/t36wqfoh1hj88qrizvbr0q9h" -Method Patch -Headers $headers -Body $body
+```
+
+### 3. Fix kernel app (if not using API)
+
+Application → **adrine--infra** → General:
 
 | Field | Value |
 |-------|-------|
-| Resource UUID | `t36wqfoh1hj88qrizvbr0q9h` |
-| Config URL | http://187.127.129.209:8000/project/umn8vjfqrqn7jglfr8wqee0i/environment/fzhhu9uv8kltz49e51qxp58h/application/t36wqfoh1hj88qrizvbr0q9h |
-| Deployments | http://187.127.129.209:8000/project/umn8vjfqrqn7jglfr8wqee0i/environment/fzhhu9uv8kltz49e51qxp58h/application/t36wqfoh1hj88qrizvbr0q9h/deployments |
-
-**Session 3 findings:**
-
-- App status: **Exited** — Logs: *"No containers are running on server: localhost"*
-- `http://187.127.129.209:3001/healthz` — not reachable from deploy agent (connection timeout)
-- sslip.io returns **404** (proxy up, app not running)
-- **Root cause:** General config keeps reverting after page reload:
-  - Dockerfile location empty (should be `services/kernel-api/Dockerfile`)
-  - Domain still sslip.io (should be `http://187.127.129.209:3001`)
-  - Port mapping empty (should be `3001:3001`)
-- Browser `fill` updates DOM but **Livewire `submit` does not persist** (Alpine entangle on dockerfile field). Use **Coolify API PATCH** after token is created, or save manually in UI and confirm values stick before Deploy.
-
-**Target config:**
-
-| Setting | Value |
-|---------|-------|
 | Name | `adrine-kernel` |
-| Dockerfile | `services/kernel-api/Dockerfile` |
-| Port / mapping | `3001` / `3001:3001` |
+| Domains | `https://kernel.adrine.in` |
+| Dockerfile location | `services/kernel-api/Dockerfile` |
+| Ports exposes | `3001` |
+| Port mappings | `3001:3001` |
 | Network alias | `adrine-kernel` |
-| Domain | `http://187.127.129.209:3001` |
 
-**Environment variables** (already set in prior session — verify on Environment Variables page):
+**Save** → confirm values **stick after reload**.
+
+Environment variables (update CORS):
 
 ```env
-DATABASE_URL=postgresql://adrine:AdrineNavayu2026!Pg@adrine-postgres:5432/adrine_kernel?schema=public
-REDIS_URL=redis://default:OAbFqBZHLoa2hGNiEYKzwuDf0XnxBy5YCSTklcTszVZH4meDJtdiDa9pZ9gXF90c@adrine-redis:6379/0
+CORS_ORIGINS=https://hms.adrine.in,https://book.adrine.in
+DATABASE_URL=postgresql://adrine:AdrineNavayu2026!Pg@dp2gns8ygjh0w20s84z7kofl:5432/adrine_kernel?schema=public
+REDIS_URL=redis://default:<password>@owztayjm22pvffyu0x7xjpls:6379/0
 JWT_SECRET=adrine-navayu-jwt-2026-k7x9m2p4q8w1n5r3
 NODE_ENV=production
 PORT=3001
-CORS_ORIGINS=http://187.127.129.209:8080,http://187.127.129.209:3000
 ALLOW_DEV_LOGIN=false
 ```
 
-**Build failed? (`NODE_ENV=production` at build time)**  
-Coolify warns that build-time `NODE_ENV=production` skips devDependencies (TypeScript, Nest CLI, Prisma). Fix in UI:
+Ensure **NODE_ENV** is **not** “Available at Buildtime” (runtime only).
 
-1. **Environment Variables** → `NODE_ENV` → **uncheck “Available at Buildtime”** (runtime only), **or**
-2. Push latest `Adrine-Infra` (Dockerfiles now run `NODE_ENV=development` during `pnpm install` / build).
-
-Then **Redeploy** kernel app.
-
-**After container is running:**
+**Deploy** → after success:
 
 ```bash
-cd /app/services/kernel-api && npx prisma migrate deploy
+cd /repo/services/kernel-api && npx prisma migrate deploy
 ```
 
----
+### 4. Create `adrine_domain` database
 
-### 5. `adrine_domain` database — ❌ NOT CREATED
-
-Postgres terminal / Coolify sidebar terminal blocked (**real-time service down** on ports 6001/6002). SSH port 22 and Postgres 5432 not reachable from automation host.
-
-**Manual on VPS (SSH or Coolify server terminal when realtime is fixed):**
+On VPS (SSH or Coolify Postgres terminal when realtime service is fixed):
 
 ```bash
 docker exec -it $(docker ps -qf name=dp2gns8ygjh0w20s84z7kofl) psql -U adrine -d adrine_kernel -c "CREATE DATABASE adrine_domain;"
 ```
 
-**Alternative:** Postgres → General → enable **Make it publicly available** on port 5432, then from your PC:
+### 5. Create domain-api, hospital-os, patient-app
 
-```powershell
-# If psql installed:
-$env:PGPASSWORD="AdrineNavayu2026!Pg"
-psql -h 187.127.129.209 -U adrine -d adrine_kernel -c "CREATE DATABASE adrine_domain;"
-```
++ New → **Private Repository (GitHub App)** → Adrine-Infra → master → per [COOLIFY_NAVAYU_CLICKBYCLICK.md](./COOLIFY_NAVAYU_CLICKBYCLICK.md) with domains:
 
----
+- `https://domain.adrine.in` (3002)
+- `https://hms.adrine.in` (static)
+- `https://book.adrine.in` (patient-app)
 
-### 6. domain-api — `adrine-domain` ❌ NOT CREATED
-
-Wizard started (Adrine-Infra repo visible) but app resource not created yet.
-
-Repeat: + New → Private Repository (GitHub App) → **Adrine-Infra** → branch **master** → Build Pack **Dockerfile** → `services/domain-api/Dockerfile` → port **3002** → save config → env → deploy.
-
-Or via API after token:
-
-```http
-POST /api/v1/applications/private-github-app
-```
-
-| Setting | Value |
-|---------|-------|
-| Name | `adrine-domain` |
-| Dockerfile | `services/domain-api/Dockerfile` |
-| Port / mapping | `3002` / `3002:3002` |
-| Network alias | `adrine-domain` |
-| Domain | `http://187.127.129.209:3002` |
+**domain-api env:**
 
 ```env
 DATABASE_URL=postgresql://adrine:AdrineNavayu2026!Pg@adrine-postgres:5432/adrine_domain?schema=public
@@ -152,46 +169,31 @@ JWT_SECRET=adrine-navayu-jwt-2026-k7x9m2p4q8w1n5r3
 KERNEL_API_URL=http://adrine-kernel:3001
 NODE_ENV=production
 PORT=3002
-CORS_ORIGINS=http://187.127.129.209:8080,http://187.127.129.209:3000
+CORS_ORIGINS=https://hms.adrine.in,https://book.adrine.in
 ```
 
----
-
-### 7. Hospital OS — port 8080 ❌ NOT CREATED
-
-| Setting | Value |
-|---------|-------|
-| Repo | Adrine-Infra, branch master |
-| Build Pack | Static or Nixpacks |
-| Build | `pnpm --filter @adrine/hospital-os build` |
-| Publish | `apps/hospital-os/dist` |
-| Port | `8080` |
-| Domain | `http://187.127.129.209:8080` |
-
-Build env: `VITE_PLATFORM_RUNTIME=true`, `VITE_KERNEL_API_URL=http://187.127.129.209:3001`, `VITE_DOMAIN_API_URL=http://187.127.129.209:3002`, `VITE_PATIENT_APP_URL=http://187.127.129.209:3000`
-
----
-
-### 8. Patient app — port 3000 ❌ NOT CREATED
-
-| Setting | Value |
-|---------|-------|
-| Base Directory | `apps/patient-app` |
-| Build Pack | Nixpacks (Next.js) |
-| Port | `3000` |
-| Domain | `http://187.127.129.209:3000` |
+**hospital-os build env:**
 
 ```env
-NEXT_PUBLIC_KERNEL_API_URL=http://187.127.129.209:3001
-NEXT_PUBLIC_DOMAIN_API_URL=http://187.127.129.209:3002
+VITE_PLATFORM_RUNTIME=true
+VITE_KERNEL_API_URL=https://kernel.adrine.in
+VITE_DOMAIN_API_URL=https://domain.adrine.in
+VITE_PATIENT_APP_URL=https://book.adrine.in
+```
+
+**patient-app env:**
+
+```env
+NEXT_PUBLIC_KERNEL_API_URL=https://kernel.adrine.in
+NEXT_PUBLIC_DOMAIN_API_URL=https://domain.adrine.in
 NEXT_PUBLIC_PLATFORM_RUNTIME=true
 ```
 
----
+Deploy each app after DNS points to the VPS (or use sslip.io until DNS is live).
 
-### 9. Provision Navayu — ❌ NOT RUN
+### 6. Provision Navayu tenant
 
-Requires `adrine_domain` DB + reachable Postgres from your PC.
+From PC when Postgres is reachable:
 
 ```powershell
 cd "C:\Users\Parthrajsinh Gohil\Desktop\Adrine Cloud Infra"
@@ -203,45 +205,46 @@ pnpm provision:navayu
 
 ---
 
-## Shared secrets
-
-```env
-JWT_SECRET=adrine-navayu-jwt-2026-k7x9m2p4q8w1n5r3
-NAVAYU_DEFAULT_PASSWORD=Navayu@2026
-```
-
----
-
-## Recommended next steps (priority order)
-
-1. **Create API token** (API now enabled): http://187.127.129.209:8000/security/api-tokens — name `navayu-deploy`, permissions root+write+deploy+read+sensitive.
-2. **PATCH kernel** via API — fix name, dockerfile, fqdn, ports, then `POST .../applications/t36wqfoh1hj88qrizvbr0q9h/deploy`.
-3. **Create `adrine_domain`** on VPS (docker exec above).
-4. **Create domain-api, hospital-os, patient-app** (API or UI wizard).
-5. **Run migrations** in kernel/domain containers after deploy succeeds.
-6. **`pnpm provision:navayu`** from PC once Postgres is reachable.
-
----
-
-## Infrastructure blockers
-
-| Issue | Impact |
-|-------|--------|
-| Real-time service down (6001/6002) | Terminals (app/postgres/sidebar) unusable |
-| SSH :22 timeout from agent | Cannot docker exec remotely |
-| Postgres :5432 / app :3001 closed externally | Cannot health-check or provision from agent |
-| Coolify UI Save via automation | Config reverts — use API PATCH or manual save |
-
----
-
-## Target URLs (after full deploy)
+## Target URLs (after DNS + proxy + deploy)
 
 | Service | URL |
 |---------|-----|
-| Kernel API | http://187.127.129.209:3001 |
-| Domain API | http://187.127.129.209:3002 |
-| Hospital OS | http://187.127.129.209:8080 |
-| Patient app | http://187.127.129.209:3000 |
-| Booking | http://187.127.129.209:3000/book/navayu |
+| Kernel API | https://kernel.adrine.in |
+| Domain API | https://domain.adrine.in |
+| Hospital OS | https://hms.adrine.in |
+| Online booking | https://book.adrine.in/book/navayu |
 
-Login: `reception@navayuhealth.in` / `Navayu@2026`
+Login (tenant): `reception@navayuhealth.in` / `Navayu@2026`
+
+---
+
+## API quick reference (deploy without write)
+
+```http
+GET /api/v1/deploy?uuid=t36wqfoh1hj88qrizvbr0q9h&force=true
+Authorization: Bearer <token-with-deploy>
+```
+
+List deployment: `GET /api/v1/deployments/{deployment_uuid}`
+
+---
+
+## Infrastructure blockers (unchanged)
+
+| Issue | Impact |
+|-------|--------|
+| Real-time service down (6001/6002) | In-app terminals unreliable |
+| SSH :22 timeout from automation PC | No remote `docker exec` from agent |
+| Traefik proxy exited | No 80/443 routing / SSL for adrine.in |
+| API tokens without **write** | Cannot PATCH apps or create new apps via API |
+| Coolify UI Save via headless browser | Dockerfile/domain fields revert — use manual Save or write-capable API token |
+
+---
+
+## Resource UUIDs (quick links)
+
+| Resource | UUID | URL |
+|----------|------|-----|
+| Postgres | `dp2gns8ygjh0w20s84z7kofl` | [config](http://187.127.129.209:8000/project/umn8vjfqrqn7jglfr8wqee0i/environment/fzhhu9uv8kltz49e51qxp58h/database/dp2gns8ygjh0w20s84z7kofl) |
+| Redis | `owztayjm22pvffyu0x7xjpls` | [config](http://187.127.129.209:8000/project/umn8vjfqrqn7jglfr8wqee0i/environment/fzhhu9uv8kltz49e51qxp58h/database/owztayjm22pvffyu0x7xjpls) |
+| kernel-api | `t36wqfoh1hj88qrizvbr0q9h` | [app](http://187.127.129.209:8000/project/umn8vjfqrqn7jglfr8wqee0i/environment/fzhhu9uv8kltz49e51qxp58h/application/t36wqfoh1hj88qrizvbr0q9h) |

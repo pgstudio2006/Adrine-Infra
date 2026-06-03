@@ -52,6 +52,14 @@ S3_REGION=auto
 ```bash
 cd services/kernel-api && pnpm prisma migrate deploy
 cd services/domain-api && pnpm prisma migrate deploy
+
+**Coolify kernel crash loop (`P2021` / `subscription_plans` does not exist):** Postgres is up but schema was never applied. In the app **Terminal** (path inside container is `/repo`):
+
+```bash
+cd /repo/services/kernel-api && npx prisma db push
+```
+
+Then **Restart**. After the baseline migration is on `master`, **Redeploy** so startup runs `prisma migrate deploy` automatically.
 ```
 
 ---

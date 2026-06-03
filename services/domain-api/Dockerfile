@@ -11,4 +11,4 @@ RUN NODE_ENV=development pnpm --filter @adrine/domain-api... --workspace-concurr
 WORKDIR /repo/services/domain-api
 ENV NODE_ENV=production
 EXPOSE 3002
-CMD ["node", "dist/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && exec node dist/main.js"]
