@@ -37,6 +37,32 @@ export async function platformGetBillingTpaCharges() {
   );
 }
 
+export type PlatformChargeMasterItem = {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  department: string;
+  hsnSac: string;
+  baseRate: number;
+  baseRateCents: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  effectiveFrom: string;
+  effectiveTo: string;
+  status: string;
+  packageFlag: boolean;
+  notes?: string;
+};
+
+export async function platformGetBillingChargeMaster() {
+  return platformFetch<{ generatedAt: string; charges: PlatformChargeMasterItem[] }>(
+    domainBase()!,
+    '/billing/dept/charge-master',
+  );
+}
+
 export async function platformGetBillingRevenue(days = 30) {
   return platformFetch<{
     summary: {

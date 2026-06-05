@@ -36,6 +36,11 @@ export class BillingDeptController {
     return this.dept.getTpaCharges();
   }
 
+  @Get('charge-master')
+  chargeMaster() {
+    return this.dept.getChargeMaster();
+  }
+
   @Get('revenue')
   revenue(
     @Req() req: Request,

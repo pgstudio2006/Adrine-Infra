@@ -88,46 +88,46 @@
         "visible": true
       },
       "mortality": {
-        "visible": false
+        "visible": true
       },
       "ai-workflow": {
         "visible": true
       },
       "disease-mapping": {
-        "visible": false
+        "visible": true
       },
       "data-mining": {
-        "visible": false
+        "visible": true
       },
       "kaizen": {
-        "visible": false
+        "visible": true
       },
       "revenue-cycle": {
         "visible": true
       },
       "treatment-success": {
-        "visible": false
+        "visible": true
       },
       "staff": {
         "visible": true
       },
       "departments": {
-        "visible": false
+        "visible": true
       },
       "finance": {
-        "visible": false
+        "visible": true
       },
       "expenses": {
-        "visible": false
+        "visible": true
       },
       "approvals": {
-        "visible": false
+        "visible": true
       },
       "claims": {
-        "visible": false
+        "visible": true
       },
       "doctor-sharing": {
-        "visible": false
+        "visible": true
       },
       "mrd": {
         "visible": true
@@ -139,7 +139,7 @@
         "visible": true
       },
       "phonebook": {
-        "visible": false
+        "visible": true
       },
       "crm": {
         "visible": true
@@ -153,7 +153,7 @@
         "visible": true
       },
       "patients": {
-        "visible": false
+        "visible": true
       },
       "queue": {
         "visible": true
@@ -171,7 +171,7 @@
         "visible": true
       },
       "analytics": {
-        "visible": false
+        "visible": true
       }
     },
     "nurse": {
@@ -253,13 +253,13 @@
         "visible": true
       },
       "enquiries": {
-        "visible": false
+        "visible": true
       },
       "branches": {
         "visible": false
       },
       "feedback": {
-        "visible": false
+        "visible": true
       }
     },
     "lab_technician": {
@@ -350,25 +350,25 @@
         "visible": true
       },
       "suppliers": {
-        "visible": false
+        "visible": true
       },
       "purchase": {
-        "visible": false
+        "visible": true
       },
       "schedule-h": {
-        "visible": false
+        "visible": true
       },
       "queries": {
-        "visible": false
+        "visible": true
       },
       "formulary": {
         "visible": false
       },
       "indent": {
-        "visible": false
+        "visible": true
       },
       "returns": {
-        "visible": false
+        "visible": true
       },
       "narcotics": {
         "visible": false
@@ -728,10 +728,10 @@
         "visible": true
       },
       "experience": {
-        "visible": false
+        "visible": true
       },
       "reports": {
-        "visible": false
+        "visible": true
       }
     }
   },

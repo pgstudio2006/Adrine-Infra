@@ -213,3 +213,37 @@ export const BILLING_DEPT_TPA_RATES: CatalogTpaRateRow[] = [
 export const HIGH_COST_CHARGE_THRESHOLD_CENTS = 500_000;
 
 export const INSURANCE_MODES_REQUIRING_PREAUTH = new Set(['insurance', 'tpa']);
+
+export type CatalogChargeItem = {
+  id: string;
+  code: string;
+  name: string;
+  type: 'room' | 'procedure' | 'consultation' | 'pharmacy' | 'lab' | 'radiology' | 'misc';
+  department: string;
+  hsnSac: string;
+  baseRateCents: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  effectiveFrom: string;
+  effectiveTo: string;
+  status: 'active' | 'inactive';
+  packageFlag: boolean;
+  notes?: string;
+};
+
+/** Governed charge master — server source of truth for billing-dept tariff screens. */
+export const BILLING_CHARGE_MASTER: CatalogChargeItem[] = [
+  { id: 'CH001', code: 'ROOM-GEN', name: 'General Ward (per day)', type: 'room', department: 'IPD', hsnSac: '996311', baseRateCents: 25_000, cgst: 9, sgst: 9, igst: 0, effectiveFrom: '2025-04-01', effectiveTo: '2026-03-31', status: 'active', packageFlag: false },
+  { id: 'CH002', code: 'ROOM-ICU', name: 'ICU (per day)', type: 'room', department: 'IPD', hsnSac: '996311', baseRateCents: 80_000, cgst: 9, sgst: 9, igst: 0, effectiveFrom: '2025-04-01', effectiveTo: '2026-03-31', status: 'active', packageFlag: false },
+  { id: 'CH003', code: 'CONS-GEN', name: 'General Consultation', type: 'consultation', department: 'OPD', hsnSac: '998311', baseRateCents: 50_000, cgst: 9, sgst: 9, igst: 0, effectiveFrom: '2025-04-01', effectiveTo: '2026-03-31', status: 'active', packageFlag: false },
+  { id: 'CH004', code: 'CONS-SPEC', name: 'Specialist Consultation', type: 'consultation', department: 'OPD', hsnSac: '998312', baseRateCents: 100_000, cgst: 9, sgst: 9, igst: 0, effectiveFrom: '2025-04-01', effectiveTo: '2026-03-31', status: 'active', packageFlag: false },
+  { id: 'CH005', code: 'PROC-CSEC', name: 'Caesarean Section', type: 'procedure', department: 'OT', hsnSac: '998332', baseRateCents: 3_500_000, cgst: 9, sgst: 9, igst: 0, effectiveFrom: '2025-04-01', effectiveTo: '2026-03-31', status: 'active', packageFlag: true },
+  { id: 'CH006', code: 'PROC-LAP', name: 'Laparoscopic Cholecystectomy', type: 'procedure', department: 'OT', hsnSac: '998332', baseRateCents: 5_500_000, cgst: 9, sgst: 9, igst: 0, effectiveFrom: '2025-04-01', effectiveTo: '2026-03-31', status: 'active', packageFlag: true },
+  { id: 'CH007', code: 'LAB-CBC', name: 'Complete Blood Count', type: 'lab', department: 'Lab', hsnSac: '998311', baseRateCents: 35_000, cgst: 9, sgst: 9, igst: 0, effectiveFrom: '2025-04-01', effectiveTo: '2026-03-31', status: 'active', packageFlag: false },
+  { id: 'CH008', code: 'RAD-XR', name: 'Chest X-Ray PA View', type: 'radiology', department: 'Radiology', hsnSac: '998312', baseRateCents: 60_000, cgst: 9, sgst: 9, igst: 0, effectiveFrom: '2025-04-01', effectiveTo: '2026-03-31', status: 'active', packageFlag: false },
+  { id: 'CH009', code: 'PHARM-PCM', name: 'Paracetamol 500mg (10 tabs)', type: 'pharmacy', department: 'Pharmacy', hsnSac: '300490', baseRateCents: 4_500, cgst: 9, sgst: 9, igst: 0, effectiveFrom: '2025-04-01', effectiveTo: '2026-03-31', status: 'active', packageFlag: false },
+  { id: 'CH010', code: 'MISC-MLC', name: 'MLC Certificate', type: 'misc', department: 'Admin', hsnSac: '998391', baseRateCents: 20_000, cgst: 9, sgst: 9, igst: 0, effectiveFrom: '2025-04-01', effectiveTo: '2026-03-31', status: 'active', packageFlag: false, notes: 'Medicolegal certificate' },
+  { id: 'NAV-MSK-CONS', code: 'CONS-MSK', name: 'MSK Specialist Consultation', type: 'consultation', department: 'Orthopedics', hsnSac: '998312', baseRateCents: 120_000, cgst: 9, sgst: 9, igst: 0, effectiveFrom: '2025-04-01', effectiveTo: '2026-03-31', status: 'active', packageFlag: false },
+  { id: 'NAV-MSK-PT', code: 'PROC-PT', name: 'Physiotherapy Session', type: 'procedure', department: 'Rehab', hsnSac: '998334', baseRateCents: 80_000, cgst: 9, sgst: 9, igst: 0, effectiveFrom: '2025-04-01', effectiveTo: '2026-03-31', status: 'active', packageFlag: false },
+];

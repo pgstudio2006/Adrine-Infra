@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { InsuranceRuntimeService } from '../insurance/insurance-runtime.service';
 import {
+  BILLING_CHARGE_MASTER,
   BILLING_DEPT_HEALTH_PLANS,
   BILLING_DEPT_PACKAGES,
   BILLING_DEPT_TPA_PROVIDERS,
@@ -46,6 +47,16 @@ export class BillingDeptService {
         rates: Object.fromEntries(
           Object.entries(r.ratesByPayer).map(([k, v]) => [k, v / 100]),
         ),
+      })),
+    };
+  }
+
+  getChargeMaster() {
+    return {
+      generatedAt: new Date().toISOString(),
+      charges: BILLING_CHARGE_MASTER.map((c) => ({
+        ...c,
+        baseRate: c.baseRateCents / 100,
       })),
     };
   }

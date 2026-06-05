@@ -135,10 +135,10 @@ import PharmacySuppliers from "@/pages/pharmacy/PharmacySuppliers";
 import PharmacyPurchase from "@/pages/pharmacy/PharmacyPurchase";
 import PharmacyQueries from "@/pages/pharmacy/PharmacyQueries";
 import PharmacyScheduleH from "@/pages/pharmacy/PharmacyScheduleH";
+import PharmacyIndent from "@/pages/pharmacy/PharmacyIndent";
+import PharmacyReturns from "@/pages/pharmacy/PharmacyReturns";
 import {
   PharmacyFormulary,
-  PharmacyIndent,
-  PharmacyReturns,
   PharmacyNarcotics,
   PharmacyExpiry,
   PharmacyAuditTrail,
@@ -213,8 +213,9 @@ import BillingGST from "@/pages/billing/BillingGST";
 import BillingTPACharges from "@/pages/billing/BillingTPACharges";
 import BillingPreAuth from "@/pages/billing/BillingPreAuth";
 import BillingReconciliation from "@/pages/billing/BillingReconciliation";
+import BillingChargeMaster from "@/pages/billing/BillingChargeMaster";
+import BillingCashier from "@/pages/billing/BillingCashier";
 import {
-  BillingChargeMaster,
   BillingTPADesk,
   BillingCopay,
   BillingECL,
@@ -222,7 +223,6 @@ import {
   BillingDenials,
   BillingPharmacyBilling,
   BillingCorporateBilling,
-  BillingCashier,
   BillingCopayAudit,
   BillingSchemeBilling,
   BillingSettlement,
@@ -494,7 +494,7 @@ const BILLING_PAGES: Record<string, React.ComponentType> = {
   "/billing-dept/tpa-charges": BillingTPACharges,
   "/billing-dept/pre-auth": BillingPreAuth,
   "/billing-dept/reconciliation": BillingReconciliation,
-  "/billing-dept/charge-master": BillingChargeMaster,
+  "/billing-dept/charge-master": BillingFinance,
   "/billing-dept/tpa-desk": BillingTPADesk,
   "/billing-dept/copay": BillingCopay,
   "/billing-dept/ecl": BillingECL,
@@ -502,7 +502,7 @@ const BILLING_PAGES: Record<string, React.ComponentType> = {
   "/billing-dept/denials": BillingDenials,
   "/billing-dept/pharmacy-billing": BillingPharmacyBilling,
   "/billing-dept/corporate-billing": BillingCorporateBilling,
-  "/billing-dept/cashier": BillingCashier,
+  "/billing-dept/cashier": BillingFinance,
   "/billing-dept/copay-audit": BillingCopayAudit,
   "/billing-dept/scheme-billing": BillingSchemeBilling,
   "/billing-dept/settlement": BillingSettlement,

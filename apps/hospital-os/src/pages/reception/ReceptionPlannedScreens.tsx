@@ -28,6 +28,10 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PlatformConnectivityStrip } from '@/components/PlatformConnectivityStrip';
+import { useReceptionPlatform } from '@/hooks/useReceptionPlatform';
+import { useHospital } from '@/stores/hospitalStore';
+import { isPlatformRuntimeEnabled } from '@/runtime/platform-session';
 
 const fadeIn = (i: number) => ({
   initial: { opacity: 0, y: 12 },
@@ -776,6 +780,13 @@ const ENQUIRY_TYPES: EnquiryRecord['type'][] = ['Appointment', 'Billing', 'Lab R
 const ENQUIRY_SOURCES: EnquiryRecord['source'][] = ['walk-in', 'phone', 'email'];
 
 export function ReceptionEnquiries() {
+  const { error: platformError } = useReceptionPlatform({ patients: true });
+  const { workflowEvents } = useHospital();
+  const platformOn = isPlatformRuntimeEnabled();
+  const enquiryEvents = workflowEvents.filter((event) => {
+    const text = `${event.module} ${event.action} ${event.details}`.toLowerCase();
+    return text.includes('enquir') || text.includes('callback') || text.includes('reception');
+  }).length;
   const [records, setRecords] = useState<EnquiryRecord[]>(() => loadJson<EnquiryRecord[]>(ENQUIRIES_KEY, []));
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
@@ -829,7 +840,11 @@ export function ReceptionEnquiries() {
         <h1 className="text-2xl font-bold tracking-tight">Enquiries &amp; Callbacks</h1>
         <p className="text-sm text-muted-foreground mt-1">Log walk-in questions, phone calls, and email enquiries. Track callbacks and resolution status.</p>
       </motion.div>
-      <PreviewStrip />
+      <PlatformConnectivityStrip
+        label="Reception enquiries"
+        detail={`${records.length} logged enquiries · ${enquiryEvents} reception workflow events · ${platformOn ? 'platform live' : 'local capture'}`}
+        error={platformError}
+      />
       <QuickLinks />
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -1208,6 +1223,13 @@ type FeedbackRecord = {
 const SERVICE_TYPES = ['Registration', 'Queue', 'Billing', 'IPD', 'OPD', 'Pharmacy', 'Lab', 'Overall Experience'];
 
 export function ReceptionFeedback() {
+  const { error: platformError } = useReceptionPlatform();
+  const { workflowEvents } = useHospital();
+  const platformOn = isPlatformRuntimeEnabled();
+  const feedbackEvents = workflowEvents.filter((event) => {
+    const text = `${event.module} ${event.action} ${event.details}`.toLowerCase();
+    return text.includes('feedback') || text.includes('satisfaction') || text.includes('survey');
+  }).length;
   const [records, setRecords] = useState<FeedbackRecord[]>(() => loadJson<FeedbackRecord[]>(FEEDBACK_KEY, []));
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
@@ -1265,7 +1287,11 @@ export function ReceptionFeedback() {
         <h1 className="text-2xl font-bold tracking-tight">Patient Feedback</h1>
         <p className="text-sm text-muted-foreground mt-1">Quick exit survey — capture patient satisfaction ratings across services.</p>
       </motion.div>
-      <PreviewStrip />
+      <PlatformConnectivityStrip
+        label="Reception feedback"
+        detail={`${records.length} captured responses · ${feedbackEvents} feedback workflow events · ${platformOn ? 'platform live' : 'local capture'}`}
+        error={platformError}
+      />
       <QuickLinks />
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">

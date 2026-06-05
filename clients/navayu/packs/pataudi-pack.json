@@ -153,7 +153,7 @@
         "visible": true
       },
       "patients": {
-        "visible": false
+        "visible": true
       },
       "queue": {
         "visible": true
@@ -171,7 +171,7 @@
         "visible": true
       },
       "analytics": {
-        "visible": false
+        "visible": true
       }
     },
     "nurse": {
@@ -253,13 +253,13 @@
         "visible": true
       },
       "enquiries": {
-        "visible": false
+        "visible": true
       },
       "branches": {
         "visible": true
       },
       "feedback": {
-        "visible": false
+        "visible": true
       }
     },
     "lab_technician": {
@@ -350,25 +350,25 @@
         "visible": true
       },
       "suppliers": {
-        "visible": false
+        "visible": true
       },
       "purchase": {
-        "visible": false
+        "visible": true
       },
       "schedule-h": {
         "visible": false
       },
       "queries": {
-        "visible": false
+        "visible": true
       },
       "formulary": {
         "visible": false
       },
       "indent": {
-        "visible": false
+        "visible": true
       },
       "returns": {
-        "visible": false
+        "visible": true
       },
       "narcotics": {
         "visible": false
@@ -445,7 +445,7 @@
         "visible": true
       },
       "charge-master": {
-        "visible": false
+        "visible": true
       },
       "tpa-desk": {
         "visible": false
@@ -469,7 +469,7 @@
         "visible": false
       },
       "cashier": {
-        "visible": false
+        "visible": true
       },
       "copay-audit": {
         "visible": false

@@ -5,8 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Search, Building2, ExternalLink } from "lucide-react";
 import { DepartmentWorklistTable } from "@/components/diagnostics/DepartmentWorklistTable";
 import { WorklistStatusChip } from "@/components/diagnostics/WorklistStatusChip";
-import { allowDemoFallback } from "@/lib/platform/demo-fallback";
+import { PlatformConnectivityStrip } from "@/components/PlatformConnectivityStrip";
 import { PlatformEmptyState } from "@/components/platform/PlatformEmptyState";
+import { useHospital } from "@/stores/hospitalStore";
+import { isPlatformRuntimeEnabled } from "@/runtime/platform-session";
+import { canUsePharmacyRuntime } from "@/runtime/pharmacy-runtime";
 
 type SupplierRow = {
   id: string;
@@ -16,17 +19,42 @@ type SupplierRow = {
   status: string;
 };
 
-/** Local preview until pharmacy supplier master API ships — procurement lives under Inventory. */
-const DEMO_SUPPLIERS: SupplierRow[] = [
-  { id: "SUP-001", name: "MedPharma Ltd", contact: "Rajesh Gupta", categories: "Antibiotics, GI", status: "Preview" },
-  { id: "SUP-002", name: "LifeCare Pharma", contact: "Priya Sharma", categories: "Analgesics", status: "Preview" },
-  { id: "SUP-003", name: "Neon Labs", contact: "Cold chain desk", categories: "Pharmacy Stock", status: "Preview" },
-];
-
 export default function PharmacySuppliers() {
   const [search, setSearch] = useState("");
+  const { pharmacyInventory, workflowEvents } = useHospital();
+  const platformOn = isPlatformRuntimeEnabled() && canUsePharmacyRuntime();
 
-  const suppliers = allowDemoFallback() ? DEMO_SUPPLIERS : [];
+  const suppliers = useMemo<SupplierRow[]>(() => {
+    const byVendor = new Map<string, SupplierRow>();
+    for (const item of pharmacyInventory) {
+      const vendor = item.supplier?.trim();
+      if (!vendor) continue;
+      const existing = byVendor.get(vendor);
+      if (existing) {
+        existing.categories = `${existing.categories}, ${item.category}`;
+        continue;
+      }
+      byVendor.set(vendor, {
+        id: `SUP-${vendor.slice(0, 8).toUpperCase()}`,
+        name: vendor,
+        contact: "Procurement desk",
+        categories: item.category,
+        status: platformOn ? "Active" : "Store",
+      });
+    }
+    return Array.from(byVendor.values());
+  }, [pharmacyInventory, platformOn]);
+
+  const procurementEvents = useMemo(
+    () =>
+      workflowEvents
+        .filter((event) => {
+          const text = `${event.module} ${event.action} ${event.details}`.toLowerCase();
+          return text.includes("procurement") || text.includes("purchase") || text.includes("supplier");
+        })
+        .slice(0, 6),
+    [workflowEvents],
+  );
 
   const filtered = useMemo(
     () =>
@@ -88,9 +116,9 @@ export default function PharmacySuppliers() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Suppliers (preview)</h1>
+          <h1 className="text-2xl font-bold text-foreground">Suppliers</h1>
           <p className="text-muted-foreground text-sm">
-            Supplier master is not wired to domain-api — use Inventory procurement for purchase orders
+            Vendor directory derived from live pharmacy inventory · PO workflow under Inventory
           </p>
         </div>
         <Button variant="outline" size="sm" className="gap-1.5" asChild>
@@ -101,9 +129,9 @@ export default function PharmacySuppliers() {
         </Button>
       </div>
 
-      <PlatformEmptyState
-        title="Not connected to platform"
-        message="Supplier master is not wired to domain-api. Authoritative supplier and PO data appears under Inventory → Procurement when supplier APIs are available."
+      <PlatformConnectivityStrip
+        label="Supplier master"
+        detail={`${suppliers.length} vendors from inventory · ${procurementEvents.length} recent procurement events`}
       />
 
       <div className="relative">
@@ -116,12 +144,19 @@ export default function PharmacySuppliers() {
         />
       </div>
 
-      <DepartmentWorklistTable
-        rows={filtered}
-        columns={columns}
-        getRowKey={(s) => s.id}
-        emptyMessage="No suppliers match your search."
-      />
+      {filtered.length === 0 ? (
+        <PlatformEmptyState
+          title="No suppliers yet"
+          message="Supplier rows appear when pharmacy inventory includes vendor names from the platform catalog."
+        />
+      ) : (
+        <DepartmentWorklistTable
+          rows={filtered}
+          columns={columns}
+          getRowKey={(s) => s.id}
+          emptyMessage="No suppliers match your search."
+        />
+      )}
     </div>
   );
 }
