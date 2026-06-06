@@ -11,6 +11,7 @@ import {
   canUseSchedulingRuntime,
   platformBookAppointment,
 } from '@/runtime/scheduling-runtime';
+import { isPlatformAuthoritative } from '@/runtime/platform-store-bridge';
 import type { NavayuFollowUpHandoff } from '@/lib/navayu/navayu-protocol-engine';
 import { toast } from 'sonner';
 
@@ -47,11 +48,18 @@ export function NavayuFollowUpHandoff({
   const [time, setTime] = useState('10:00');
   const [resourceLabel, setResourceLabel] = useState('MSK follow-up');
   const [submitting, setSubmitting] = useState(false);
+  const platformAuthoritative = isPlatformAuthoritative();
   const platformReady = canUseSchedulingRuntime();
 
   async function handleBook() {
     if (!date) {
       toast.error('Select a follow-up date.');
+      return;
+    }
+    if (platformAuthoritative && !platformReady) {
+      toast.error('Platform scheduling unavailable', {
+        description: 'Sign in with platform runtime to book follow-up appointments.',
+      });
       return;
     }
     setSubmitting(true);
@@ -67,6 +75,8 @@ export function NavayuFollowUpHandoff({
           status: 'confirmed',
         });
         appointmentId = appt.id;
+      } else if (platformAuthoritative) {
+        throw new Error('Scheduling API did not return an appointment.');
       }
 
       const handoff: NavayuFollowUpHandoff = {
@@ -85,7 +95,7 @@ export function NavayuFollowUpHandoff({
       toast.success(`Follow-up booked for ${patientName}`, {
         description: platformReady
           ? `${format(start, 'dd MMM yyyy')} · ${resourceLabel}`
-          : 'Saved to visit metadata (enable platform runtime for live scheduling).',
+          : 'Saved locally (platform runtime off).',
       });
     } catch (err) {
       toast.error('Could not schedule follow-up', {

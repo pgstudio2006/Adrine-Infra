@@ -488,8 +488,10 @@ export default function DoctorConsultation() {
     });
     if (ok && navayuMode && opdVisitId && canUseNavayuRuntime()) {
       if (navayuSenior) {
-        void platformSaveNavayuSeniorReview(opdVisitId, navayuSeniorReview);
-        void platformMskTransition(opdVisitId, 'classify_diagnosis');
+        const mskState = await platformSaveNavayuSeniorReview(opdVisitId, navayuSeniorReview);
+        if (mskState === 'senior_consult') {
+          await platformMskTransition(opdVisitId, 'classify_diagnosis');
+        }
       }
     }
     if (ok) navigate(-1);

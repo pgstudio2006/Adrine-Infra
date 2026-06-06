@@ -266,15 +266,10 @@ export async function platformSaveNavayuSeniorReview(
     });
     return result.nextState;
   }
+  if (state === 'senior_consult') {
+    return state;
+  }
   return (state ?? 'senior_consult') as NavayuMskLifecycleState;
-}
-
-export async function platformAdvanceMskState(
-  visitId: string,
-  state: NavayuMskLifecycleState,
-  extra?: Record<string, unknown>,
-): Promise<void> {
-  await platformPatchNavayuMetadata(visitId, { mskLifecycleState: state, ...extra });
 }
 
 export async function platformSaveNavayuCounselling(
@@ -292,10 +287,18 @@ export async function platformSaveNavayuCounselling(
     return;
   }
 
-  await platformPatchNavayuMetadata(visitId, {
-    navayu: { counselling },
-    mskLifecycleState: 'counselling',
-  });
+  if (state === 'counselling' || state === 'package_planned') {
+    await platformPatchNavayuMetadata(visitId, { navayu: { counselling } });
+    return;
+  }
+
+  const { allowed } = await platformListMskAllowedActions(visitId);
+  if (allowed.includes('start_counselling')) {
+    await platformMskTransition(visitId, 'start_counselling', { navayu: { counselling } });
+    return;
+  }
+
+  throw new Error(`Cannot save counselling from MSK state "${state}"`);
 }
 
 export async function platformSaveNavayuPackagePlanned(
@@ -308,18 +311,29 @@ export async function platformSaveNavayuPackagePlanned(
   const bundle = await platformLoadNavayuVisitBundle(visitId);
   const state = bundle?.mskLifecycleState ?? 'counselling';
 
-  if (state === 'counselling' || state === 'protocol_mapped') {
-    if (state === 'protocol_mapped') {
-      await platformMskTransition(visitId, 'start_counselling', { navayu: { counselling } });
-    }
+  if (state === 'counselling') {
     await platformMskTransition(visitId, 'plan_package', { navayu: { counselling } });
     return;
   }
 
-  await platformPatchNavayuMetadata(visitId, {
-    navayu: { counselling },
-    mskLifecycleState: 'package_planned',
-  });
+  if (state === 'package_planned') {
+    await platformPatchNavayuMetadata(visitId, { navayu: { counselling } });
+    return;
+  }
+
+  if (state === 'protocol_mapped') {
+    await platformMskTransition(visitId, 'start_counselling', { navayu: { counselling } });
+    await platformMskTransition(visitId, 'plan_package', { navayu: { counselling } });
+    return;
+  }
+
+  const { allowed } = await platformListMskAllowedActions(visitId);
+  if (allowed.includes('plan_package')) {
+    await platformMskTransition(visitId, 'plan_package', { navayu: { counselling } });
+    return;
+  }
+
+  throw new Error(`Cannot plan package from MSK state "${state}"`);
 }
 
 export async function platformSaveNavayuFollowUp(
@@ -332,17 +346,23 @@ export async function platformSaveNavayuFollowUp(
   const bundle = await platformLoadNavayuVisitBundle(visitId);
   const state = bundle?.mskLifecycleState ?? 'package_planned';
 
-  await platformPatchNavayuMetadata(visitId, { navayu: { followUp } });
-
   if (state === 'package_planned') {
     await platformMskTransition(visitId, 'close_visit', { navayu: { followUp } });
     return;
   }
 
-  await platformPatchNavayuMetadata(visitId, {
-    navayu: { followUp },
-    mskLifecycleState: 'closed',
-  });
+  if (state === 'closed') {
+    await platformPatchNavayuMetadata(visitId, { navayu: { followUp } });
+    return;
+  }
+
+  const { allowed } = await platformListMskAllowedActions(visitId);
+  if (allowed.includes('close_visit')) {
+    await platformMskTransition(visitId, 'close_visit', { navayu: { followUp } });
+    return;
+  }
+
+  throw new Error(`Cannot close visit from MSK state "${state}"`);
 }
 
 export type NavayuCounsellorQueueRow = {
@@ -420,7 +440,7 @@ export async function platformSaveNavayuInvestigations(
   if (!base || !canUseNavayuRuntime()) return;
   await platformFetch(base, `/opd/visits/${visitId}/metadata`, {
     method: 'PATCH',
-    body: JSON.stringify({ navayu: { investigations }, mskLifecycleState: 'msk_exam_complete' }),
+    body: JSON.stringify({ navayu: { investigations } }),
   });
 }
 
@@ -504,11 +524,12 @@ export async function platformHandoffProtocolToCounsellor(
     return mapped.nextState;
   }
 
-  await platformPatchNavayuMetadata(visitId, {
-    navayu: { protocolMap: stamped },
-    mskLifecycleState: 'protocol_mapped',
-  });
-  return 'protocol_mapped';
+  if (state === 'protocol_mapped') {
+    await platformPatchNavayuMetadata(visitId, { navayu: { protocolMap: stamped } });
+    return 'protocol_mapped';
+  }
+
+  throw new Error(`Cannot map protocol from MSK state "${state}"`);
 }
 
 export async function platformSaveNavayuProtocolMap(

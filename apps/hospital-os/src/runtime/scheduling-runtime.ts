@@ -57,17 +57,30 @@ export async function platformBookAppointment(input: {
   endAt: string;
   resourceLabel: string;
   status?: string;
+  branchId?: string;
 }): Promise<PlatformAppointment> {
   const base = domainBase()!;
+  const branchQ = branchQuery(input.branchId);
+  const body = {
+    patientId: input.patientId,
+    startAt: input.startAt,
+    endAt: input.endAt,
+    resourceLabel: input.resourceLabel,
+    status: input.status,
+  };
   try {
-    return await platformFetch<PlatformAppointment>(base, '/scheduling/appointments', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    });
+    return await platformFetch<PlatformAppointment>(
+      base,
+      `/scheduling/appointments?${branchQ}`,
+      {
+        method: 'POST',
+        body: JSON.stringify(body),
+      },
+    );
   } catch {
-    return platformFetch<PlatformAppointment>(base, '/appointments', {
+    return platformFetch<PlatformAppointment>(base, `/appointments?${branchQ}`, {
       method: 'POST',
-      body: JSON.stringify(input),
+      body: JSON.stringify(body),
     });
   }
 }

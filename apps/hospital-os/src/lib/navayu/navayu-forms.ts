@@ -1,5 +1,6 @@
 import { getServerTenantForms } from '@/runtime/branch-config';
 import { getPlatformSession } from '@/runtime/platform-session';
+import { isPlatformAuthoritative } from '@/runtime/platform-store-bridge';
 
 export type NavayuFormOption = { value: string; label: string };
 
@@ -108,8 +109,18 @@ export const REGION_TO_EXAM_FORM_KEY: Record<string, string> = {
   multiple: 'msk_lumbar_v0',
 };
 
-const NAVAYU_TENANT_ID = 'tenant_navayu';
 const VISIT_META_PREFIX = 'adrine_navayu_visit_meta:';
+
+function navayuLocalStorageEnabled(): boolean {
+  return !isPlatformAuthoritative();
+}
+
+/** Active tenant from platform session or dev env (no hardcoded tenant id). */
+export function getSessionTenantId(): string | undefined {
+  const session = getPlatformSession();
+  const devTenant = (import.meta.env.VITE_DEV_TENANT_ID as string | undefined)?.trim();
+  return session?.tenantId ?? devTenant;
+}
 
 /** Embedded v0 defaults — mirrors clients/navayu/forms/*.json for offline / pre-provision dev. */
 const DEFAULT_REGISTRATION_FORM: NavayuFormDefinition = {
@@ -363,13 +374,12 @@ function loadFormFromBranch(key: string, fallback: NavayuFormDefinition): Navayu
 }
 
 export function isNavayuTenant(): boolean {
-  const session = getPlatformSession();
-  const devTenant = import.meta.env.VITE_DEV_TENANT_ID as string | undefined;
-  if (session?.tenantId === NAVAYU_TENANT_ID || devTenant === NAVAYU_TENANT_ID) {
+  const forms = getServerTenantForms();
+  if (forms && ('registration_v0' in forms || 'msk_lumbar_v0' in forms)) {
     return true;
   }
-  const forms = getServerTenantForms();
-  return !!(forms && ('registration_v0' in forms || 'msk_lumbar_v0' in forms));
+  const tenantId = getSessionTenantId();
+  return !!tenantId && /navayu/i.test(tenantId);
 }
 
 export function getNavayuRegistrationForm(): NavayuFormDefinition {
@@ -580,6 +590,7 @@ export function painRegionLabel(value: string): string {
 }
 
 export function saveNavayuVisitMetadata(uhid: string, metadata: NavayuRegistrationMetadata): void {
+  if (!navayuLocalStorageEnabled()) return;
   try {
     localStorage.setItem(`${VISIT_META_PREFIX}${uhid}`, JSON.stringify(metadata));
   } catch {
@@ -588,6 +599,7 @@ export function saveNavayuVisitMetadata(uhid: string, metadata: NavayuRegistrati
 }
 
 export function loadNavayuVisitMetadata(uhid: string): NavayuRegistrationMetadata | null {
+  if (!navayuLocalStorageEnabled()) return null;
   try {
     const raw = localStorage.getItem(`${VISIT_META_PREFIX}${uhid}`);
     if (!raw) return null;
@@ -601,6 +613,7 @@ const LUMBAR_EXAM_PREFIX = 'adrine_navayu_lumbar_exam:';
 const SENIOR_REVIEW_PREFIX = 'adrine_navayu_senior_review:';
 
 export function saveNavayuLumbarExam(uhid: string, data: NavayuLumbarExamData): void {
+  if (!navayuLocalStorageEnabled()) return;
   try {
     localStorage.setItem(`${LUMBAR_EXAM_PREFIX}${uhid}`, JSON.stringify(data));
   } catch {
@@ -609,6 +622,7 @@ export function saveNavayuLumbarExam(uhid: string, data: NavayuLumbarExamData): 
 }
 
 export function loadNavayuLumbarExam(uhid: string): NavayuLumbarExamData {
+  if (!navayuLocalStorageEnabled()) return {};
   try {
     const raw = localStorage.getItem(`${LUMBAR_EXAM_PREFIX}${uhid}`);
     if (!raw) return {};
@@ -619,6 +633,7 @@ export function loadNavayuLumbarExam(uhid: string): NavayuLumbarExamData {
 }
 
 export function saveNavayuSeniorReview(uhid: string, data: NavayuSeniorReviewData): void {
+  if (!navayuLocalStorageEnabled()) return;
   try {
     localStorage.setItem(`${SENIOR_REVIEW_PREFIX}${uhid}`, JSON.stringify(data));
   } catch {
@@ -627,6 +642,7 @@ export function saveNavayuSeniorReview(uhid: string, data: NavayuSeniorReviewDat
 }
 
 export function loadNavayuSeniorReview(uhid: string): NavayuSeniorReviewData {
+  if (!navayuLocalStorageEnabled()) return {};
   try {
     const raw = localStorage.getItem(`${SENIOR_REVIEW_PREFIX}${uhid}`);
     if (!raw) return {};
