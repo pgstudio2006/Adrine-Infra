@@ -372,15 +372,17 @@ export default function DoctorConsultation() {
   };
 
   const handleSubmitJuniorMskExam = async () => {
-    if (!opdVisitId || !canUseNavayuRuntime()) return;
+    if (!opdVisitId || !canUseNavayuRuntime()) return false;
     setSubmittingJuniorExam(true);
     try {
       const state = await platformHandoffJuniorToSenior(opdVisitId);
       setNavayuBundle((prev) => ({ ...prev, mskLifecycleState: state }));
       await refreshQueueFromPlatform();
       toast.success('Junior MSK exam submitted for senior review');
+      return true;
     } catch {
       toast.error('Could not submit MSK exam — check workflow state');
+      return false;
     } finally {
       setSubmittingJuniorExam(false);
     }
@@ -449,6 +451,12 @@ export default function DoctorConsultation() {
 
   const handleSaveConsultation = async () => {
     if (!patientId) {
+      return;
+    }
+
+    if (navayuMode && navayuJunior) {
+      const submitted = await handleSubmitJuniorMskExam();
+      if (submitted) navigate(`${roleBasePath}/queue`);
       return;
     }
 

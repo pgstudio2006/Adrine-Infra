@@ -1800,9 +1800,10 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
       };
 
       setAppointments(prev => [appointment, ...prev]);
-      if (!isPlatformAuthoritative()) {
-        setQueue(prev => [...prev, queueEntry]);
-      }
+      setQueue(prev => {
+        const withoutDuplicate = prev.filter((entry) => entry.appointmentId !== appointmentId && entry.uhid !== uhid);
+        return [...withoutDuplicate, queueEntry].sort((a, b) => a.tokenNo - b.tokenNo);
+      });
       pushWorkflowEvent({
         module: 'scheduling',
         action: 'appointment_checked_in',
@@ -1946,7 +1947,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
               );
             }
 
-            if (activeVisit.tokenNumber && appointmentId && !isPlatformAuthoritative()) {
+            if (activeVisit.tokenNumber && appointmentId) {
               setQueue((prev) =>
                 prev.map((q) =>
                   q.appointmentId === appointmentId
@@ -1954,6 +1955,11 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
                         ...q,
                         tokenNo: activeVisit.tokenNumber!,
                         platformOpdVisitId: activeVisit.id,
+                        branchId: activeVisit.branchId || q.branchId,
+                        mskLifecycleState:
+                          typeof activeVisit.metadata?.mskLifecycleState === 'string'
+                            ? activeVisit.metadata.mskLifecycleState
+                            : q.mskLifecycleState,
                       }
                     : q,
                 ),

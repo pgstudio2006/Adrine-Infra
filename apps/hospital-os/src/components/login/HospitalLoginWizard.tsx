@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
-  ArrowRight,
   Building2,
   KeyRound,
   LayoutGrid,
@@ -57,11 +56,10 @@ const ROLE_ICONS: Record<string, React.ReactNode> = {
   crm_manager: <HeartHandshake className="w-6 h-6" />,
 };
 
-type WizardStep = 'welcome' | 'hospital' | 'branch' | 'module' | 'staff';
+type WizardStep = 'hospital' | 'branch' | 'module' | 'staff';
 
 const STEP_META: Record<WizardStep, { label: string; icon: React.ReactNode }> = {
-  welcome: { label: 'Welcome', icon: <Shield className="w-4 h-4" /> },
-  hospital: { label: 'Hospital', icon: <Building2 className="w-4 h-4" /> },
+  hospital: { label: 'Sign in', icon: <Building2 className="w-4 h-4" /> },
   branch: { label: 'Branch', icon: <MapPin className="w-4 h-4" /> },
   module: { label: 'Module', icon: <LayoutGrid className="w-4 h-4" /> },
   staff: { label: 'Staff', icon: <KeyRound className="w-4 h-4" /> },
@@ -82,7 +80,7 @@ export function HospitalLoginWizard({ onRaiseTicket }: Props) {
   const { settings } = useTenantSettings();
   const navigate = useNavigate();
 
-  const [step, setStep] = useState<WizardStep>('welcome');
+  const [step, setStep] = useState<WizardStep>('hospital');
   const [submitting, setSubmitting] = useState(false);
   const [loadingRoles, setLoadingRoles] = useState(false);
 
@@ -127,9 +125,8 @@ export function HospitalLoginWizard({ onRaiseTicket }: Props) {
   }, [step, selectedBranch, gate]);
 
   const goBack = () => {
-    if (step === 'welcome') return;
+    if (step === 'hospital') return;
     if (step === 'hospital') {
-      setStep('welcome');
       return;
     }
     if (step === 'branch') {
@@ -214,8 +211,7 @@ export function HospitalLoginWizard({ onRaiseTicket }: Props) {
 
   return (
     <div className="w-full max-w-4xl mx-auto">
-      {step !== 'welcome' && (
-        <div className="mb-8 flex items-center justify-center gap-2 flex-wrap">
+      <div className="mb-6 flex items-center justify-center gap-2 flex-wrap">
           {activeSteps.map((s, i) => {
             const meta = STEP_META[s];
             const isActive = s === step;
@@ -238,66 +234,39 @@ export function HospitalLoginWizard({ onRaiseTicket }: Props) {
               </div>
             );
           })}
-        </div>
-      )}
+      </div>
 
       <AnimatePresence mode="wait">
-        {step === 'welcome' && (
-          <motion.div
-            key="welcome"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            className="text-center space-y-8"
-          >
-            <div>
-              <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground font-bold mb-3">
-                {settings.branding.loginHeadline}
-              </p>
-              <p className="text-sm text-muted-foreground max-w-lg mx-auto leading-relaxed">
-                Sign in with your hospital credentials, choose your center and module, then enter your staff
-                account to access {settings.branding.organizationName}.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setStep('hospital')}
-              className="inline-flex items-center gap-2 rounded-md bg-foreground px-8 py-3.5 text-xs font-bold uppercase tracking-widest text-background hover:opacity-90 transition-opacity"
-            >
-              Continue to sign in
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </motion.div>
-        )}
-
         {step === 'hospital' && (
           <motion.div
             key="hospital"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
-            className="max-w-md mx-auto border border-border/70 rounded-md bg-card p-6 space-y-4"
+            className="max-w-md mx-auto rounded-2xl border border-zinc-200/90 bg-white/92 p-6 shadow-[0_24px_80px_rgba(24,24,27,0.08)] backdrop-blur space-y-5"
           >
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <Building2 className="w-4 h-4 text-primary" />
-              Hospital sign-in
+            <div className="text-center space-y-2">
+              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50">
+                <Building2 className="w-4 h-4 text-zinc-800" />
+              </div>
+              <h2 className="text-xl font-semibold tracking-[-0.04em] text-zinc-950">Sign in to your workspace</h2>
+              <p className="text-xs text-zinc-500 leading-relaxed">
+                Verify the hospital account first. Branch selection opens on the next screen.
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Use your hospital&apos;s main access email and password. This verifies your organization before
-              you choose a branch and module.
-            </p>
             <label className="space-y-1.5 block">
-              <span className="text-xs font-semibold text-muted-foreground">Hospital email</span>
+              <span className="text-xs font-semibold text-zinc-600">Hospital email</span>
               <Input
                 type="email"
                 autoComplete="username"
                 value={hospitalEmail}
                 onChange={(e) => setHospitalEmail(e.target.value)}
                 placeholder={`admin@${settings.branding.organizationShortName.toLowerCase()}health.in`}
+                className="h-11 rounded-xl border-zinc-200 bg-white text-sm"
               />
             </label>
             <label className="space-y-1.5 block">
-              <span className="text-xs font-semibold text-muted-foreground">Password</span>
+              <span className="text-xs font-semibold text-zinc-600">Password</span>
               <Input
                 type="password"
                 autoComplete="current-password"
@@ -305,27 +274,28 @@ export function HospitalLoginWizard({ onRaiseTicket }: Props) {
                 onChange={(e) => setHospitalPassword(e.target.value)}
                 placeholder="••••••••"
                 onKeyDown={(e) => e.key === 'Enter' && void handleHospitalSubmit()}
+                className="h-11 rounded-xl border-zinc-200 bg-white text-sm"
               />
             </label>
             <div className="flex gap-2 pt-2">
               <button
                 type="button"
-                onClick={goBack}
-                className="flex-1 rounded-md border border-border py-3 text-xs font-bold uppercase tracking-widest hover:bg-muted"
-              >
-                <span className="inline-flex items-center gap-1 justify-center">
-                  <ArrowLeft className="w-3.5 h-3.5" /> Back
-                </span>
-              </button>
-              <button
-                type="button"
                 onClick={() => void handleHospitalSubmit()}
                 disabled={submitting}
-                className="flex-[2] rounded-md py-3 text-xs font-bold uppercase tracking-widest bg-foreground text-background hover:opacity-90 disabled:opacity-50"
+                className="w-full rounded-xl py-3 text-xs font-bold uppercase tracking-[0.22em] bg-zinc-950 text-white hover:bg-zinc-800 disabled:opacity-50"
               >
                 {submitting ? 'Verifying…' : 'Continue'}
               </button>
             </div>
+            {onRaiseTicket ? (
+              <button
+                type="button"
+                onClick={onRaiseTicket}
+                className="w-full text-[11px] font-semibold text-zinc-500 hover:text-zinc-950"
+              >
+                Need access help?
+              </button>
+            ) : null}
           </motion.div>
         )}
 
@@ -338,10 +308,10 @@ export function HospitalLoginWizard({ onRaiseTicket }: Props) {
             className="space-y-6"
           >
             <div className="text-center">
-              <p className="text-sm font-semibold">{gate.organizationName}</p>
-              <p className="text-xs text-muted-foreground mt-1">Select your hospital center</p>
+              <p className="text-sm font-semibold text-zinc-950">{gate.organizationName}</p>
+              <p className="text-xs text-zinc-500 mt-1">Select your hospital center</p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
               {gate.branches.map((branch) => {
                 const selected = selectedBranch?.id === branch.id;
                 return (
@@ -349,21 +319,21 @@ export function HospitalLoginWizard({ onRaiseTicket }: Props) {
                     key={branch.id}
                     type="button"
                     onClick={() => setSelectedBranch(branch)}
-                    className={`text-left rounded-md border p-5 transition-all ${
+                    className={`text-left rounded-2xl border p-5 transition-all bg-white/92 backdrop-blur shadow-[0_18px_50px_rgba(24,24,27,0.06)] ${
                       selected
-                        ? 'border-primary bg-primary/5 shadow-md scale-[1.01]'
-                        : 'border-border/70 bg-card hover:border-primary/40'
+                        ? 'border-zinc-950 ring-4 ring-zinc-950/5 scale-[1.01]'
+                        : 'border-zinc-200 hover:border-zinc-400'
                     }`}
                   >
                     <div className="flex items-start gap-3">
                       <div
-                        className={`rounded-sm p-2.5 ${selected ? 'bg-primary text-primary-foreground' : 'bg-muted/50'}`}
+                        className={`rounded-xl p-2.5 ${selected ? 'bg-zinc-950 text-white' : 'bg-zinc-100 text-zinc-700'}`}
                       >
                         <MapPin className="w-5 h-5" />
                       </div>
                       <div>
-                        <p className="font-bold text-sm">{branch.name}</p>
-                        <p className="text-[11px] text-muted-foreground mt-1 uppercase tracking-wider">
+                        <p className="font-bold text-sm text-zinc-950">{branch.name}</p>
+                        <p className="text-[11px] text-zinc-500 mt-1 uppercase tracking-wider">
                           {branch.code}
                         </p>
                       </div>
@@ -376,7 +346,7 @@ export function HospitalLoginWizard({ onRaiseTicket }: Props) {
               <button
                 type="button"
                 onClick={goBack}
-                className="flex-1 rounded-md border border-border py-3 text-xs font-bold uppercase tracking-widest hover:bg-muted"
+                className="flex-1 rounded-xl border border-zinc-200 bg-white py-3 text-xs font-bold uppercase tracking-widest hover:bg-zinc-50"
               >
                 Back
               </button>
@@ -384,7 +354,7 @@ export function HospitalLoginWizard({ onRaiseTicket }: Props) {
                 type="button"
                 onClick={handleBranchContinue}
                 disabled={!selectedBranch}
-                className="flex-[2] rounded-md py-3 text-xs font-bold uppercase tracking-widest bg-foreground text-background hover:opacity-90 disabled:opacity-50"
+                className="flex-[2] rounded-xl py-3 text-xs font-bold uppercase tracking-widest bg-zinc-950 text-white hover:bg-zinc-800 disabled:opacity-50"
               >
                 Continue
               </button>
@@ -401,8 +371,8 @@ export function HospitalLoginWizard({ onRaiseTicket }: Props) {
             className="space-y-6"
           >
             <div className="text-center">
-              <p className="text-sm font-semibold">{selectedBranch.name}</p>
-              <p className="text-xs text-muted-foreground mt-1">Choose your module</p>
+              <p className="text-sm font-semibold text-zinc-950">{selectedBranch.name}</p>
+              <p className="text-xs text-zinc-500 mt-1">Choose your module</p>
             </div>
 
             {loadingRoles ? (
@@ -421,21 +391,21 @@ export function HospitalLoginWizard({ onRaiseTicket }: Props) {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.03 }}
                       onClick={() => setSelectedRole(role)}
-                      className={`relative flex flex-col items-start gap-3 p-5 rounded-md border text-left transition-all ${
+                      className={`relative flex flex-col items-start gap-3 p-5 rounded-2xl border text-left transition-all bg-white/92 shadow-[0_18px_50px_rgba(24,24,27,0.06)] ${
                         isSelected
-                          ? 'border-primary bg-primary/5 shadow-md scale-[1.01]'
-                          : 'border-border/60 bg-card hover:border-primary/40'
+                          ? 'border-zinc-950 ring-4 ring-zinc-950/5 scale-[1.01]'
+                          : 'border-zinc-200 hover:border-zinc-400'
                       }`}
                     >
                       <div
-                        className={`rounded-sm p-3 ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted/50'}`}
+                        className={`rounded-xl p-3 ${isSelected ? 'bg-zinc-950 text-white' : 'bg-zinc-100 text-zinc-700'}`}
                       >
                         {roleIcon(role.role)}
                       </div>
                       <div>
-                        <p className="font-bold text-sm">{role.label}</p>
+                        <p className="font-bold text-sm text-zinc-950">{role.label}</p>
                         {role.description && (
-                          <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                          <p className="text-[11px] text-zinc-500 mt-1 leading-relaxed">
                             {role.description}
                           </p>
                         )}
@@ -450,7 +420,7 @@ export function HospitalLoginWizard({ onRaiseTicket }: Props) {
               <button
                 type="button"
                 onClick={goBack}
-                className="flex-1 rounded-md border border-border py-3 text-xs font-bold uppercase tracking-widest hover:bg-muted"
+                className="flex-1 rounded-xl border border-zinc-200 bg-white py-3 text-xs font-bold uppercase tracking-widest hover:bg-zinc-50"
               >
                 Back
               </button>
@@ -458,7 +428,7 @@ export function HospitalLoginWizard({ onRaiseTicket }: Props) {
                 type="button"
                 onClick={handleModuleContinue}
                 disabled={!selectedRole || loadingRoles}
-                className="flex-[2] rounded-md py-3 text-xs font-bold uppercase tracking-widest bg-foreground text-background hover:opacity-90 disabled:opacity-50"
+                className="flex-[2] rounded-xl py-3 text-xs font-bold uppercase tracking-widest bg-zinc-950 text-white hover:bg-zinc-800 disabled:opacity-50"
               >
                 Continue
               </button>
@@ -472,29 +442,30 @@ export function HospitalLoginWizard({ onRaiseTicket }: Props) {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
-            className="max-w-md mx-auto border border-border/70 rounded-md bg-card p-6 space-y-4"
+            className="max-w-md mx-auto rounded-2xl border border-zinc-200/90 bg-white/92 p-6 shadow-[0_24px_80px_rgba(24,24,27,0.08)] backdrop-blur space-y-4"
           >
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <KeyRound className="w-4 h-4 text-primary" />
+            <div className="flex items-center gap-2 text-sm font-semibold text-zinc-950">
+              <KeyRound className="w-4 h-4 text-zinc-700" />
               {selectedRole.label} access
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
+            <p className="text-xs text-zinc-500 leading-relaxed">
               Enter your personal staff credentials for{' '}
               <span className="font-medium text-foreground">{selectedRole.label}</span> at{' '}
               <span className="font-medium text-foreground">{selectedBranch.name}</span>.
             </p>
             <label className="space-y-1.5 block">
-              <span className="text-xs font-semibold text-muted-foreground">Staff email</span>
+              <span className="text-xs font-semibold text-zinc-600">Staff email</span>
               <Input
                 type="email"
                 autoComplete="username"
                 value={staffEmail}
                 onChange={(e) => setStaffEmail(e.target.value)}
                 placeholder="you@hospital.in"
+                className="h-11 rounded-xl border-zinc-200 bg-white text-sm"
               />
             </label>
             <label className="space-y-1.5 block">
-              <span className="text-xs font-semibold text-muted-foreground">Password</span>
+              <span className="text-xs font-semibold text-zinc-600">Password</span>
               <Input
                 type="password"
                 autoComplete="current-password"
@@ -502,13 +473,14 @@ export function HospitalLoginWizard({ onRaiseTicket }: Props) {
                 onChange={(e) => setStaffPassword(e.target.value)}
                 placeholder="••••••••"
                 onKeyDown={(e) => e.key === 'Enter' && void handleStaffSubmit()}
+                className="h-11 rounded-xl border-zinc-200 bg-white text-sm"
               />
             </label>
             <div className="flex gap-2 pt-2">
               <button
                 type="button"
                 onClick={goBack}
-                className="flex-1 rounded-md border border-border py-3 text-xs font-bold uppercase tracking-widest hover:bg-muted"
+                className="flex-1 rounded-xl border border-zinc-200 bg-white py-3 text-xs font-bold uppercase tracking-widest hover:bg-zinc-50"
               >
                 Back
               </button>
@@ -516,7 +488,7 @@ export function HospitalLoginWizard({ onRaiseTicket }: Props) {
                 type="button"
                 onClick={() => void handleStaffSubmit()}
                 disabled={submitting}
-                className="flex-[2] rounded-md py-3 text-xs font-bold uppercase tracking-widest bg-foreground text-background hover:opacity-90 disabled:opacity-50"
+                className="flex-[2] rounded-xl py-3 text-xs font-bold uppercase tracking-widest bg-zinc-950 text-white hover:bg-zinc-800 disabled:opacity-50"
               >
                 {submitting ? 'Signing in…' : 'Enter module'}
               </button>
@@ -525,17 +497,6 @@ export function HospitalLoginWizard({ onRaiseTicket }: Props) {
         )}
       </AnimatePresence>
 
-      {onRaiseTicket && step === 'welcome' && (
-        <div className="mt-8 text-center">
-          <button
-            type="button"
-            onClick={onRaiseTicket}
-            className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground hover:text-primary transition-colors"
-          >
-            Need help? Raise a support ticket
-          </button>
-        </div>
-      )}
     </div>
   );
 }

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { isPlatformRuntimeEnabled, getPlatformSession } from '@/runtime/platform-session';
-import { KeyRound, Server } from 'lucide-react';
+import { isPlatformRuntimeEnabled } from '@/runtime/platform-session';
 import { useTenantSettings } from '@/hooks/useTenantSettings';
 import { UserRole } from '@/types/roles';
 import { motion } from 'framer-motion';
@@ -104,10 +103,9 @@ const generateTicketId = () => {
 };
 
 export default function LoginPage() {
-  const { login, platformConnected } = useAuth();
+  const { login } = useAuth();
   const platformRuntime = isPlatformRuntimeEnabled();
   const kernelUrl = import.meta.env.VITE_KERNEL_API_URL as string | undefined;
-  const existingSession = getPlatformSession();
   const { patients, appointments } = useHospital();
   const { settings, getAvailableRoles, getRoleDescription, getRoleLabel } = useTenantSettings();
   const navigate = useNavigate();
@@ -270,42 +268,36 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      {/* Premium subtle noise background */}
-      <div className="absolute inset-0 opacity-[0.02] mix-blend-difference pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.8%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
-      
-      {/* Ambient static blur */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-foreground/[0.02] rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen bg-[#fbfbf9] text-zinc-950 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+      <div
+        className="absolute inset-0 pointer-events-none opacity-100"
+        style={{
+          backgroundImage:
+            'linear-gradient(to right, rgba(24,24,27,0.11) 1px, transparent 1px), linear-gradient(to bottom, rgba(24,24,27,0.11) 1px, transparent 1px)',
+          backgroundSize: '38px 38px',
+        }}
+      />
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(251,251,249,0.38)_44%,rgba(251,251,249,0.92)_78%)]" />
+      <div className="absolute left-1/2 top-1/2 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/55 blur-3xl pointer-events-none" />
 
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-4xl relative z-10"
+        className="w-full max-w-5xl relative z-10"
       >
         {/* Header */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-8">
           <motion.div 
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 1, ease: "easeOut" }}
             className="inline-block"
           >
-            <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-foreground mb-4">
+            <h1 className="text-2xl md:text-3xl font-black tracking-[-0.08em] text-zinc-950 mb-2">
               {settings.branding.platformMark}
             </h1>
           </motion.div>
-          <div className="flex items-center justify-center gap-4">
-            <div className="h-[1px] w-12 bg-border" />
-            <p className="text-xs md:text-sm uppercase tracking-[0.4em] text-muted-foreground font-bold">
-              {settings.branding.productDescriptor}
-            </p>
-            <div className="h-[1px] w-12 bg-border" />
-          </div>
-          <div className="mt-5 space-y-1">
-            <p className="text-sm font-semibold text-foreground">{settings.branding.organizationName}</p>
-            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">{settings.branding.loginSubheadline}</p>
-          </div>
         </div>
 
         {useCredentialLogin ? (
@@ -545,48 +537,6 @@ export default function LoginPage() {
           </DialogContent>
         </Dialog>
 
-        {platformRuntime && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mt-10 max-w-md mx-auto rounded-md border border-border/80 bg-card/80 px-4 py-3 text-left"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <Server className="w-4 h-4 text-primary" />
-              <p className="text-xs font-bold uppercase tracking-wider text-foreground">Platform authentication</p>
-            </div>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Multi-step sign-in: hospital verification, branch selection, module choice, then staff credentials.
-              Gurgaon and Pataudi sessions stay isolated per branch.
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2 text-[10px]">
-              <span className={`rounded px-2 py-0.5 border ${kernelUrl ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300' : 'border-amber-500/40 text-amber-700'}`}>
-                Kernel {kernelUrl ? 'configured' : 'not set'}
-              </span>
-              {existingSession?.branchId && (
-                <span className="rounded px-2 py-0.5 border border-border text-muted-foreground font-mono">
-                  Branch {existingSession.branchId}
-                </span>
-              )}
-              {platformConnected && (
-                <span className="rounded px-2 py-0.5 border border-primary/40 text-primary flex items-center gap-1">
-                  <KeyRound className="w-3 h-3" /> Session restored
-                </span>
-              )}
-            </div>
-            {!kernelUrl && import.meta.env.PROD && (
-              <p className="text-[10px] text-destructive mt-2">
-                Production build: mock-only login is disabled when platform runtime is on without kernel URL.
-              </p>
-            )}
-          </motion.div>
-        )}
-
-        <div className="mt-16 text-center">
-          <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
-            {settings.branding.loginHeadline} <span className="mx-2 opacity-30">|</span> {settings.branding.supportEmail}
-          </p>
-        </div>
       </motion.div>
     </div>
   );

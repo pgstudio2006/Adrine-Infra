@@ -174,14 +174,14 @@ export default function ConsultationComplaints({ complaints, onChange, hpiNotes,
             </span>
           ))}
         </div>
-        <div className="flex gap-1.5">
+        <div className="grid grid-cols-1 sm:grid-cols-[150px_1fr_90px_110px_auto] gap-1.5">
           <Select
             value=""
             onValueChange={(value) => {
               setNewText(value);
             }}
           >
-            <SelectTrigger className="h-7 text-xs w-[150px]">
+            <SelectTrigger className="h-8 text-xs w-full">
               <SelectValue placeholder="Pick complaint" />
             </SelectTrigger>
             <SelectContent>
@@ -195,16 +195,16 @@ export default function ConsultationComplaints({ complaints, onChange, hpiNotes,
             value={newText}
             onChange={e => setNewText(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && add()}
-            className="h-7 text-xs flex-1"
+            className="h-8 text-xs"
           />
           <Input
             placeholder="Duration"
             value={newDuration}
             onChange={e => setNewDuration(e.target.value)}
-            className="h-7 text-xs w-20"
+            className="h-8 text-xs"
           />
           <Select value={newSeverity} onValueChange={v => setNewSeverity(v as any)}>
-            <SelectTrigger className="h-7 text-xs w-[110px]">
+            <SelectTrigger className="h-8 text-xs w-full">
               <SelectValue placeholder="Severity" />
             </SelectTrigger>
             <SelectContent>
@@ -216,7 +216,7 @@ export default function ConsultationComplaints({ complaints, onChange, hpiNotes,
           <button
             type="button"
             onClick={add}
-            className="h-7 px-3 rounded-md bg-foreground text-background text-xs font-medium disabled:opacity-40"
+            className="h-8 px-3 rounded-md bg-foreground text-background text-xs font-medium disabled:opacity-40"
             disabled={!newText.trim()}
           >
             Add
