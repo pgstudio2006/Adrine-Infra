@@ -26,9 +26,15 @@ export class OpdController {
     return this.opd.createVisit(tenantId ?? 'tenant_dev', branchId ?? 'branch_main', body);
   }
 
-  @Get('visits/:id')
-  get(@Headers('x-tenant-id') tenantId: string, @Param('id') id: string) {
-    return this.opd.getVisit(tenantId ?? 'tenant_dev', id);
+  /** Queue / consultation board for a branch (Hospital OS hydration). Must be before visits/:id. */
+  @Get('visits/board')
+  board(
+    @Headers('x-tenant-id') tenantId: string,
+    @Query('branchId') branchId: string | undefined,
+    @Headers('x-branch-id') headerBranch: string | undefined,
+  ) {
+    const bid = branchId ?? headerBranch ?? 'branch_main';
+    return this.opd.listBoardVisits(tenantId ?? 'tenant_dev', bid);
   }
 
   @Get('visits/patient/:patientId/active')
@@ -45,15 +51,9 @@ export class OpdController {
     return this.opd.getPatientTimeline(tenantId ?? 'tenant_dev', patientId);
   }
 
-  /** Queue / consultation board for a branch (Hospital OS hydration). */
-  @Get('visits/board')
-  board(
-    @Headers('x-tenant-id') tenantId: string,
-    @Query('branchId') branchId: string | undefined,
-    @Headers('x-branch-id') headerBranch: string | undefined,
-  ) {
-    const bid = branchId ?? headerBranch ?? 'branch_main';
-    return this.opd.listBoardVisits(tenantId ?? 'tenant_dev', bid);
+  @Get('visits/:id')
+  get(@Headers('x-tenant-id') tenantId: string, @Param('id') id: string) {
+    return this.opd.getVisit(tenantId ?? 'tenant_dev', id);
   }
 
   @Get('visits/:id/allowed-actions')
