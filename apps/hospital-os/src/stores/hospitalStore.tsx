@@ -2876,7 +2876,6 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!platformConnected || !user || !isPlatformAuthoritative()) return;
-    setQueue([]);
     void refreshPatientsFromPlatform();
     void refreshAppointmentsFromPlatform();
     void refreshDepartmentWorklistsFromPlatform();
