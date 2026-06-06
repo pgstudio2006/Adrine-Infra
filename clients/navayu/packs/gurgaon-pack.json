@@ -7,7 +7,12 @@
     },
     "doctor": {
       "label": "Doctor",
-      "description": "MSK OPD, IPD rounds, schedule, analytics",
+      "description": "Senior MSK consult, AI summary, protocol mapping",
+      "enabled": true
+    },
+    "jr_doctor": {
+      "label": "Junior Doctor",
+      "description": "MSK intake, exam and investigations",
       "enabled": true
     },
     "nurse": {
@@ -171,6 +176,17 @@
         "visible": true
       },
       "analytics": {
+        "visible": true
+      }
+    },
+    "jr_doctor": {
+      "dashboard": {
+        "visible": true
+      },
+      "queue": {
+        "visible": true
+      },
+      "patients": {
         "visible": true
       }
     },
@@ -745,33 +761,6 @@
     "apiAccessEnabled": false
   },
   "navProfiles": {
-    "jr_doctor": {
-      "match": {
-        "role": "doctor",
-        "department": "MSK",
-        "emailPattern": "junior@",
-        "namePattern": "Junior"
-      },
-      "navigationPatches": {
-        "doctor": {
-          "ipd": {
-            "visible": false
-          },
-          "schedule": {
-            "visible": false
-          },
-          "analytics": {
-            "visible": false
-          },
-          "labs": {
-            "visible": false
-          },
-          "radiology": {
-            "visible": false
-          }
-        }
-      }
-    },
     "counsellor": {
       "match": {
         "role": "billing",

@@ -10,6 +10,11 @@
       "description": "OPD, IPD, labs, radiology",
       "enabled": true
     },
+    "jr_doctor": {
+      "label": "jr_doctor",
+      "description": "",
+      "enabled": false
+    },
     "nurse": {
       "label": "Nurse",
       "description": "Ward and bedside care",
@@ -172,6 +177,17 @@
       },
       "analytics": {
         "visible": true
+      }
+    },
+    "jr_doctor": {
+      "dashboard": {
+        "visible": false
+      },
+      "queue": {
+        "visible": false
+      },
+      "patients": {
+        "visible": false
       }
     },
     "nurse": {

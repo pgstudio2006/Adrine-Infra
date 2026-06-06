@@ -36,7 +36,7 @@ export function useDoctorScope(): DoctorScope {
   const { user } = useAuth();
   const store = useHospital();
 
-  const isDoctor = user?.role === 'doctor';
+  const isDoctor = user?.role === 'doctor' || user?.role === 'jr_doctor';
   const doctorName = user?.name ?? '';
   const department = user?.department ?? '';
 

@@ -1,6 +1,7 @@
 export type UserRole = 
   | 'admin'
   | 'doctor'
+  | 'jr_doctor'
   | 'nurse'
   | 'receptionist'
   | 'lab_technician'
@@ -26,6 +27,7 @@ export interface User {
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Administrator',
   doctor: 'Doctor',
+  jr_doctor: 'Junior Doctor',
   nurse: 'Nurse',
   receptionist: 'Receptionist',
   lab_technician: 'Lab Technician',
@@ -71,6 +73,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, ModuleKey[]> = {
   doctor: [
     'dashboard', 'patients', 'appointments', 'opd', 'ipd', 'bed_management',
     'laboratory', 'radiology', 'ot_management', 'reports',
+  ],
+  jr_doctor: [
+    'dashboard', 'patients', 'appointments', 'opd',
   ],
   nurse: [
     'dashboard', 'patients', 'ipd', 'bed_management', 'nursing', 'ot_management',

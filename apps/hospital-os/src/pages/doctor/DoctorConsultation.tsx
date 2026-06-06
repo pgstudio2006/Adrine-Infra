@@ -31,6 +31,7 @@ import { NavayuProtocolMapPanel } from '@/components/navayu/NavayuProtocolMapPan
 import {
   isNavayuTenant,
   isNavayuSeniorDoctor,
+  isJrDoctorRole,
   loadNavayuLumbarExam,
   loadNavayuSeniorReview,
   loadNavayuVisitMetadata,
@@ -45,16 +46,19 @@ import {
 import {
   canUseNavayuRuntime,
   MSK_STATE_LABELS,
-  platformAdvanceMskState,
+  platformMskTransition,
   platformLoadNavayuVisitBundle,
   platformSaveNavayuMskExams,
   platformSaveNavayuInvestigations,
   platformHandoffProtocolToCounsellor,
   platformSaveNavayuSeniorReview,
+  platformStartAssociateEval,
+  platformHandoffJuniorToSenior,
   type NavayuIntakeData,
   type NavayuVisitBundle,
 } from '@/lib/navayu/navayu-runtime';
 import { getPlatformSession } from '@/runtime/platform-session';
+import { useClinicalBasePath } from '@/hooks/useClinicalBasePath';
 
 const fadeIn = (i: number) => ({
   initial: { opacity: 0, y: 12 },
@@ -214,6 +218,7 @@ export default function DoctorConsultation() {
   const { saveConsultation, transferOpdToIPD } = useHospital();
   const { user } = useAuth();
   const { isDoctor, queue, canAccessPatient, getPatient } = useDoctorScope();
+  const roleBasePath = useClinicalBasePath();
 
   const patient = patientId ? getPatient(patientId) : undefined;
   const queueEntry = queue.find((entry) => entry.uhid === patientId);
@@ -246,7 +251,9 @@ export default function DoctorConsultation() {
   const [showPreview, setShowPreview] = useState(false);
   const [showAIScribe, setShowAIScribe] = useState(false);
   const navayuMode = isNavayuTenant();
-  const navayuSenior = isNavayuSeniorDoctor(getPlatformSession()?.email);
+  const navayuSenior = isNavayuSeniorDoctor(getPlatformSession()?.email, user?.role);
+  const navayuJunior = isJrDoctorRole(user?.role);
+  const [submittingJuniorExam, setSubmittingJuniorExam] = useState(false);
   const [navayuLumbarExam, setNavayuLumbarExam] = useState<NavayuLumbarExamData>(() =>
     patientId ? loadNavayuLumbarExam(patientId) : {},
   );
@@ -307,6 +314,14 @@ export default function DoctorConsultation() {
     }
   }, [patientId, opdVisitId, patient?.visitMetadata]);
 
+  useEffect(() => {
+    if (!navayuJunior || !opdVisitId || !canUseNavayuRuntime()) return;
+    if (navayuBundle.mskLifecycleState !== 'intake_complete') return;
+    void platformStartAssociateEval(opdVisitId).then((state) => {
+      setNavayuBundle((prev) => ({ ...prev, mskLifecycleState: state }));
+    });
+  }, [navayuJunior, opdVisitId, navayuBundle.mskLifecycleState]);
+
   const handleNavayuMskExamChange = (formId: string, values: NavayuFormValues) => {
     const nextExams = { ...navayuMskExams, [formId]: values };
     setNavayuMskExams(nextExams);
@@ -349,9 +364,23 @@ export default function DoctorConsultation() {
       saveNavayuSeniorReview(patientId, next);
     }
     if (opdVisitId && canUseNavayuRuntime()) {
-      void platformSaveNavayuSeniorReview(opdVisitId, next).then(() => {
-        setNavayuBundle((prev) => ({ ...prev, seniorReview: next, mskLifecycleState: 'senior_consult' }));
+      void platformSaveNavayuSeniorReview(opdVisitId, next).then((mskState) => {
+        setNavayuBundle((prev) => ({ ...prev, seniorReview: next, mskLifecycleState: mskState }));
       });
+    }
+  };
+
+  const handleSubmitJuniorMskExam = async () => {
+    if (!opdVisitId || !canUseNavayuRuntime()) return;
+    setSubmittingJuniorExam(true);
+    try {
+      const state = await platformHandoffJuniorToSenior(opdVisitId);
+      setNavayuBundle((prev) => ({ ...prev, mskLifecycleState: state }));
+      toast.success('Junior MSK exam submitted for senior review');
+    } catch {
+      toast.error('Could not submit MSK exam — check workflow state');
+    } finally {
+      setSubmittingJuniorExam(false);
     }
   };
 
@@ -372,7 +401,7 @@ export default function DoctorConsultation() {
         <p className="text-sm text-muted-foreground">
           You can only open consultations for patients assigned to your doctor profile and department.
         </p>
-        <Button size="sm" onClick={() => navigate('/doctor/queue')}>Back to OPD Queue</Button>
+        <Button size="sm" onClick={() => navigate(`${roleBasePath}/queue`)}>Back to OPD Queue</Button>
       </div>
     );
   }
@@ -390,7 +419,7 @@ export default function DoctorConsultation() {
               Go to Queue
             </Button>
           )}
-          <Button size="sm" variant="outline" onClick={() => navigate('/doctor/queue')}>
+          <Button size="sm" variant="outline" onClick={() => navigate(`${roleBasePath}/queue`)}>
             Back to OPD Queue
           </Button>
         </div>
@@ -454,9 +483,7 @@ export default function DoctorConsultation() {
     if (ok && navayuMode && opdVisitId && canUseNavayuRuntime()) {
       if (navayuSenior) {
         void platformSaveNavayuSeniorReview(opdVisitId, navayuSeniorReview);
-        void platformAdvanceMskState(opdVisitId, 'navayu_classified');
-      } else if (navayuBundle.mskLifecycleState !== 'ai_summary_ready') {
-        void platformAdvanceMskState(opdVisitId, 'msk_exam_complete');
+        void platformMskTransition(opdVisitId, 'classify_diagnosis');
       }
     }
     if (ok) navigate(-1);
@@ -631,13 +658,26 @@ export default function DoctorConsultation() {
         <motion.div {...fadeIn(3)} className="max-h-[calc(100vh-200px)] overflow-y-auto pr-1 space-y-3">
           {navayuMode ? (
             <>
-              <NavayuAiSummaryPanel
-                visitId={opdVisitId}
-                seniorQueue={navayuSenior}
-                registration={navayuRegistration}
-                intake={navayuIntake}
-                lumbarExam={navayuLumbarExam}
-              />
+              {navayuSenior ? (
+                <NavayuAiSummaryPanel
+                  visitId={opdVisitId}
+                  seniorQueue={navayuSenior}
+                  registration={navayuRegistration}
+                  intake={navayuIntake}
+                  lumbarExam={navayuLumbarExam}
+                />
+              ) : null}
+              {navayuJunior ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="w-full"
+                  disabled={submittingJuniorExam}
+                  onClick={() => void handleSubmitJuniorMskExam()}
+                >
+                  {submittingJuniorExam ? 'Submitting…' : 'Submit junior MSK exam'}
+                </Button>
+              ) : null}
               {navayuSenior ? (
                 <>
                   <NavayuSeniorReviewForm

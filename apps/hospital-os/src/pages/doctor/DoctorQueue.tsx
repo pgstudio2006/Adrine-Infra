@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useHospital } from '@/stores/hospitalStore';
 import { useDoctorScope } from '@/hooks/useDoctorScope';
+import { useAuth } from '@/contexts/AuthContext';
+import { useClinicalBasePath } from '@/hooks/useClinicalBasePath';
 import { PatientContextBar } from '@/components/shared/PatientContextBar';
 import { useClinicalPlatformListSync } from '@/hooks/useClinicalPlatformListSync';
 import { formatWaitMinutes } from '@/lib/opd/queue-presenters';
@@ -46,8 +48,10 @@ const statusStyle: Record<string, string> = {
 export default function DoctorQueue() {
   const { updateQueueStatus, nextQueuePatient, patients } = useHospital();
   const { isDoctor, doctorName, department, queue } = useDoctorScope();
+  const { user } = useAuth();
+  const roleBasePath = useClinicalBasePath();
   const navayuMode = isNavayuTenant();
-  const navayuSenior = isNavayuSeniorDoctor(getPlatformSession()?.email);
+  const navayuSenior = isNavayuSeniorDoctor(getPlatformSession()?.email, user?.role);
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
   useClinicalPlatformListSync({
@@ -112,7 +116,7 @@ export default function DoctorQueue() {
     if (currentEntry) updateQueueStatus(currentEntry.tokenNo, 'completed');
     updateQueueStatus(tokenNo, 'in-consultation');
     const entry = myQueue.find((q) => q.tokenNo === tokenNo);
-    if (entry) navigate(`/doctor/consultation/${entry.uhid}`);
+    if (entry) navigate(`${roleBasePath}/consultation/${entry.uhid}`);
   };
 
   const filtered = myQueue.filter(
@@ -276,7 +280,7 @@ export default function DoctorQueue() {
                   {p.status === 'in-consultation' ? (
                     <Button
                       size="sm"
-                      onClick={() => navigate(`/doctor/consultation/${p.uhid}`)}
+                      onClick={() => navigate(`${roleBasePath}/consultation/${p.uhid}`)}
                       className="gap-1 text-xs h-8"
                     >
                       <Play className="w-3 h-3" /> Continue

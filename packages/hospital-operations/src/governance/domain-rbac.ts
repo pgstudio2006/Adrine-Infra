@@ -6,6 +6,7 @@
 export const DOMAIN_RBAC_ROLES = [
   'admin',
   'doctor',
+  'jr_doctor',
   'nurse',
   'receptionist',
   'reception',
@@ -26,16 +27,16 @@ export type DomainRbacRole = (typeof DOMAIN_RBAC_ROLES)[number];
 
 /** Route prefix → roles allowed to mutate (GET generally allowed for same prefix). */
 export const DOMAIN_ROUTE_ROLE_MATRIX: Record<string, readonly DomainRbacRole[]> = {
-  '/opd': ['admin', 'doctor', 'receptionist', 'reception', 'emergency'],
-  '/lab': ['admin', 'doctor', 'lab_technician', 'emergency'],
-  '/pharmacy': ['admin', 'doctor', 'pharmacist', 'emergency'],
-  '/radiology': ['admin', 'doctor', 'radiologist', 'emergency'],
-  '/ipd': ['admin', 'doctor', 'nurse', 'receptionist', 'reception', 'emergency'],
+  '/opd': ['admin', 'doctor', 'jr_doctor', 'receptionist', 'reception', 'emergency'],
+  '/lab': ['admin', 'doctor', 'jr_doctor', 'lab_technician', 'emergency'],
+  '/pharmacy': ['admin', 'doctor', 'jr_doctor', 'pharmacist', 'emergency'],
+  '/radiology': ['admin', 'doctor', 'jr_doctor', 'radiologist', 'emergency'],
+  '/ipd': ['admin', 'doctor', 'jr_doctor', 'nurse', 'receptionist', 'reception', 'emergency'],
   '/beds': ['admin', 'nurse', 'receptionist', 'reception'],
   '/nursing': ['admin', 'nurse'],
   '/billing': ['admin', 'billing', 'receptionist', 'reception'],
   '/migration': ['admin'],
-  '/command': ['admin', 'doctor', 'nurse', 'receptionist', 'reception'],
+  '/command': ['admin', 'doctor', 'jr_doctor', 'nurse', 'receptionist', 'reception'],
 };
 
 export function resolveAllowedRoles(path: string): readonly DomainRbacRole[] | null {

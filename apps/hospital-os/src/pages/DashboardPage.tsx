@@ -100,7 +100,7 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const role = user?.role ?? 'admin';
 
-  const stats = role === 'doctor' ? statsDoctor
+  const stats = role === 'doctor' || role === 'jr_doctor' ? statsDoctor
     : role === 'receptionist' ? statsReception
     : role === 'pharmacist' ? statsPharmacy
     : statsAdmin;

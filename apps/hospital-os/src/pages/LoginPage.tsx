@@ -7,7 +7,7 @@ import { UserRole } from '@/types/roles';
 import { motion } from 'framer-motion';
 import { 
   Shield, Stethoscope, Heart, UserCheck, 
-  FlaskConical, Pill, CreditCard, ScanLine, Scissors, Package, Siren, Users, CalendarClock, Droplets, HeartHandshake
+  FlaskConical, Pill, CreditCard, ScanLine, Scissors, Package, Siren, Users, CalendarClock, Droplets, HeartHandshake, GraduationCap
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useHospital } from '@/stores/hospitalStore';
@@ -28,6 +28,7 @@ import { HospitalLoginWizard } from '@/components/login/HospitalLoginWizard';
 const ROLE_ICONS: Record<UserRole, React.ReactNode> = {
   admin: <Shield className="w-6 h-6" />,
   doctor: <Stethoscope className="w-6 h-6" />,
+  jr_doctor: <GraduationCap className="w-6 h-6" />,
   nurse: <Heart className="w-6 h-6" />,
   receptionist: <UserCheck className="w-6 h-6" />,
   lab_technician: <FlaskConical className="w-6 h-6" />,

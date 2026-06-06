@@ -27,6 +27,7 @@ function buildDisabledRoleNavigation(role: UserRole) {
 const GURGAON_ROLE_ENABLED: UserRole[] = [
   'admin',
   'doctor',
+  'jr_doctor',
   'nurse',
   'receptionist',
   'pharmacist',
@@ -47,6 +48,8 @@ const PATAUDI_ROLE_ENABLED: UserRole[] = [
 const GURGAON_ADMIN_TABS = allTabKeys('admin');
 
 const GURGAON_DOCTOR_TABS = ['dashboard', 'patients', 'queue', 'ipd', 'schedule', 'analytics'];
+
+const GURGAON_JR_DOCTOR_TABS = ['dashboard', 'queue', 'patients'];
 
 const GURGAON_PHARMACY_TABS = [
   'dashboard',
@@ -179,7 +182,8 @@ export function buildGurgaonPack() {
   return {
     roles: buildRoles(GURGAON_ROLE_ENABLED, {
       admin: { label: 'Administrator', description: 'Navayu Gurgaon MSK admin suite' },
-      doctor: { label: 'Doctor', description: 'MSK OPD, IPD rounds, schedule, analytics' },
+      doctor: { label: 'Doctor', description: 'Senior MSK consult, AI summary, protocol mapping' },
+      jr_doctor: { label: 'Junior Doctor', description: 'MSK intake, exam and investigations' },
       nurse: { label: 'Nurse', description: 'Ward care, vitals, medications' },
       receptionist: { label: 'Reception', description: 'Registration, queue, front-desk billing' },
       pharmacist: { label: 'Pharmacist', description: 'Dispensing and pharmacy inventory' },
@@ -197,6 +201,7 @@ export function buildGurgaonPack() {
     navigation: buildNavigationForBranch(GURGAON_ROLE_ENABLED, {
       admin: GURGAON_ADMIN_TABS,
       doctor: GURGAON_DOCTOR_TABS,
+      jr_doctor: GURGAON_JR_DOCTOR_TABS,
       nurse: GURGAON_NURSE_TABS,
       receptionist: GURGAON_RECEPTION_TABS,
       pharmacist: GURGAON_PHARMACY_TABS,
@@ -213,18 +218,6 @@ export function buildGurgaonPack() {
       apiAccessEnabled: false,
     },
     navProfiles: {
-      jr_doctor: {
-        match: { role: 'doctor', department: 'MSK', emailPattern: 'junior@', namePattern: 'Junior' },
-        navigationPatches: {
-          doctor: {
-            ipd: { visible: false },
-            schedule: { visible: false },
-            analytics: { visible: false },
-            labs: { visible: false },
-            radiology: { visible: false },
-          },
-        },
-      },
       counsellor: {
         match: { role: 'billing', emailPattern: 'counsellor@' },
         navigationPatches: {

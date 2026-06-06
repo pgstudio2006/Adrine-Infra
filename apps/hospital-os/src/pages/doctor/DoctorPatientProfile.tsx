@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useHospital } from '@/stores/hospitalStore';
 import { useDoctorScope } from '@/hooks/useDoctorScope';
+import { useClinicalBasePath } from '@/hooks/useClinicalBasePath';
 import {
   canUseNavayuRuntime,
   platformGetPatientTimeline,
@@ -59,6 +60,7 @@ function parseDate(value: string) {
 export default function DoctorPatientProfile() {
   const { patientId } = useParams();
   const navigate = useNavigate();
+  const roleBasePath = useClinicalBasePath();
   const { appointments, admissions, labOrders, radiologyOrders, prescriptions, invoices, getPatientWorkflowTimeline } = useHospital();
   const { isDoctor, canAccessPatient, getPatient } = useDoctorScope();
 
@@ -83,7 +85,7 @@ export default function DoctorPatientProfile() {
         <p className="text-sm text-muted-foreground">
           You can only view profiles for patients assigned to your doctor account and department.
         </p>
-        <Button size="sm" onClick={() => navigate('/doctor/patients')}>Back To My Patients</Button>
+        <Button size="sm" onClick={() => navigate(`${roleBasePath}/patients`)}>Back To My Patients</Button>
       </div>
     );
   }
@@ -94,7 +96,7 @@ export default function DoctorPatientProfile() {
       <div className="rounded-xl border bg-card p-6 space-y-3">
         <h1 className="text-lg font-semibold">Patient Not Found</h1>
         <p className="text-sm text-muted-foreground">Patient data is not available in the scoped dataset.</p>
-        <Button size="sm" onClick={() => navigate('/doctor/patients')}>Back To My Patients</Button>
+        <Button size="sm" onClick={() => navigate(`${roleBasePath}/patients`)}>Back To My Patients</Button>
       </div>
     );
   }
@@ -230,7 +232,7 @@ export default function DoctorPatientProfile() {
     <div className="space-y-6">
       <motion.div {...fadeIn(0)} className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/doctor/patients')} className="p-2 rounded-lg hover:bg-accent transition-colors">
+          <button onClick={() => navigate(`${roleBasePath}/patients`)} className="p-2 rounded-lg hover:bg-accent transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
@@ -240,7 +242,7 @@ export default function DoctorPatientProfile() {
             </p>
           </div>
         </div>
-        <Button size="sm" className="gap-1.5" onClick={() => navigate(`/doctor/consultation/${patient.uhid}`)}>
+        <Button size="sm" className="gap-1.5" onClick={() => navigate(`${roleBasePath}/consultation/${patient.uhid}`)}>
           Start Consultation
         </Button>
       </motion.div>

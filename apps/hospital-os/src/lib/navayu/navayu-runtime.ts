@@ -113,8 +113,25 @@ export function resolveMskStateAfterLumbarSave(
 }
 
 /** After junior completes MSK exam, advance to AI-summary-ready for senior handoff. */
-export async function platformHandoffJuniorToSenior(visitId: string): Promise<void> {
-  await platformAdvanceMskState(visitId, 'ai_summary_ready');
+export async function platformHandoffJuniorToSenior(visitId: string): Promise<NavayuMskLifecycleState> {
+  const bundle = await platformLoadNavayuVisitBundle(visitId);
+  const state = bundle?.mskLifecycleState;
+  if (state === 'associate_eval') {
+    await platformMskTransition(visitId, 'complete_msk_exam');
+  }
+  const result = await platformMskTransition(visitId, 'generate_ai_summary');
+  return result.nextState;
+}
+
+/** Start junior associate evaluation when intake is complete. */
+export async function platformStartAssociateEval(visitId: string): Promise<NavayuMskLifecycleState> {
+  const bundle = await platformLoadNavayuVisitBundle(visitId);
+  const state = bundle?.mskLifecycleState ?? 'registered';
+  if (state === 'intake_complete') {
+    const result = await platformMskTransition(visitId, 'start_associate_eval');
+    return result.nextState;
+  }
+  return state;
 }
 
 export async function platformLoadNavayuVisitBundle(
@@ -192,8 +209,8 @@ export async function platformSaveNavayuLumbarExam(
   seniorDoctor = false,
 ): Promise<NavayuMskLifecycleState> {
   const base = domainBase();
-  const mskState = resolveMskStateAfterLumbarSave(exam, seniorDoctor);
-  if (!base || !canUseNavayuRuntime()) return mskState;
+  const fallbackState = resolveMskStateAfterLumbarSave(exam, seniorDoctor);
+  if (!base || !canUseNavayuRuntime()) return fallbackState;
 
   await platformFetch(base, `/opd/visits/${visitId}/metadata`, {
     method: 'PATCH',
@@ -201,33 +218,55 @@ export async function platformSaveNavayuLumbarExam(
       navayu: {
         lumbarExam: { ...exam, savedAt: new Date().toISOString() },
       },
-      mskLifecycleState: mskState,
     }),
   });
 
-  if (!seniorDoctor && mskState === 'msk_exam_complete') {
-    await platformHandoffJuniorToSenior(visitId);
-    return 'ai_summary_ready';
+  if (seniorDoctor) {
+    return fallbackState;
   }
 
-  return mskState;
+  if (!isNavayuLumbarExamComplete(exam)) {
+    return 'associate_eval';
+  }
+
+  try {
+    const bundle = await platformLoadNavayuVisitBundle(visitId);
+    const state = bundle?.mskLifecycleState;
+    if (state === 'associate_eval') {
+      await platformMskTransition(visitId, 'complete_msk_exam');
+    }
+    const summary = await platformMskTransition(visitId, 'generate_ai_summary');
+    return summary.nextState;
+  } catch {
+    return fallbackState;
+  }
 }
 
 export async function platformSaveNavayuSeniorReview(
   visitId: string,
   review: NavayuSeniorReviewData,
-): Promise<void> {
+): Promise<NavayuMskLifecycleState> {
   const base = domainBase();
-  if (!base || !canUseNavayuRuntime()) return;
+  if (!base || !canUseNavayuRuntime()) return 'senior_consult';
+
   await platformFetch(base, `/opd/visits/${visitId}/metadata`, {
     method: 'PATCH',
     body: JSON.stringify({
       navayu: {
         seniorReview: { ...review, savedAt: new Date().toISOString() },
       },
-      mskLifecycleState: 'senior_consult',
     }),
   });
+
+  const bundle = await platformLoadNavayuVisitBundle(visitId);
+  const state = bundle?.mskLifecycleState;
+  if (state === 'ai_summary_ready') {
+    const result = await platformMskTransition(visitId, 'start_senior_consult', {
+      navayu: { seniorReview: review },
+    });
+    return result.nextState;
+  }
+  return (state ?? 'senior_consult') as NavayuMskLifecycleState;
 }
 
 export async function platformAdvanceMskState(
@@ -359,17 +398,18 @@ export async function platformSaveNavayuMskExams(
     return platformSaveNavayuLumbarExam(visitId, lumbar, seniorDoctor);
   }
   const base = domainBase();
-  const mskState = seniorDoctor ? 'ai_summary_ready' : 'msk_exam_complete';
-  if (!base || !canUseNavayuRuntime()) return mskState;
+  if (!base || !canUseNavayuRuntime()) {
+    return seniorDoctor ? 'ai_summary_ready' : 'msk_exam_complete';
+  }
   const stamped = Object.fromEntries(
     Object.entries(exams).map(([k, v]) => [k, { ...v, savedAt: new Date().toISOString() }]),
   );
   await platformFetch(base, `/opd/visits/${visitId}/metadata`, {
     method: 'PATCH',
-    body: JSON.stringify({ navayu: { mskExams: stamped }, mskLifecycleState: mskState }),
+    body: JSON.stringify({ navayu: { mskExams: stamped } }),
   });
-  if (!seniorDoctor) await platformHandoffJuniorToSenior(visitId);
-  return seniorDoctor ? mskState : 'ai_summary_ready';
+  if (seniorDoctor) return 'ai_summary_ready';
+  return platformHandoffJuniorToSenior(visitId);
 }
 
 export async function platformSaveNavayuInvestigations(

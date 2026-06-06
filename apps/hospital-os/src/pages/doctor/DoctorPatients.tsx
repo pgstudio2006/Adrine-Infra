@@ -5,6 +5,7 @@ import { Search, Stethoscope, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useDoctorScope } from '@/hooks/useDoctorScope';
+import { useClinicalBasePath } from '@/hooks/useClinicalBasePath';
 
 const fadeIn = (i: number) => ({
   initial: { opacity: 0, y: 12 },
@@ -79,6 +80,7 @@ export default function DoctorPatients() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<typeof filterOptions[number]>('All');
   const navigate = useNavigate();
+  const roleBasePath = useClinicalBasePath();
 
   const todayIso = new Date().toISOString().split('T')[0];
 
@@ -151,7 +153,7 @@ export default function DoctorPatients() {
             {doctorName} · {department || 'All Departments'} · {patientRows.length} assigned patient(s)
           </p>
         </div>
-        <Button size="sm" className="gap-1.5" onClick={() => navigate('/doctor/queue')}>
+        <Button size="sm" className="gap-1.5" onClick={() => navigate(`${roleBasePath}/queue`)}>
           <Stethoscope className="w-3.5 h-3.5" /> Open OPD Queue
         </Button>
       </motion.div>
@@ -186,7 +188,7 @@ export default function DoctorPatients() {
           {filtered.map((patient) => (
             <div
               key={patient.uhid}
-              onClick={() => navigate(`/doctor/patients/${patient.uhid}`)}
+              onClick={() => navigate(`${roleBasePath}/patients/${patient.uhid}`)}
               className="flex items-center gap-3 px-4 py-3.5 hover:bg-accent/50 transition-colors cursor-pointer"
             >
               <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0">

@@ -22,6 +22,7 @@ import {
   CalendarClock,
   Droplets,
   HeartHandshake,
+  GraduationCap,
   Loader2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -40,6 +41,7 @@ import {
 const ROLE_ICONS: Record<string, React.ReactNode> = {
   admin: <Shield className="w-6 h-6" />,
   doctor: <Stethoscope className="w-6 h-6" />,
+  jr_doctor: <GraduationCap className="w-6 h-6" />,
   nurse: <Heart className="w-6 h-6" />,
   receptionist: <UserCheck className="w-6 h-6" />,
   lab_technician: <FlaskConical className="w-6 h-6" />,

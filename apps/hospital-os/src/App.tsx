@@ -359,6 +359,12 @@ const DOCTOR_PAGES: Record<string, React.ComponentType> = {
   "/doctor/ai": DoctorAI,
 };
 
+const JR_DOCTOR_PAGES: Record<string, React.ComponentType> = {
+  "/jr-doctor": DoctorDashboard,
+  "/jr-doctor/queue": DoctorQueue,
+  "/jr-doctor/patients": DoctorPatients,
+};
+
 const NURSE_PAGES: Record<string, React.ComponentType> = {
   "/nurse": NurseDashboard,
   "/nurse/shift": NurseShift,
@@ -660,10 +666,37 @@ function AppRoutes() {
           }
         />
       ))}
+      {Object.entries(JR_DOCTOR_PAGES).map(([path, Component]) => (
+        <Route
+          key={path}
+          path={path}
+          element={
+            user.role === "jr_doctor" ? (
+              <AppLayout>
+                <Component />
+              </AppLayout>
+            ) : (
+              <Navigate to={basePath} replace />
+            )
+          }
+        />
+      ))}
       <Route
         path="/doctor/patients/:patientId"
         element={
           user.role === "doctor" ? (
+            <AppLayout>
+              <DoctorPatientProfile />
+            </AppLayout>
+          ) : (
+            <Navigate to={basePath} replace />
+          )
+        }
+      />
+      <Route
+        path="/jr-doctor/patients/:patientId"
+        element={
+          user.role === "jr_doctor" ? (
             <AppLayout>
               <DoctorPatientProfile />
             </AppLayout>
@@ -700,6 +733,18 @@ function AppRoutes() {
         path="/doctor/consultation/:patientId"
         element={
           user.role === "doctor" ? (
+            <AppLayout>
+              <DoctorConsultation />
+            </AppLayout>
+          ) : (
+            <Navigate to={basePath} replace />
+          )
+        }
+      />
+      <Route
+        path="/jr-doctor/consultation/:patientId"
+        element={
+          user.role === "jr_doctor" ? (
             <AppLayout>
               <DoctorConsultation />
             </AppLayout>
@@ -900,6 +945,7 @@ function AppRoutes() {
 
       {/* Dashboard route for other roles */}
       {user.role !== "doctor" &&
+        user.role !== "jr_doctor" &&
         user.role !== "receptionist" &&
         user.role !== "nurse" &&
         user.role !== "lab_technician" &&

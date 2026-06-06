@@ -636,8 +636,14 @@ export function loadNavayuSeniorReview(uhid: string): NavayuSeniorReviewData {
   }
 }
 
-export function isNavayuSeniorDoctor(email?: string | null): boolean {
+export function isNavayuSeniorDoctor(email?: string | null, role?: string | null): boolean {
+  if (role === 'jr_doctor') return false;
+  if (role === 'doctor' && isNavayuTenant()) return true;
   return !!email && /senior@navayuhealth\.in$/i.test(email);
+}
+
+export function isJrDoctorRole(role?: string | null): boolean {
+  return role === 'jr_doctor';
 }
 
 export function buildNavayuRegistrationNotes(metadata: NavayuRegistrationMetadata): string {

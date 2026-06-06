@@ -70,6 +70,11 @@ export const ROLE_TABS: Record<UserRole, RoleTab[]> = {
     { key: "ipd", label: "IPD", path: "/doctor/ipd" },
     { key: "analytics", label: "Analytics", path: "/doctor/analytics" },
   ],
+  jr_doctor: [
+    { key: "dashboard", label: "Dashboard", path: "/jr-doctor" },
+    { key: "queue", label: "OPD Queue", path: "/jr-doctor/queue" },
+    { key: "patients", label: "Patients", path: "/jr-doctor/patients" },
+  ],
   nurse: [
     { key: "dashboard", label: "Dashboard", path: "/nurse" },
     { key: "shift", label: "Shift Handoff", path: "/nurse/shift" },
@@ -367,6 +372,7 @@ export const ROLE_TABS: Record<UserRole, RoleTab[]> = {
 export const ROLE_BASE_PATH: Record<UserRole, string> = {
   admin: "/admin",
   doctor: "/doctor",
+  jr_doctor: "/jr-doctor",
   nurse: "/nurse",
   receptionist: "/reception",
   lab_technician: "/lab",

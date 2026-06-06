@@ -96,6 +96,7 @@ export interface TenantSettings {
 export const DEFAULT_ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   admin: 'Full system access and tenant-wide configuration',
   doctor: 'OPD, IPD, prescriptions, orders and clinical workflow',
+  jr_doctor: 'MSK intake, junior exam and investigations handoff',
   nurse: 'Ward management, medications and bedside care',
   receptionist: 'Registration, appointments, check-in and front desk billing',
   lab_technician: 'Lab worklists, sample flow and verification',

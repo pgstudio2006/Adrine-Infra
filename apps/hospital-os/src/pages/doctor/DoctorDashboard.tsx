@@ -23,6 +23,7 @@ import {
 } from 'recharts';
 import { useHospital } from '@/stores/hospitalStore';
 import { useDoctorScope } from '@/hooks/useDoctorScope';
+import { useClinicalBasePath } from '@/hooks/useClinicalBasePath';
 import { PlatformConnectivityStrip } from '@/components/PlatformConnectivityStrip';
 import { useClinicalPlatformListSync } from '@/hooks/useClinicalPlatformListSync';
 import { useDashboardEngine } from '@/hooks/useDashboardEngine';
@@ -72,6 +73,7 @@ function formatDisplayTime(value: string) {
 
 export default function DoctorDashboard() {
   const navigate = useNavigate();
+  const roleBasePath = useClinicalBasePath();
   const { nursingRounds } = useHospital();
   const {
     isDoctor,
@@ -323,7 +325,7 @@ export default function DoctorDashboard() {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" onClick={() => navigate('/doctor/queue')} className="gap-1.5">
+          <Button size="sm" onClick={() => navigate(`${roleBasePath}/queue`)} className="gap-1.5">
             Open OPD queue
             {waitingCount > 0 ? ` (${waitingCount} waiting)` : ''}
           </Button>
