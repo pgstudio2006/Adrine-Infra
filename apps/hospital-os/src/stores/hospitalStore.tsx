@@ -20,7 +20,9 @@ import {
   platformRecordMetering,
   platformRegisterOpdPatient,
 } from '@/runtime/opd-runtime';
+import { toAppointmentIso } from '@/lib/opd/appointment-datetime';
 import { platformEnqueueOpdVisitToBoard } from '@/lib/opd/platform-opd-enqueue';
+import { useAuth } from '@/contexts/AuthContext';
 import { platformSaveNavayuRegistration } from '@/lib/navayu/navayu-runtime';
 import { maybeCreateNavayuCrmLead } from '@/lib/navayu/navayu-crm';
 import type { NavayuRegistrationMetadata } from '@/lib/navayu/navayu-forms';
@@ -1288,10 +1290,18 @@ interface HospitalStore {
 
 const HospitalContext = createContext<HospitalStore | null>(null);
 
+/** Demo seed is for offline dev only — production platform runtime starts empty. */
+const USE_PLATFORM_EMPTY_SEED = import.meta.env.VITE_PLATFORM_RUNTIME === 'true';
+
 export function HospitalProvider({ children }: { children: ReactNode }) {
-  const [patients, setPatients] = useState<HospitalPatient[]>(SEED_PATIENTS);
-  const [appointments, setAppointments] = useState<HospitalAppointment[]>(SEED_APPOINTMENTS);
-  const [queue, setQueue] = useState<QueueEntry[]>(SEED_QUEUE);
+  const { platformConnected, user } = useAuth();
+  const [patients, setPatients] = useState<HospitalPatient[]>(() =>
+    USE_PLATFORM_EMPTY_SEED ? [] : SEED_PATIENTS,
+  );
+  const [appointments, setAppointments] = useState<HospitalAppointment[]>(() =>
+    USE_PLATFORM_EMPTY_SEED ? [] : SEED_APPOINTMENTS,
+  );
+  const [queue, setQueue] = useState<QueueEntry[]>(() => (USE_PLATFORM_EMPTY_SEED ? [] : SEED_QUEUE));
   const [labOrders, setLabOrders] = useState<LabOrder[]>(SEED_LAB_ORDERS);
   const [prescriptions, setPrescriptions] = useState<PrescriptionOrder[]>(SEED_PRESCRIPTIONS);
   const [pharmacyInventory, setPharmacyInventory] = useState<PharmacyInventoryItem[]>(SEED_PHARMACY_INVENTORY);
@@ -1882,17 +1892,23 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
             !!patient.assignedDoctor;
 
           if (shouldEnqueue) {
+            const walkInStart = toAppointmentIso(appointmentDate, appointmentTime);
+            const walkInEnd = new Date(
+              Date.parse(walkInStart) + (data.appointmentDuration ?? 20) * 60_000,
+            ).toISOString();
             const activeVisit = await platformEnqueueOpdVisitToBoard({
               visitId: visit.id,
               visitState: visit.state,
               department: patient.department || 'General Medicine',
               assignedDoctor: patient.assignedDoctor || 'Doctor On Call',
               complaint: data.notes,
-              appointment: {
-                startAt: new Date(`${appointmentDate}T${appointmentTime}`).toISOString(),
-                endAt: new Date(`${appointmentDate}T${appointmentTime}`).toISOString(),
-                resourceLabel: `${patient.assignedDoctor || 'Doctor On Call'} — ${patient.department || 'General Medicine'}`,
-              },
+              appointment: appointmentId
+                ? {
+                    startAt: walkInStart,
+                    endAt: walkInEnd,
+                    resourceLabel: `${patient.assignedDoctor || 'Doctor On Call'} — ${patient.department || 'General Medicine'}`,
+                  }
+                : undefined,
             });
 
             setPatients((prev) =>
@@ -1930,6 +1946,11 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
             platformVisitId = activeVisit.id;
             await refreshQueueFromPlatformRef.current();
             await refreshPatientsFromPlatform();
+            if (activeVisit.tokenNumber) {
+              toast.success('Added to live OPD queue', {
+                description: `${patient.name} · token #${activeVisit.tokenNumber}`,
+              });
+            }
           } else {
             await platformRecordMetering(['opd.registration'], visit.id);
           }
@@ -2287,8 +2308,8 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     ) => {
       if (!isSameDay || !canUseOpdRuntime() || !data.department || !data.doctor) return;
 
-      const startAt = new Date(`${data.date}T${data.time}`).toISOString();
-      const endAt = new Date(new Date(startAt).getTime() + data.duration * 60_000).toISOString();
+      const startAt = toAppointmentIso(data.date, data.time);
+      const endAt = new Date(Date.parse(startAt) + data.duration * 60_000).toISOString();
       const activeVisit = await platformEnqueueOpdVisitToBoard({
         visitId,
         visitState,
@@ -2327,10 +2348,8 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     if (canUseSchedulingRuntime() && patient?.platformPatientId) {
       void (async () => {
         try {
-          const startAt = new Date(`${data.date}T${data.time}`).toISOString();
-          const endAt = new Date(
-            new Date(startAt).getTime() + data.duration * 60_000,
-          ).toISOString();
+          const startAt = toAppointmentIso(data.date, data.time);
+          const endAt = new Date(Date.parse(startAt) + data.duration * 60_000).toISOString();
           const booked = await platformBookAppointment({
             patientId: patient.platformPatientId!,
             startAt,
@@ -2373,9 +2392,9 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
             { departmentSelected: true, doctorOrPoolAssigned: true },
             {
               appointment: {
-                startAt: new Date(`${data.date}T${data.time}`).toISOString(),
+                startAt: toAppointmentIso(data.date, data.time),
                 endAt: new Date(
-                  new Date(`${data.date}T${data.time}`).getTime() + data.duration * 60_000,
+                  Date.parse(toAppointmentIso(data.date, data.time)) + data.duration * 60_000,
                 ).toISOString(),
                 resourceLabel: `${data.doctor} — ${data.department}`,
               },
@@ -2434,10 +2453,8 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
         const platformPatientId = await backfillPlatformPatientId(patient.uhid);
         if (!platformPatientId) return;
         try {
-          const startAt = new Date(`${data.date}T${data.time}`).toISOString();
-          const endAt = new Date(
-            new Date(startAt).getTime() + data.duration * 60_000,
-          ).toISOString();
+          const startAt = toAppointmentIso(data.date, data.time);
+          const endAt = new Date(Date.parse(startAt) + data.duration * 60_000).toISOString();
           const booked = await platformBookAppointment({
             patientId: platformPatientId,
             startAt,
@@ -2738,8 +2755,14 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
           : [...noPlatformLocal, ...boardEntries];
         return merged.sort((a, b) => a.tokenNo - b.tokenNo);
       });
-    } catch {
-      /* ignore */
+    } catch (err) {
+      if (isPlatformAuthoritative()) {
+        setQueue([]);
+      }
+      const body = err instanceof PlatformApiError ? err.body : undefined;
+      toast.error('Queue sync failed', {
+        description: formatPlatformErrorBody(body) ?? (err instanceof Error ? err.message : 'Could not load OPD board'),
+      });
     }
   }, []);
 
@@ -2850,15 +2873,19 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!isPlatformAuthoritative()) return;
-    setPatients((prev) => prev.filter((p) => !!p.platformPatientId));
+    if (!platformConnected || !user || !isPlatformAuthoritative()) return;
     setQueue([]);
     void refreshPatientsFromPlatform();
+    void refreshAppointmentsFromPlatform();
     void refreshDepartmentWorklistsFromPlatform();
     void refreshPlatformIpdSnapshots();
     void refreshQueueFromPlatform();
   }, [
+    platformConnected,
+    user?.id,
+    user?.role,
     refreshPatientsFromPlatform,
+    refreshAppointmentsFromPlatform,
     refreshDepartmentWorklistsFromPlatform,
     refreshPlatformIpdSnapshots,
     refreshQueueFromPlatform,

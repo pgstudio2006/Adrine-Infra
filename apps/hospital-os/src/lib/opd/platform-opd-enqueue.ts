@@ -31,20 +31,18 @@ export async function platformEnqueueOpdVisitToBoard(
   };
 
   const from = getClientOpdState(input.visitState, 'registered');
-  if (from === 'registered') {
+  if (from === 'registered' && input.appointment) {
     ({ visit: activeVisit } = await platformOpdTransition(
       input.visitId,
       'schedule_or_walkin',
       { departmentSelected: true, doctorOrPoolAssigned: true },
-      input.appointment
-        ? {
-            appointment: {
-              startAt: input.appointment.startAt,
-              endAt: input.appointment.endAt,
-              resourceLabel: input.appointment.resourceLabel,
-            },
-          }
-        : undefined,
+      {
+        appointment: {
+          startAt: input.appointment.startAt,
+          endAt: input.appointment.endAt,
+          resourceLabel: input.appointment.resourceLabel,
+        },
+      },
     ));
   }
 
