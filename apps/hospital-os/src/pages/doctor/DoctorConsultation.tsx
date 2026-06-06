@@ -215,7 +215,7 @@ function DoctorPhotoViewer({ patientId }: { patientId: string }) {
 export default function DoctorConsultation() {
   const { patientId } = useParams();
   const navigate = useNavigate();
-  const { saveConsultation, transferOpdToIPD } = useHospital();
+  const { saveConsultation, transferOpdToIPD, refreshQueueFromPlatform } = useHospital();
   const { user } = useAuth();
   const { isDoctor, queue, canAccessPatient, getPatient } = useDoctorScope();
   const roleBasePath = useClinicalBasePath();
@@ -251,7 +251,11 @@ export default function DoctorConsultation() {
   const [showPreview, setShowPreview] = useState(false);
   const [showAIScribe, setShowAIScribe] = useState(false);
   const navayuMode = isNavayuTenant();
-  const navayuSenior = isNavayuSeniorDoctor(getPlatformSession()?.email, user?.role);
+  const navayuSenior = isNavayuSeniorDoctor(
+    getPlatformSession()?.email ?? user?.email,
+    user?.role,
+    user?.name,
+  );
   const navayuJunior = isJrDoctorRole(user?.role);
   const [submittingJuniorExam, setSubmittingJuniorExam] = useState(false);
   const [navayuLumbarExam, setNavayuLumbarExam] = useState<NavayuLumbarExamData>(() =>
@@ -331,13 +335,14 @@ export default function DoctorConsultation() {
       if (patientId) saveNavayuLumbarExam(patientId, lumbar);
     }
     if (opdVisitId && canUseNavayuRuntime()) {
-      void platformSaveNavayuMskExams(opdVisitId, nextExams, navayuSenior).then((state) => {
+      void platformSaveNavayuMskExams(opdVisitId, nextExams, navayuSenior).then(async (state) => {
         setNavayuBundle((prev) => ({
           ...prev,
           mskLifecycleState: state,
           mskExams: nextExams,
           lumbarExam: (nextExams['navayu.exam.lumbar'] as NavayuLumbarExamData) ?? prev.lumbarExam,
         }));
+        await refreshQueueFromPlatform();
       });
     }
   };
@@ -376,6 +381,7 @@ export default function DoctorConsultation() {
     try {
       const state = await platformHandoffJuniorToSenior(opdVisitId);
       setNavayuBundle((prev) => ({ ...prev, mskLifecycleState: state }));
+      await refreshQueueFromPlatform();
       toast.success('Junior MSK exam submitted for senior review');
     } catch {
       toast.error('Could not submit MSK exam — check workflow state');

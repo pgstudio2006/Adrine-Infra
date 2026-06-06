@@ -51,7 +51,11 @@ export default function DoctorQueue() {
   const { user } = useAuth();
   const roleBasePath = useClinicalBasePath();
   const navayuMode = isNavayuTenant();
-  const navayuSenior = isNavayuSeniorDoctor(getPlatformSession()?.email, user?.role);
+  const navayuSenior = isNavayuSeniorDoctor(
+    getPlatformSession()?.email ?? user?.email,
+    user?.role,
+    user?.name,
+  );
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
   useClinicalPlatformListSync({
@@ -93,18 +97,27 @@ export default function DoctorQueue() {
       loadNavayuVisitMetadata(activePatient.uhid) ??
       undefined;
     const localExam = loadNavayuLumbarExam(activePatient.uhid);
+    const queueState = activePatient.uhid
+      ? queue.find((entry) => entry.uhid === activePatient.uhid)?.mskLifecycleState
+      : undefined;
+
     if (canUseNavayuRuntime() && activePatient.platformOpdVisitId) {
       void platformLoadNavayuVisitBundle(activePatient.platformOpdVisitId).then((bundle) => {
         setNavayuBundle({
           registration: bundle?.registration ?? localReg,
           intake: bundle?.intake,
           lumbarExam: bundle?.lumbarExam ?? localExam,
+          mskLifecycleState: bundle?.mskLifecycleState ?? queueState,
         });
       });
     } else {
-      setNavayuBundle({ registration: localReg, lumbarExam: localExam });
+      setNavayuBundle({
+        registration: localReg,
+        lumbarExam: localExam,
+        mskLifecycleState: queueState,
+      });
     }
-  }, [activePatient?.uhid, activePatient?.platformOpdVisitId, activePatient?.visitMetadata]);
+  }, [activePatient?.uhid, activePatient?.platformOpdVisitId, activePatient?.visitMetadata, queue]);
 
   const handleNext = () => {
     if (!doctorName) return;
@@ -157,6 +170,12 @@ export default function DoctorQueue() {
           state={navayuBundle.mskLifecycleState}
           seniorView={navayuSenior}
         />
+      ) : null}
+
+      {navayuMode && navayuSenior && filtered.length === 0 ? (
+        <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+          Senior MSK queue is empty until junior completes the MSK exam and AI summary is ready.
+        </div>
       ) : null}
 
       {navayuMode && navayuSenior && activePatient ? (

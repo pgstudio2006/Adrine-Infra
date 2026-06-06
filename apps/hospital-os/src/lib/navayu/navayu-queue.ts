@@ -40,7 +40,9 @@ export function filterNavayuDoctorQueue(
 ): QueueEntry[] {
   return entries.filter((entry) => {
     const state = asMskState(entry.mskLifecycleState);
-    if (!state) return true;
+    if (!state) {
+      return !seniorDoctor;
+    }
     if (seniorDoctor) {
       return SENIOR_VISIBLE_STATES.includes(state);
     }

@@ -16,28 +16,16 @@ import { useClinicalPlatformListSync } from "@/hooks/useClinicalPlatformListSync
 import { Button } from "@/components/ui/button";
 import { PlatformConnectivityStrip } from "@/components/PlatformConnectivityStrip";
 import { isPlatformAuthoritative } from "@/runtime/platform-store-bridge";
+import { isNavayuTenant, NAVAYU_CLINICAL_DEPARTMENTS } from "@/lib/navayu/navayu-forms";
+import {
+  getClinicalDepartments,
+  getClinicalDoctorsForDepartment,
+  getDefaultAssignedDoctor,
+} from "@/lib/opd/branch-clinical-roster";
 
-const DEPARTMENTS = [
-  "General Medicine",
-  "Cardiology",
-  "Orthopedics",
-  "Gynecology",
-  "Pediatrics",
-  "Dermatology",
-  "ENT",
-  "Neurology",
-];
-
-const DOCTORS: Record<string, string[]> = {
-  "General Medicine": ["Dr. A. Shah", "Dr. V. Reddy"],
-  Cardiology: ["Dr. R. Mehta"],
-  Orthopedics: ["Dr. K. Rao"],
-  Gynecology: ["Dr. S. Iyer"],
-  Pediatrics: ["Dr. P. Nair"],
-  Dermatology: ["Dr. D. Kapoor"],
-  ENT: ["Dr. L. Mohan"],
-  Neurology: ["Dr. N. Joshi"],
-};
+const DEPARTMENTS = isNavayuTenant()
+  ? [...NAVAYU_CLINICAL_DEPARTMENTS]
+  : getClinicalDepartments();
 
 function toYmd(date: Date) {
   return date.toISOString().split("T")[0];
@@ -89,8 +77,8 @@ export default function ReceptionCheckIn() {
     age: "",
     gender: "M",
     phone: "",
-    department: "General Medicine",
-    doctor: "Dr. A. Shah",
+    department: DEPARTMENTS[0] ?? "General Medicine",
+    doctor: getDefaultAssignedDoctor(DEPARTMENTS[0] ?? "General Medicine"),
     notes: "",
   });
   const [platformError, setPlatformError] = useState<string | null>(null);
@@ -182,8 +170,8 @@ export default function ReceptionCheckIn() {
       age: "",
       gender: "M",
       phone: "",
-      department: "General Medicine",
-      doctor: "Dr. A. Shah",
+      department: DEPARTMENTS[0] ?? "General Medicine",
+      doctor: getDefaultAssignedDoctor(DEPARTMENTS[0] ?? "General Medicine"),
       notes: "",
     });
   };
@@ -257,14 +245,14 @@ export default function ReceptionCheckIn() {
             />
             <AppSelect
               value={walkInForm.department}
-              onValueChange={(value) => setWalkInForm((prev) => ({ ...prev, department: value, doctor: DOCTORS[value]?.[0] || "" }))}
+              onValueChange={(value) => setWalkInForm((prev) => ({ ...prev, department: value, doctor: getDefaultAssignedDoctor(value) }))}
               options={DEPARTMENTS.map((department) => ({ value: department, label: department }))}
               className="px-3 py-2 rounded-lg border bg-background text-sm"
             />
             <AppSelect
               value={walkInForm.doctor}
               onValueChange={(value) => setWalkInForm((prev) => ({ ...prev, doctor: value }))}
-              options={(DOCTORS[walkInForm.department] || []).map((doctor) => ({ value: doctor, label: doctor }))}
+              options={getClinicalDoctorsForDepartment(walkInForm.department).map((doctor) => ({ value: doctor, label: doctor }))}
               className="px-3 py-2 rounded-lg border bg-background text-sm"
             />
             <input

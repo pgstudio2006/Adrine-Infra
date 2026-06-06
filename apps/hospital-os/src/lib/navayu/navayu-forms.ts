@@ -636,10 +636,31 @@ export function loadNavayuSeniorReview(uhid: string): NavayuSeniorReviewData {
   }
 }
 
-export function isNavayuSeniorDoctor(email?: string | null, role?: string | null): boolean {
+export function isNavayuSeniorDoctor(
+  email?: string | null,
+  role?: string | null,
+  name?: string | null,
+): boolean {
   if (role === 'jr_doctor') return false;
-  if (role === 'doctor' && isNavayuTenant()) return true;
-  return !!email && /senior@navayuhealth\.in$/i.test(email);
+
+  const emailNorm = email?.trim().toLowerCase() ?? '';
+  const nameNorm = name?.trim().toLowerCase() ?? '';
+
+  if (
+    emailNorm.includes('junior@') ||
+    (nameNorm.includes('junior') && nameNorm.includes('associate'))
+  ) {
+    return false;
+  }
+
+  if (!isNavayuTenant()) {
+    return /senior@navayuhealth\.in$/i.test(emailNorm);
+  }
+
+  return (
+    /senior@navayuhealth\.in$/i.test(emailNorm) ||
+    (nameNorm.includes('senior') && nameNorm.includes('consultant'))
+  );
 }
 
 export function isJrDoctorRole(role?: string | null): boolean {

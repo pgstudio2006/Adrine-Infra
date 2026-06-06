@@ -99,6 +99,12 @@ export function mergePatientsFromPlatform(
           ...out[idx],
           platformPatientId: row.platformPatientId,
           name: row.name ?? out[idx].name,
+          department: row.department ?? out[idx].department,
+          assignedDoctor: row.assignedDoctor ?? out[idx].assignedDoctor,
+          opdState: row.opdState ?? out[idx].opdState,
+          platformOpdVisitId: row.platformOpdVisitId ?? out[idx].platformOpdVisitId,
+          visitMetadata: row.visitMetadata ?? out[idx].visitMetadata,
+          phone: row.phone || out[idx].phone,
         };
       }
       continue;

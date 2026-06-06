@@ -180,7 +180,23 @@ export function evaluateOperationalRouteAccess(
   }
 
   if (pathname.startsWith('/doctor/consultation/')) {
-    const ok = hasOpdAtLeast(ctx, 'queued') || hasOpdAtLeast(ctx, 'in_consultation');
+    const uhid = pathname.split('/').filter(Boolean).pop();
+    const target = uhid ? ctx.patients.find((p) => p.uhid === uhid) : undefined;
+    const queuedForPatient =
+      !!uhid &&
+      ctx.queue.some(
+        (q) =>
+          q.uhid === uhid &&
+          ['waiting', 'called', 'in-consultation', 'completed'].includes(q.status),
+      );
+    const targetOpdReady =
+      !!target &&
+      (() => {
+        const st = getClientOpdState(target.opdState);
+        if (st === 'cancelled' || st === 'no_show') return false;
+        return opdRank(st) >= opdRank('queued') || st === 'in_consultation';
+      })();
+    const ok = targetOpdReady || queuedForPatient || hasOpdAtLeast(ctx, 'in_consultation');
     if (!ok) {
       return {
         allowed: false,

@@ -20,28 +20,16 @@ import {
 import { InlinePlatformError } from "@/components/shared/InlinePlatformError";
 import { PlatformConnectivityStrip } from "@/components/PlatformConnectivityStrip";
 import { isPlatformAuthoritative } from "@/runtime/platform-store-bridge";
+import { isNavayuTenant, NAVAYU_CLINICAL_DEPARTMENTS } from "@/lib/navayu/navayu-forms";
+import {
+  getClinicalDepartments,
+  getClinicalDoctorsForDepartment,
+  getDefaultAssignedDoctor,
+} from "@/lib/opd/branch-clinical-roster";
 
-const DEPARTMENTS = [
-  "General Medicine",
-  "Cardiology",
-  "Orthopedics",
-  "Gynecology",
-  "Pediatrics",
-  "Dermatology",
-  "ENT",
-  "Neurology",
-];
-
-const DOCTORS: Record<string, string[]> = {
-  "General Medicine": ["Dr. A. Shah", "Dr. V. Reddy"],
-  Cardiology: ["Dr. R. Mehta"],
-  Orthopedics: ["Dr. K. Rao"],
-  Gynecology: ["Dr. S. Iyer"],
-  Pediatrics: ["Dr. P. Nair"],
-  Dermatology: ["Dr. D. Kapoor"],
-  ENT: ["Dr. L. Mohan"],
-  Neurology: ["Dr. N. Joshi"],
-};
+const DEPARTMENTS = isNavayuTenant()
+  ? [...NAVAYU_CLINICAL_DEPARTMENTS]
+  : getClinicalDepartments();
 
 const STATUS_STYLES: Record<HospitalAppointment["status"], string> = {
   scheduled: "bg-info/10 text-info",
@@ -705,7 +693,7 @@ export default function ReceptionAppointments() {
                       setBookingForm((prev) => ({
                         ...prev,
                         department: value,
-                        doctor: "",
+                        doctor: getDefaultAssignedDoctor(value),
                       }))
                     }
                     placeholder="Select"
@@ -726,7 +714,7 @@ export default function ReceptionAppointments() {
                       setBookingForm((prev) => ({ ...prev, doctor: value }))
                     }
                     placeholder="Select"
-                    options={(DOCTORS[bookingForm.department] || []).map(
+                    options={getClinicalDoctorsForDepartment(bookingForm.department).map(
                       (doctor) => ({ value: doctor, label: doctor }),
                     )}
                     disabled={!bookingForm.department}

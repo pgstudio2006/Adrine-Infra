@@ -20,6 +20,7 @@ import {
   platformRecordMetering,
   platformRegisterOpdPatient,
 } from '@/runtime/opd-runtime';
+import { platformEnqueueOpdVisitToBoard } from '@/lib/opd/platform-opd-enqueue';
 import { platformSaveNavayuRegistration } from '@/lib/navayu/navayu-runtime';
 import { maybeCreateNavayuCrmLead } from '@/lib/navayu/navayu-crm';
 import type { NavayuRegistrationMetadata } from '@/lib/navayu/navayu-forms';
@@ -1312,9 +1313,14 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
   const [workflowEvents, setWorkflowEvents] = useState<WorkflowEvent[]>([]);
 
   const admissionsRef = useRef(admissions);
+  const patientsRef = useRef(patients);
+  const refreshQueueFromPlatformRef = useRef<() => Promise<void>>(async () => {});
   useEffect(() => {
     admissionsRef.current = admissions;
   }, [admissions]);
+  useEffect(() => {
+    patientsRef.current = patients;
+  }, [patients]);
 
   const pushWorkflowEvent = useCallback((event: Omit<WorkflowEvent, 'id' | 'timestamp'>) => {
     const platformEvent =
@@ -1767,7 +1773,9 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
       };
 
       setAppointments(prev => [appointment, ...prev]);
-      setQueue(prev => [...prev, queueEntry]);
+      if (!isPlatformAuthoritative()) {
+        setQueue(prev => [...prev, queueEntry]);
+      }
       pushWorkflowEvent({
         module: 'scheduling',
         action: 'appointment_checked_in',
@@ -1869,25 +1877,33 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
           );
 
           let platformVisitId = visit.id;
+          const shouldEnqueue =
+            !!patient.department &&
+            !!patient.assignedDoctor;
 
-          if (appointmentId) {
-            let activeVisit = visit;
-            const from = getClientOpdState(activeVisit.state, 'registered');
-            if (from === 'registered') {
-              ({ visit: activeVisit } = await platformOpdTransition(
-                activeVisit.id,
-                'schedule_or_walkin',
-                { departmentSelected: true, doctorOrPoolAssigned: true },
-                {
-                  appointment: {
-                    startAt: new Date(`${appointmentDate}T${appointmentTime}`).toISOString(),
-                    endAt: new Date(`${appointmentDate}T${appointmentTime}`).toISOString(),
-                    resourceLabel: `${patient.assignedDoctor || 'Doctor On Call'} — ${patient.department || 'General Medicine'}`,
-                  },
-                },
-              ));
-            }
-            if (activeVisit.appointmentId) {
+          if (shouldEnqueue) {
+            const activeVisit = await platformEnqueueOpdVisitToBoard({
+              visitId: visit.id,
+              visitState: visit.state,
+              department: patient.department || 'General Medicine',
+              assignedDoctor: patient.assignedDoctor || 'Doctor On Call',
+              complaint: data.notes,
+              appointment: {
+                startAt: new Date(`${appointmentDate}T${appointmentTime}`).toISOString(),
+                endAt: new Date(`${appointmentDate}T${appointmentTime}`).toISOString(),
+                resourceLabel: `${patient.assignedDoctor || 'Doctor On Call'} — ${patient.department || 'General Medicine'}`,
+              },
+            });
+
+            setPatients((prev) =>
+              prev.map((p) =>
+                p.uhid === uhid
+                  ? { ...p, opdState: activeVisit.state, platformOpdVisitId: activeVisit.id }
+                  : p,
+              ),
+            );
+
+            if (activeVisit.appointmentId && appointmentId) {
               setAppointments((prev) =>
                 prev.map((a) =>
                   a.id === appointmentId
@@ -1896,33 +1912,8 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
                 ),
               );
             }
-            ({ visit: activeVisit } = await platformOpdTransition(activeVisit.id, 'check_in', {
-              appointmentExistsOrWalkinAllowed: true,
-              patientBalanceOk: true,
-            }));
-            ({ visit: activeVisit } = await platformOpdTransition(
-              activeVisit.id,
-              'route_to_department',
-              { departmentSelected: true, doctorOrPoolAssigned: true },
-              {
-                department: patient.department || 'General Medicine',
-                assignedDoctor: patient.assignedDoctor || 'Doctor On Call',
-              },
-            ));
-            ({ visit: activeVisit } = await platformOpdTransition(
-              activeVisit.id,
-              'issue_token',
-              { tokenNotDuplicateToday: true },
-              { complaint: data.notes },
-            ));
-            setPatients((prev) =>
-              prev.map((p) =>
-                p.uhid === uhid
-                  ? { ...p, opdState: activeVisit.state, platformOpdVisitId: activeVisit.id }
-                  : p,
-              ),
-            );
-            if (activeVisit.tokenNumber) {
+
+            if (activeVisit.tokenNumber && appointmentId && !isPlatformAuthoritative()) {
               setQueue((prev) =>
                 prev.map((q) =>
                   q.appointmentId === appointmentId
@@ -1935,11 +1926,10 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
                 ),
               );
             }
-            await platformRecordMetering(
-              ['opd.registration', 'opd.check_in', 'opd.department_routed', 'opd.token_issued'],
-              activeVisit.id,
-            );
+
             platformVisitId = activeVisit.id;
+            await refreshQueueFromPlatformRef.current();
+            await refreshPatientsFromPlatform();
           } else {
             await platformRecordMetering(['opd.registration'], visit.id);
           }
@@ -2287,6 +2277,52 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     toast.success(`Appointment booked: ${data.patientName}`, { description: `${id} · ${data.doctor} · ${data.time}` });
 
     const patient = patients.find(p => p.uhid === data.uhid);
+    const todayYmd = new Date().toISOString().split('T')[0];
+    const isSameDay = data.date === todayYmd;
+
+    const autoEnqueueSameDayVisit = async (
+      visitId: string,
+      visitState: string,
+      platformAppointmentId?: string,
+    ) => {
+      if (!isSameDay || !canUseOpdRuntime() || !data.department || !data.doctor) return;
+
+      const startAt = new Date(`${data.date}T${data.time}`).toISOString();
+      const endAt = new Date(new Date(startAt).getTime() + data.duration * 60_000).toISOString();
+      const activeVisit = await platformEnqueueOpdVisitToBoard({
+        visitId,
+        visitState,
+        department: data.department,
+        assignedDoctor: data.doctor,
+        complaint: data.notes,
+        appointment: {
+          startAt,
+          endAt,
+          resourceLabel: `${data.doctor} — ${data.department}`,
+          platformAppointmentId,
+        },
+      });
+
+      setPatients(prev =>
+        prev.map(p =>
+          p.uhid === data.uhid
+            ? { ...p, opdState: activeVisit.state, platformOpdVisitId: activeVisit.id }
+            : p,
+        ),
+      );
+      setAppointments(prev =>
+        prev.map(a =>
+          a.id === id
+            ? {
+                ...a,
+                status: 'checked-in',
+                platformAppointmentId: platformAppointmentId ?? activeVisit.appointmentId ?? a.platformAppointmentId,
+              }
+            : a,
+        ),
+      );
+      await refreshQueueFromPlatformRef.current();
+    };
 
     if (canUseSchedulingRuntime() && patient?.platformPatientId) {
       void (async () => {
@@ -2308,6 +2344,15 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
             ),
           );
           await platformRecordMetering(['opd.appointment_booked'], booked.id);
+
+          if (canUseOpdRuntime() && isSameDay) {
+            const visit = await platformEnsureActiveOpdVisit({
+              platformPatientId: patient.platformPatientId!,
+              department: data.department,
+              assignedDoctor: data.doctor,
+            });
+            await autoEnqueueSameDayVisit(visit.id, visit.state, booked.id);
+          }
         } catch (err) {
           toast.error('Platform appointment sync failed', {
             description: err instanceof Error ? err.message : undefined,
@@ -2339,6 +2384,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
           setPatients(prev =>
             prev.map(p => (p.uhid === data.uhid ? { ...p, opdState: visit.state } : p)),
           );
+          const platformApptId = visit.appointmentId ?? undefined;
           if (visit.appointmentId) {
             setAppointments(prev =>
               prev.map(a =>
@@ -2347,6 +2393,36 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
             );
           }
           await platformRecordMetering(['opd.appointment_booked'], visit.id);
+          await autoEnqueueSameDayVisit(visit.id, visit.state, platformApptId);
+        } catch (err) {
+          toast.error('Platform appointment sync failed', {
+            description: err instanceof Error ? err.message : undefined,
+          });
+        }
+      })();
+    } else if (canUseOpdRuntime() && patient && isSameDay && data.department && data.doctor) {
+      void (async () => {
+        try {
+          const { visit, patientId } = await platformRegisterOpdPatient({
+            fullName: patient.name,
+            mrn: patient.uhid,
+            department: data.department,
+            assignedDoctor: data.doctor,
+            actorRole: 'receptionist',
+          });
+          setPatients(prev =>
+            prev.map(p =>
+              p.uhid === data.uhid
+                ? {
+                    ...p,
+                    platformPatientId: patientId,
+                    platformOpdVisitId: visit.id,
+                    opdState: visit.state,
+                  }
+                : p,
+            ),
+          );
+          await autoEnqueueSameDayVisit(visit.id, visit.state);
         } catch (err) {
           toast.error('Platform appointment sync failed', {
             description: err instanceof Error ? err.message : undefined,
@@ -2374,6 +2450,15 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
               a.id === id ? { ...a, platformAppointmentId: booked.id } : a,
             ),
           );
+
+          if (canUseOpdRuntime() && isSameDay) {
+            const visit = await platformEnsureActiveOpdVisit({
+              platformPatientId,
+              department: data.department,
+              assignedDoctor: data.doctor,
+            });
+            await autoEnqueueSameDayVisit(visit.id, visit.state, booked.id);
+          }
         } catch (err) {
           toast.error('Platform appointment sync failed', {
             description: err instanceof Error ? err.message : undefined,
@@ -2550,31 +2635,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
             ),
           );
           if (platformAuthoritative) {
-            const visits = await platformListOpdBoard(getPlatformSession()?.branchId ?? 'branch_main');
-            setQueue(() => {
-              const boardEntries: QueueEntry[] = visits.map(v => {
-                const pt = patients.find(p => p.platformPatientId === v.patientId);
-                const uhid = pt?.uhid ?? v.patient?.mrn ?? v.patientId;
-                const st = v.state;
-                const localStatus: QueueEntry['status'] =
-                  st === 'in_consultation' || st === 'orders_pending'
-                    ? 'in-consultation'
-                    : 'waiting';
-                return {
-                  tokenNo: v.tokenNumber ?? token,
-                  uhid,
-                  patientName: pt?.name ?? v.patient?.fullName ?? appt.patientName,
-                  doctor: v.assignedDoctor ?? appt.doctor,
-                  department: v.department ?? appt.department,
-                  status: localStatus,
-                  checkedInAt: entry.checkedInAt,
-                  complaint: entry.complaint,
-                  platformOpdVisitId: v.id,
-                  appointmentId,
-                };
-              });
-              return boardEntries.sort((a, b) => a.tokenNo - b.tokenNo);
-            });
+            await refreshQueueFromPlatformRef.current();
           } else {
             setQueue(prev =>
               prev.map(q =>
@@ -2608,12 +2669,27 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     const branchId = getPlatformSession()?.branchId ?? 'branch_main';
     try {
       const visits = await platformListOpdBoard(branchId);
+      const currentPatients = patientsRef.current;
+      setPatients((prev) =>
+        prev.map((patient) => {
+          if (!patient.platformPatientId) return patient;
+          const visit = visits.find((v) => v.patientId === patient.platformPatientId);
+          if (!visit) return patient;
+          return {
+            ...patient,
+            opdState: visit.state,
+            platformOpdVisitId: visit.id,
+            department: visit.department ?? patient.department,
+            assignedDoctor: visit.assignedDoctor ?? patient.assignedDoctor,
+          };
+        }),
+      );
       setQueue(prev => {
         const prevByVisit = new Map(
           prev.filter(q => q.platformOpdVisitId).map(q => [q.platformOpdVisitId!, q]),
         );
         const boardEntries: QueueEntry[] = visits.map(v => {
-          const pt = patients.find(p => p.platformPatientId === v.patientId);
+          const pt = currentPatients.find(p => p.platformPatientId === v.patientId);
           const uhid = pt?.uhid ?? v.patient?.mrn ?? v.patientId;
           const prior = prevByVisit.get(v.id);
           const st = v.state;
@@ -2665,7 +2741,11 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     } catch {
       /* ignore */
     }
-  }, [patients]);
+  }, []);
+
+  useEffect(() => {
+    refreshQueueFromPlatformRef.current = refreshQueueFromPlatform;
+  }, [refreshQueueFromPlatform]);
 
   const updateQueueStatus = useCallback((tokenNo: number, status: QueueEntry['status']) => {
     const entry = queue.find(q => q.tokenNo === tokenNo);

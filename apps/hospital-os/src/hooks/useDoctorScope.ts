@@ -3,6 +3,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getPlatformSession } from '@/runtime/platform-session';
 import { isPlatformAuthoritative } from '@/runtime/platform-store-bridge';
 import { scopeQueueToBranch } from '@/lib/navayu/navayu-queue';
+import { isNavayuTenant } from '@/lib/navayu/navayu-forms';
+import {
+  departmentMatchesClinicalScope,
+  getClinicalDoctorsForDepartment,
+  isUnassignedDoctorName,
+  shouldUseNavayuMskPoolQueue,
+} from '@/lib/opd/branch-clinical-roster';
 import {
   useHospital,
   type HospitalPatient,
@@ -39,6 +46,7 @@ export function useDoctorScope(): DoctorScope {
   const isDoctor = user?.role === 'doctor' || user?.role === 'jr_doctor';
   const doctorName = user?.name ?? '';
   const department = user?.department ?? '';
+  const navayuPoolQueue = shouldUseNavayuMskPoolQueue() && isPlatformAuthoritative();
 
   const patientByUhid = useMemo(() => {
     return new Map(store.patients.map((patient) => [patient.uhid, patient]));
@@ -48,8 +56,32 @@ export function useDoctorScope(): DoctorScope {
     if (!department) {
       return true;
     }
+    if (isNavayuTenant()) {
+      return departmentMatchesClinicalScope(department, value);
+    }
     return !value || value === department;
   }, [department]);
+
+  const matchesQueueDoctor = useCallback((entry: QueueEntry) => {
+    if (entry.doctor === doctorName) {
+      return true;
+    }
+
+    if (!navayuPoolQueue || !matchesDepartment(entry.department)) {
+      return false;
+    }
+
+    if (user?.role === 'jr_doctor') {
+      return true;
+    }
+
+    if (isUnassignedDoctorName(entry.doctor)) {
+      return true;
+    }
+
+    const poolDoctors = getClinicalDoctorsForDepartment(entry.department);
+    return poolDoctors.includes(entry.doctor);
+  }, [doctorName, matchesDepartment, navayuPoolQueue, user?.role]);
 
   const patients = useMemo(() => {
     if (!isDoctor) {
@@ -57,9 +89,23 @@ export function useDoctorScope(): DoctorScope {
     }
 
     return store.patients.filter((patient) => {
+      if (navayuPoolQueue && matchesDepartment(patient.department)) {
+        const onBranchBoard = store.queue.some(
+          (entry) =>
+            entry.uhid === patient.uhid &&
+            matchesDepartment(entry.department) &&
+            (entry.doctor === doctorName ||
+              isUnassignedDoctorName(entry.doctor) ||
+              user?.role === 'jr_doctor'),
+        );
+        if (onBranchBoard) {
+          return true;
+        }
+        return patient.assignedDoctor === doctorName || isUnassignedDoctorName(patient.assignedDoctor);
+      }
       return patient.assignedDoctor === doctorName && matchesDepartment(patient.department);
     });
-  }, [doctorName, isDoctor, matchesDepartment, store.patients]);
+  }, [doctorName, isDoctor, matchesDepartment, navayuPoolQueue, store.patients, store.queue, user?.role]);
 
   const patientUhidSet = useMemo(() => {
     return new Set(patients.map((patient) => patient.uhid));
@@ -71,18 +117,18 @@ export function useDoctorScope(): DoctorScope {
     }
 
     return store.appointments.filter((appointment) => {
-      if (appointment.doctor !== doctorName) {
+      if (appointment.doctor !== doctorName && !(navayuPoolQueue && matchesDepartment(appointment.department))) {
         return false;
       }
       if (!matchesDepartment(appointment.department)) {
         return false;
       }
-      if (patientUhidSet.size > 0 && !patientUhidSet.has(appointment.uhid)) {
+      if (!navayuPoolQueue && patientUhidSet.size > 0 && !patientUhidSet.has(appointment.uhid)) {
         return false;
       }
       return true;
     });
-  }, [doctorName, isDoctor, matchesDepartment, patientUhidSet, store.appointments]);
+  }, [doctorName, isDoctor, matchesDepartment, navayuPoolQueue, patientUhidSet, store.appointments]);
 
   const queue = useMemo(() => {
     if (!isDoctor) {
@@ -94,13 +140,13 @@ export function useDoctorScope(): DoctorScope {
       : store.queue;
 
     return branchScoped.filter((entry) => {
-      if (entry.doctor !== doctorName) {
+      if (!matchesQueueDoctor(entry)) {
         return false;
       }
       if (!matchesDepartment(entry.department)) {
         return false;
       }
-      if (patientUhidSet.size > 0 && !patientUhidSet.has(entry.uhid)) {
+      if (!navayuPoolQueue && patientUhidSet.size > 0 && !patientUhidSet.has(entry.uhid)) {
         return false;
       }
       if (isPlatformAuthoritative()) {
@@ -111,7 +157,7 @@ export function useDoctorScope(): DoctorScope {
       }
       return true;
     });
-  }, [doctorName, isDoctor, matchesDepartment, patientUhidSet, store.queue]);
+  }, [doctorName, isDoctor, matchesDepartment, matchesQueueDoctor, navayuPoolQueue, patientUhidSet, store.queue]);
 
   const admissions = useMemo(() => {
     if (!isDoctor) {
@@ -162,8 +208,12 @@ export function useDoctorScope(): DoctorScope {
       return false;
     }
 
+    if (navayuPoolQueue && matchesDepartment(patient.department)) {
+      return patient.assignedDoctor === doctorName || isUnassignedDoctorName(patient.assignedDoctor);
+    }
+
     return patient.assignedDoctor === doctorName && matchesDepartment(patient.department);
-  }, [doctorName, matchesDepartment, patientByUhid, scopedUhids]);
+  }, [doctorName, matchesDepartment, navayuPoolQueue, patientByUhid, scopedUhids]);
 
   const labOrders = useMemo(() => {
     if (!isDoctor) {
@@ -216,8 +266,28 @@ export function useDoctorScope(): DoctorScope {
     if (!matchesScopedPatient(uhid)) {
       return undefined;
     }
-    return patientByUhid.get(uhid);
-  }, [matchesScopedPatient, patientByUhid]);
+    const fromStore = patientByUhid.get(uhid);
+    if (fromStore) {
+      return fromStore;
+    }
+    const queueEntry = store.queue.find((entry) => entry.uhid === uhid);
+    if (!queueEntry) {
+      return undefined;
+    }
+    return {
+      uhid,
+      name: queueEntry.patientName,
+      age: 0,
+      gender: '',
+      phone: '',
+      category: 'general' as const,
+      patientType: 'OPD' as const,
+      registeredOn: '',
+      department: queueEntry.department,
+      assignedDoctor: queueEntry.doctor,
+      platformOpdVisitId: queueEntry.platformOpdVisitId,
+    };
+  }, [matchesScopedPatient, patientByUhid, store.queue]);
 
   return {
     isDoctor,

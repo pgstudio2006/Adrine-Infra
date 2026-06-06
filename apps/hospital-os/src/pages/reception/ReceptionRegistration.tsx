@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useHospital } from '@/stores/hospitalStore';
 import { isPlatformRuntimeEnabled } from '@/runtime/platform-session';
@@ -30,6 +30,10 @@ import {
   NAVAYU_CLINICAL_DEPARTMENTS,
   saveNavayuVisitMetadata,
 } from '@/lib/navayu/navayu-forms';
+import {
+  getClinicalDoctorsForDepartment,
+  getDefaultAssignedDoctor,
+} from '@/lib/opd/branch-clinical-roster';
 
 // ── Types ──
 interface Patient {
@@ -71,7 +75,6 @@ const STEPS = [
   { label: 'Review & Confirm', icon: FileText },
 ];
 
-const DOCTORS = ['Dr. R. Mehta', 'Dr. S. Iyer', 'Dr. A. Shah', 'Dr. K. Rao', 'Dr. P. Nair', 'Dr. V. Reddy'];
 const BRANCHES = ['Main Hospital', 'City Branch', 'North Wing', 'South Campus'];
 
 const categoryConfig: Record<string, { label: string; color: string }> = {
@@ -101,7 +104,7 @@ export default function ReceptionRegistration() {
   const [mode, setMode] = useState<'list' | 'new' | 'emergency' | 'merge' | 'abha-lookup'>('list');
   const [registrationTab, setRegistrationTab] = useState<'full' | 'walkin'>('full');
   const [platformError, setPlatformError] = useState<string | null>(null);
-  useClinicalPlatformListSync({ patients: true, queue: false, appointments: false, departmentWorklists: false, ipd: false });
+  useClinicalPlatformListSync({ patients: true, queue: true, appointments: false, departmentWorklists: false, ipd: false });
   const [search, setSearch] = useState('');
   const [step, setStep] = useState(0);
   const [searchBy, setSearchBy] = useState<'all' | 'uhid' | 'phone' | 'name' | 'aadhaar' | 'abha'>('all');
@@ -149,6 +152,16 @@ export default function ReceptionRegistration() {
   const [navayuFields, setNavayuFields] = useState<NavayuRegistrationFormState>(createDefaultNavayuRegistrationState);
 
   const routingDepartments = navayuMode ? NAVAYU_CLINICAL_DEPARTMENTS : settings.registration.departments;
+
+  const clinicalDoctorsForDepartment = useCallback(
+    (dept: string) => getClinicalDoctorsForDepartment(dept || routingDepartments[0] || 'General Medicine'),
+    [routingDepartments],
+  );
+
+  const walkInDoctorOptions = useMemo(
+    () => clinicalDoctorsForDepartment(formData.department),
+    [clinicalDoctorsForDepartment, formData.department],
+  );
 
   useEffect(() => {
     if (isPlatformRuntimeEnabled()) {
@@ -593,7 +606,7 @@ export default function ReceptionRegistration() {
                 onValueChange={(value) => setEmergencyForm((prev) => ({ ...prev, assignedDoctor: value }))}
                 options={[
                   { value: '', label: 'Auto-assign' },
-                  ...DOCTORS.map((doctor) => ({ value: doctor, label: doctor })),
+                  ...clinicalDoctorsForDepartment('Emergency').map((doctor) => ({ value: doctor, label: doctor })),
                 ]}
                 className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
               />
@@ -718,7 +731,7 @@ export default function ReceptionRegistration() {
             category: formData.category,
             patientType: 'OPD',
             department: formData.department || routingDepartments[0] || 'Spine & MSK',
-            assignedDoctor: formData.assignedDoctor || DOCTORS[0],
+            assignedDoctor: formData.assignedDoctor || getDefaultAssignedDoctor(formData.department || routingDepartments[0]),
             branch: formData.branch,
             referralSource: navayuFields.hearAboutNavayu || formData.referralSource,
             visitMetadata,
@@ -788,14 +801,19 @@ export default function ReceptionRegistration() {
                 />
                 <AppSelect
                   value={formData.department}
-                  onValueChange={(value) => updateField('department', value)}
+                  onValueChange={(value) => {
+                    updateField('department', value);
+                    if (!formData.assignedDoctor) {
+                      updateField('assignedDoctor', getDefaultAssignedDoctor(value));
+                    }
+                  }}
                   options={(navayuMode ? routingDepartments : ['General Medicine', 'Cardiology', 'Orthopedics', 'Pediatrics', 'Dermatology']).map((d) => ({ value: d, label: d }))}
                   className="px-3 py-2 rounded-lg border bg-background text-sm"
                 />
                 <AppSelect
                   value={formData.assignedDoctor}
                   onValueChange={(value) => updateField('assignedDoctor', value)}
-                  options={DOCTORS.map((d) => ({ value: d, label: d }))}
+                  options={walkInDoctorOptions.map((d) => ({ value: d, label: d }))}
                   className="px-3 py-2 rounded-lg border bg-background text-sm sm:col-span-2"
                 />
               </div>
@@ -1490,7 +1508,7 @@ export default function ReceptionRegistration() {
                   patientType: journeyPatientType,
                   registrationPatientType,
                   department: formData.department || routingDepartments[0] || 'General Medicine',
-                  assignedDoctor: formData.assignedDoctor || 'Dr. A. Shah',
+                  assignedDoctor: formData.assignedDoctor || getDefaultAssignedDoctor(formData.department || routingDepartments[0]),
                   allergies: formData.allergies || undefined,
                   chronicDiseases: formData.chronicDiseases || undefined,
                   branch: formData.branch,
