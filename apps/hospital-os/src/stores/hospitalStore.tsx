@@ -2774,7 +2774,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
 
   const updateQueueStatus = useCallback((tokenNo: number, status: QueueEntry['status']) => {
     const entry = queue.find(q => q.tokenNo === tokenNo);
-    if (!isPlatformAuthoritative()) {
+    if (!isPlatformAuthoritative() || status === 'called') {
       setQueue(prev => prev.map(q => (q.tokenNo === tokenNo ? { ...q, status } : q)));
     }
 
@@ -2783,6 +2783,12 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
       if (canUseOpdRuntime() && patient?.platformOpdVisitId) {
         void (async () => {
           try {
+            const currentState = getClientOpdState(patient.opdState, entry.status === 'in-consultation' ? 'in_consultation' : 'queued');
+            if (currentState === 'in_consultation') {
+              setQueue(prev => prev.map(q => (q.tokenNo === tokenNo ? { ...q, status: 'in-consultation' } : q)));
+              await refreshQueueFromPlatform();
+              return;
+            }
             const { visit } = await platformOpdTransition(patient.platformOpdVisitId!, 'call_patient');
             setPatients(prev =>
               prev.map(p => (p.uhid === patient.uhid ? { ...p, opdState: visit.state } : p)),
@@ -2795,8 +2801,14 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
             }
           } catch (err) {
             const body = err instanceof PlatformApiError ? err.body : undefined;
+            const description = formatPlatformErrorBody(body) ?? (err instanceof Error ? err.message : undefined);
+            if (description?.includes('not valid from state "in_consultation"')) {
+              setQueue(prev => prev.map(q => (q.tokenNo === tokenNo ? { ...q, status: 'in-consultation' } : q)));
+              await refreshQueueFromPlatform();
+              return;
+            }
             toast.error('Platform rejected queue update', {
-              description: formatPlatformErrorBody(body) ?? (err instanceof Error ? err.message : undefined),
+              description,
             });
           }
         })();

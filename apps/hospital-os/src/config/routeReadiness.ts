@@ -102,7 +102,7 @@ const C1_LEANING_RADIOLOGY_PREFIXES: readonly string[] = [
 ];
 
 /** Doctor UAT P0 — platform OPD queue + consultation; no navbar readiness badge. */
-const DOCTOR_OPERATIONAL_EXACT = new Set(["/doctor/queue"]);
+const DOCTOR_OPERATIONAL_EXACT = new Set(["/doctor/queue", "/jr-doctor/queue"]);
 
 const C1_LEANING_PREFIXES: readonly string[] = [
   "/nurse/vitals/chart/",
@@ -348,7 +348,7 @@ export function getRouteConnectivityClass(
 
 function isDoctorOperationalRoute(pathname: string): boolean {
   if (DOCTOR_OPERATIONAL_EXACT.has(pathname)) return true;
-  return pathname.startsWith("/doctor/consultation/");
+  return pathname.startsWith("/doctor/consultation/") || pathname.startsWith("/jr-doctor/consultation/");
 }
 
 export function getRouteReadinessBadge(pathname: string): RouteReadinessBadge {
