@@ -249,7 +249,7 @@ export default function DoctorQueue() {
 
             return (
               <div
-                key={p.tokenNo}
+                key={p.platformOpdVisitId ?? `${p.uhid}-${p.tokenNo}`}
                 className={`flex items-center gap-3 px-4 py-3.5 transition-colors ${
                   !isActive ? 'opacity-50' : ''
                 } ${isCalled ? 'bg-primary/5' : ''}`}

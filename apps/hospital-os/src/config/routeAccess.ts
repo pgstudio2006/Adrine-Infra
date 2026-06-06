@@ -112,6 +112,16 @@ function isFeatureBlocked(settings: TenantSettings, role: UserRole, tab: RoleTab
   return false;
 }
 
+function isOperationalChildRoute(normalized: string, role: UserRole): boolean {
+  if (role === 'doctor' && normalized.startsWith('/doctor/consultation/')) {
+    return true;
+  }
+  if (role === 'jr_doctor' && normalized.startsWith('/jr-doctor/consultation/')) {
+    return true;
+  }
+  return false;
+}
+
 export function canAccessRoute(
   path: string,
   settings: TenantSettings,
@@ -154,7 +164,7 @@ export function canAccessRoute(
       : undefined);
 
   if (!tab) {
-    return false;
+    return isOperationalChildRoute(normalized, owningRole);
   }
 
   if (isFeatureBlocked(settings, owningRole, tab)) {
