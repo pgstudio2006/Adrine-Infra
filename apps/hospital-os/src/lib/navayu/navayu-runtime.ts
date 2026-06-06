@@ -208,8 +208,8 @@ export async function platformSaveNavayuLumbarExam(
   exam: NavayuLumbarExamData,
   seniorDoctor = false,
 ): Promise<NavayuMskLifecycleState> {
-  const base = domainBase();
   const fallbackState = resolveMskStateAfterLumbarSave(exam, seniorDoctor);
+  const base = domainBase();
   if (!base || !canUseNavayuRuntime()) return fallbackState;
 
   await platformFetch(base, `/opd/visits/${visitId}/metadata`, {
@@ -221,25 +221,8 @@ export async function platformSaveNavayuLumbarExam(
     }),
   });
 
-  if (seniorDoctor) {
-    return fallbackState;
-  }
-
-  if (!isNavayuLumbarExamComplete(exam)) {
-    return 'associate_eval';
-  }
-
-  try {
-    const bundle = await platformLoadNavayuVisitBundle(visitId);
-    const state = bundle?.mskLifecycleState;
-    if (state === 'associate_eval') {
-      await platformMskTransition(visitId, 'complete_msk_exam');
-    }
-    const summary = await platformMskTransition(visitId, 'generate_ai_summary');
-    return summary.nextState;
-  } catch {
-    return fallbackState;
-  }
+  const bundle = await platformLoadNavayuVisitBundle(visitId);
+  return (bundle?.mskLifecycleState ?? fallbackState) as NavayuMskLifecycleState;
 }
 
 export async function platformSaveNavayuSeniorReview(
@@ -419,7 +402,7 @@ export async function platformSaveNavayuMskExams(
   }
   const base = domainBase();
   if (!base || !canUseNavayuRuntime()) {
-    return seniorDoctor ? 'ai_summary_ready' : 'msk_exam_complete';
+    return seniorDoctor ? 'ai_summary_ready' : 'associate_eval';
   }
   const stamped = Object.fromEntries(
     Object.entries(exams).map(([k, v]) => [k, { ...v, savedAt: new Date().toISOString() }]),
@@ -428,8 +411,8 @@ export async function platformSaveNavayuMskExams(
     method: 'PATCH',
     body: JSON.stringify({ navayu: { mskExams: stamped } }),
   });
-  if (seniorDoctor) return 'ai_summary_ready';
-  return platformHandoffJuniorToSenior(visitId);
+  const bundle = await platformLoadNavayuVisitBundle(visitId);
+  return (bundle?.mskLifecycleState ?? 'associate_eval') as NavayuMskLifecycleState;
 }
 
 export async function platformSaveNavayuInvestigations(

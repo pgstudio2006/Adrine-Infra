@@ -675,6 +675,7 @@ export function isNavayuSeniorDoctor(
   name?: string | null,
 ): boolean {
   if (role === 'jr_doctor') return false;
+  if (role === 'doctor') return true;
 
   const emailNorm = email?.trim().toLowerCase() ?? '';
   const nameNorm = name?.trim().toLowerCase() ?? '';

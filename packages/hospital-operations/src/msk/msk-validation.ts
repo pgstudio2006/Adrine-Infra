@@ -8,11 +8,11 @@ export type MskValidationContext = {
 
 const VALIDATORS: Record<string, (ctx: MskValidationContext) => string | null> = {
   intake_submitted: (c) =>
-    c.intakeSubmitted === false ? 'Patient intake must be submitted first' : null,
+    c.intakeSubmitted === true ? null : 'Patient intake must be submitted first',
   msk_exam_form_complete: (c) =>
-    c.mskExamFormComplete === false ? 'MSK exam form must be complete' : null,
+    c.mskExamFormComplete === true ? null : 'MSK exam form must be complete',
   ai_summary_ready: (c) =>
-    c.aiSummaryReady === false ? 'AI summary must be ready before senior consult' : null,
+    c.aiSummaryReady === true ? null : 'AI summary must be ready before senior consult',
 };
 
 export function runMskValidations(

@@ -696,7 +696,13 @@ export default function DoctorConsultation() {
                       variant="outline"
                       size="sm"
                       className="w-full"
-                      onClick={() => navigate('/billing-dept/counselling')}
+                      onClick={() =>
+                        navigate(
+                          opdVisitId
+                            ? `/billing-dept/counselling?visitId=${encodeURIComponent(opdVisitId)}`
+                            : '/billing-dept/counselling',
+                        )
+                      }
                     >
                       Hand off to counsellor desk
                     </Button>

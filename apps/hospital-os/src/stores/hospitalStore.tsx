@@ -2723,8 +2723,11 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
       setPatients((prev) =>
         prev.map((patient) => {
           if (!patient.platformPatientId) return patient;
-          const visit = visits.find((v) => v.patientId === patient.platformPatientId);
-          if (!visit) return patient;
+          const patientVisits = visits.filter((v) => v.patientId === patient.platformPatientId);
+          if (patientVisits.length === 0) return patient;
+          const visit = patientVisits.sort(
+            (a, b) => Date.parse(b.createdAt ?? '') - Date.parse(a.createdAt ?? ''),
+          )[0];
           return {
             ...patient,
             opdState: visit.state,
@@ -2745,13 +2748,17 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
           const st = v.state;
           const platformWaiting = st === 'routed' || st === 'queued';
           const localStatus: QueueEntry['status'] =
-            st === 'in_consultation' || st === 'orders_pending'
-              ? 'in-consultation'
-              : prior?.status === 'called' && platformWaiting
-                ? 'called'
-                : prior?.status === 'in-consultation' && platformWaiting
-                  ? 'in-consultation'
-                  : 'waiting';
+            st === 'completed' || st === 'billing_pending' || st === 'follow_up_scheduled'
+              ? 'completed'
+              : st === 'in_consultation' || st === 'orders_pending'
+                ? 'in-consultation'
+                : prior?.status === 'called' && platformWaiting
+                  ? 'called'
+                  : prior?.status === 'in-consultation' && platformWaiting
+                    ? 'in-consultation'
+                    : prior?.status === 'completed'
+                      ? 'completed'
+                      : 'waiting';
           const boardSinceAt = v.createdAt ?? prior?.boardSinceAt;
           const waitMinutes =
             platformWaiting && boardSinceAt
@@ -2978,7 +2985,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     const currentEntry = queue.find(
       (q) => matchesDoctorQueue(q) && q.status === 'in-consultation',
     );
-    if (currentEntry) {
+    if (currentEntry && !isPlatformAuthoritative()) {
       updateQueueStatus(
         {
           platformOpdVisitId: currentEntry.platformOpdVisitId,
@@ -3297,7 +3304,8 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     setPatients(prev => prev.map(p => p.uhid === data.uhid ? { ...p, lastVisit: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) } : p));
 
     const patient = patients.find(p => p.uhid === data.uhid);
-    if (canUseOpdRuntime() && patient?.platformOpdVisitId) {
+    const sessionRole = getPlatformSession()?.role;
+    if (canUseOpdRuntime() && patient?.platformOpdVisitId && sessionRole !== 'jr_doctor') {
       try {
         const visitId = patient.platformOpdVisitId!;
         let { visit } = { visit: await platformGetOpdVisit(visitId) };

@@ -179,7 +179,7 @@ export function evaluateOperationalRouteAccess(
     }
   }
 
-  if (pathname.startsWith('/doctor/consultation/')) {
+  if (pathname.startsWith('/doctor/consultation/') || pathname.startsWith('/jr-doctor/consultation/')) {
     const uhid = pathname.split('/').filter(Boolean).pop();
     const target = uhid ? ctx.patients.find((p) => p.uhid === uhid) : undefined;
     const queuedForPatient =

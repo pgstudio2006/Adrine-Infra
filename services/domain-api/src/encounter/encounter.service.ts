@@ -46,4 +46,20 @@ export class EncounterService {
     }
     return encounter;
   }
+
+  async close(tenantId: string, id: string) {
+    const encounter = await this.get(tenantId, id);
+    if (encounter.status === 'closed') {
+      return encounter;
+    }
+    const updated = await this.prisma.encounter.update({
+      where: { id },
+      data: { status: 'closed' },
+    });
+    this.events.emit('adrine.encounter.closed', tenantId, {
+      encounterId: updated.id,
+      patientId: updated.patientId,
+    });
+    return updated;
+  }
 }

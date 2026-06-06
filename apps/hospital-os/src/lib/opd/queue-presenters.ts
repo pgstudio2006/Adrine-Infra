@@ -43,6 +43,14 @@ export function patchQueueEntries(
   });
 }
 
+export function queueEntryKey(entry: Pick<QueueEntry, 'platformOpdVisitId' | 'tokenNo' | 'uhid'>): QueueEntryLookup {
+  return {
+    platformOpdVisitId: entry.platformOpdVisitId,
+    tokenNo: entry.tokenNo,
+    uhid: entry.uhid,
+  };
+}
+
 /** Minutes since ISO timestamp (board `createdAt` or check-in time). */
 export function computeWaitMinutes(isoOrNull?: string | null): number | null {
   if (!isoOrNull) return null;

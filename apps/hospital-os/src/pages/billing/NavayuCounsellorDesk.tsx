@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { IndianRupee, Package, RefreshCw, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { BillingDeptShell } from '@/components/billing/BillingDeptShell';
@@ -31,10 +31,12 @@ import { useHospital } from '@/stores/hospitalStore';
 
 export default function NavayuCounsellorDesk() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const visitFromUrl = searchParams.get('visitId');
   const { patients, createEstimate } = useHospital();
   const [queue, setQueue] = useState<NavayuCounsellorQueueRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(visitFromUrl);
   const [tierId, setTierId] = useState<NavayuPackageTierId>('advanced');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -58,6 +60,12 @@ export default function NavayuCounsellorDesk() {
       setLoading(false);
     }
   }, [selectedId]);
+
+  useEffect(() => {
+    if (visitFromUrl) {
+      setSelectedId(visitFromUrl);
+    }
+  }, [visitFromUrl]);
 
   useEffect(() => {
     void hydrateNavayuProtocolCatalog();

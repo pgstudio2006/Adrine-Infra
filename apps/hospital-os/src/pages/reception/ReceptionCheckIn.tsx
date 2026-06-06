@@ -22,6 +22,7 @@ import {
   getClinicalDoctorsForDepartment,
   getDefaultAssignedDoctor,
 } from "@/lib/opd/branch-clinical-roster";
+import { queueEntryKey } from "@/lib/opd/queue-presenters";
 
 const DEPARTMENTS = isNavayuTenant()
   ? [...NAVAYU_CLINICAL_DEPARTMENTS]
@@ -343,7 +344,7 @@ export default function ReceptionCheckIn() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => updateQueueStatus(row.queueEntry!.tokenNo, "called")}
+                    onClick={() => updateQueueStatus(queueEntryKey(row.queueEntry!), "called")}
                     className="gap-1"
                   >
                     <Phone className="w-3 h-3" /> Call
@@ -353,7 +354,7 @@ export default function ReceptionCheckIn() {
                 {row.queueEntry?.status === "called" ? (
                   <Button
                     size="sm"
-                    onClick={() => updateQueueStatus(row.queueEntry!.tokenNo, "in-consultation")}
+                    onClick={() => updateQueueStatus(queueEntryKey(row.queueEntry!), "in-consultation")}
                     className="gap-1"
                   >
                     <UserCheck className="w-3 h-3" /> Hand off to doctor
@@ -365,7 +366,7 @@ export default function ReceptionCheckIn() {
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      updateQueueStatus(row.queueEntry!.tokenNo, "completed");
+                      updateQueueStatus(queueEntryKey(row.queueEntry!), "completed");
                       updateAppointmentStatus(row.appointment.id, "completed");
                     }}
                     className="gap-1"

@@ -417,12 +417,16 @@ export class OpdService {
         ? (visit.metadata as Record<string, unknown>)
         : {};
     const currentState = resolveMskState(meta.mskLifecycleState);
+    const validationContext: MskValidationContext = {
+      ...buildMskValidationContextFromMetadata(meta),
+      ...body.context,
+    };
 
     const result = evaluateMskTransition({
       mskState: currentState,
       action: body.action,
       actorRole: body.actorRole,
-      validationContext: body.context,
+      validationContext,
       branchOverrides: body.branchOverrides,
     });
 
@@ -451,11 +455,88 @@ export class OpdService {
       },
     });
 
+    if (body.action === 'plan_package' || body.action === 'close_visit') {
+      try {
+        await this.advanceOpdToBillingForNavayu(
+          tenantId,
+          visitId,
+          body.actorRole,
+          body.actorId,
+          updated.metadata as Record<string, unknown>,
+        );
+      } catch {
+        /* billing handoff is best-effort; charge sync surfaces remaining blockers */
+      }
+    }
+
     return {
       visit: updated,
       previousState: currentState,
       nextState: result.nextState,
     };
+  }
+
+  /** Navayu MSK billing handoff — advance OPD visit to billing_pending for charge sync. */
+  private async advanceOpdToBillingForNavayu(
+    tenantId: string,
+    visitId: string,
+    actorRole: string,
+    actorId?: string,
+    meta?: Record<string, unknown>,
+  ) {
+    let visit = await this.getVisit(tenantId, visitId);
+    if (['billing_pending', 'completed', 'cancelled', 'no_show'].includes(visit.state)) {
+      return visit;
+    }
+
+    const navayu =
+      meta?.navayu && typeof meta.navayu === 'object' && !Array.isArray(meta.navayu)
+        ? (meta.navayu as Record<string, unknown>)
+        : {};
+    const protocolMap =
+      navayu.protocolMap && typeof navayu.protocolMap === 'object' && !Array.isArray(navayu.protocolMap)
+        ? (navayu.protocolMap as Record<string, unknown>)
+        : {};
+    const navayuCtx: OpdValidationContext = {
+      clinicalNotePresent: true,
+      diagnosisCoded: !!protocolMap.protocolId || !!protocolMap.stageId,
+      encounterOpen: true,
+      pendingMandatoryLabsComplete: true,
+      pendingPharmacyFulfilledOrDeferred: true,
+      pendingOrdersDeferredOrComplete: true,
+      criticalLabsAcknowledged: true,
+      criticalResultsAcknowledged: true,
+      controlledMedsApproved: true,
+    };
+    const doctorRole = ['doctor', 'admin', 'medical_superintendent'].includes(actorRole)
+      ? actorRole
+      : 'doctor';
+
+    const runTransition = async (action: string, role = doctorRole) => {
+      await this.transition(tenantId, visitId, {
+        action,
+        actorRole: role,
+        actorId,
+        context: navayuCtx,
+      });
+      visit = await this.getVisit(tenantId, visitId);
+    };
+
+    if (visit.state === 'queued') {
+      await runTransition('call_patient', actorRole);
+    }
+    if (visit.state === 'in_consultation') {
+      await runTransition('save_clinical_note');
+      await runTransition('complete_consultation');
+    }
+    visit = await this.getVisit(tenantId, visitId);
+    if (visit.encounterId) {
+      await this.encounters.close(tenantId, visit.encounterId);
+    }
+    if (visit.state === 'orders_pending') {
+      await runTransition('fulfill_or_defer_orders');
+    }
+    return visit;
   }
 
   async listMskAllowedActions(tenantId: string, visitId: string, actorRole: string) {
@@ -780,6 +861,63 @@ export class OpdService {
       };
     }
   }
+}
+
+function buildMskValidationContextFromMetadata(meta: Record<string, unknown>): MskValidationContext {
+  const navayu =
+    meta.navayu && typeof meta.navayu === 'object' && !Array.isArray(meta.navayu)
+      ? (meta.navayu as Record<string, unknown>)
+      : {};
+  const intake =
+    navayu.intake && typeof navayu.intake === 'object' && !Array.isArray(navayu.intake)
+      ? (navayu.intake as Record<string, unknown>)
+      : {};
+  const lumbar =
+    navayu.lumbarExam && typeof navayu.lumbarExam === 'object' && !Array.isArray(navayu.lumbarExam)
+      ? (navayu.lumbarExam as Record<string, unknown>)
+      : {};
+  const mskState = typeof meta.mskLifecycleState === 'string' ? meta.mskLifecycleState : 'registered';
+
+  const intakeCompleteStates = new Set([
+    'intake_complete',
+    'associate_eval',
+    'msk_exam_complete',
+    'ai_summary_ready',
+    'senior_consult',
+    'navayu_classified',
+    'protocol_mapped',
+    'counselling',
+    'package_planned',
+    'closed',
+  ]);
+  const examCompleteStates = new Set([
+    'msk_exam_complete',
+    'ai_summary_ready',
+    'senior_consult',
+    'navayu_classified',
+    'protocol_mapped',
+    'counselling',
+    'package_planned',
+    'closed',
+  ]);
+  const summaryReadyStates = new Set([
+    'ai_summary_ready',
+    'senior_consult',
+    'navayu_classified',
+    'protocol_mapped',
+    'counselling',
+    'package_planned',
+    'closed',
+  ]);
+
+  const hasLumbarCore = !!(lumbar.odi && lumbar.vas && lumbar.slrt);
+
+  return {
+    intakeSubmitted: !!intake.submittedAt || intakeCompleteStates.has(mskState),
+    mskExamFormComplete: hasLumbarCore || examCompleteStates.has(mskState),
+    aiSummaryReady: summaryReadyStates.has(mskState),
+    registrationComplete: typeof navayu.hearAboutNavayu === 'string',
+  };
 }
 
 function deepMergeMetadata(

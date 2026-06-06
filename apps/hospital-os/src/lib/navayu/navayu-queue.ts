@@ -40,11 +40,18 @@ export function filterNavayuDoctorQueue(
 ): QueueEntry[] {
   return entries.filter((entry) => {
     const state = asMskState(entry.mskLifecycleState);
-    if (!state) {
-      return !seniorDoctor;
-    }
     if (seniorDoctor) {
-      return SENIOR_VISIBLE_STATES.includes(state);
+      if (state && SENIOR_VISIBLE_STATES.includes(state)) {
+        return true;
+      }
+      // Show handoff-ready rows even before metadata refresh lands.
+      return (
+        !state &&
+        (entry.status === 'in-consultation' || entry.status === 'completed')
+      );
+    }
+    if (!state) {
+      return true;
     }
     return !JUNIOR_HIDDEN_STATES.includes(state);
   });

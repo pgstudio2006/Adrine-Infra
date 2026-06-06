@@ -7,7 +7,7 @@ import { useOperationalEventStream } from '@/runtime/realtime-runtime';
 import { getPlatformSession, isPlatformRuntimeEnabled } from '@/runtime/platform-session';
 import { InlinePlatformError } from '@/components/opd/InlinePlatformError';
 import { useClinicalPlatformListSync } from '@/hooks/useClinicalPlatformListSync';
-import { averageWaitMinutes, formatWaitMinutes } from '@/lib/opd/queue-presenters';
+import { averageWaitMinutes, formatWaitMinutes, queueEntryKey } from '@/lib/opd/queue-presenters';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PlatformConnectivityStrip } from '@/components/PlatformConnectivityStrip';
@@ -256,7 +256,7 @@ export default function ReceptionQueue() {
                           <Button
                             size="sm"
                             className="gap-1.5"
-                            onClick={() => updateQueueStatus(entry.tokenNo, 'called')}
+                            onClick={() => updateQueueStatus(queueEntryKey(entry), 'called')}
                           >
                             <Phone className="w-3.5 h-3.5" />
                             Call patient
@@ -267,7 +267,7 @@ export default function ReceptionQueue() {
                           <Button
                             size="sm"
                             className="gap-1.5"
-                            onClick={() => updateQueueStatus(entry.tokenNo, 'in-consultation')}
+                            onClick={() => updateQueueStatus(queueEntryKey(entry), 'in-consultation')}
                           >
                             <Play className="w-3.5 h-3.5" />
                             Hand off to doctor
@@ -278,7 +278,7 @@ export default function ReceptionQueue() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => updateQueueStatus(entry.tokenNo, 'completed')}
+                            onClick={() => updateQueueStatus(queueEntryKey(entry), 'completed')}
                           >
                             Mark complete
                           </Button>
@@ -290,7 +290,7 @@ export default function ReceptionQueue() {
                             variant="ghost"
                             className="h-8 w-8 p-0"
                             title="Skip token"
-                            onClick={() => updateQueueStatus(entry.tokenNo, 'skipped')}
+                            onClick={() => updateQueueStatus(queueEntryKey(entry), 'skipped')}
                           >
                             <SkipForward className="w-3.5 h-3.5" />
                           </Button>
