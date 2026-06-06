@@ -162,9 +162,13 @@ function connectBranchStream(branchId: string, stream: BranchStream) {
   try {
     const session = getPlatformSession();
     if (!session) return;
+    const tenantId =
+      session.tenantId?.trim() ||
+      (import.meta.env.VITE_DEV_TENANT_ID as string | undefined)?.trim() ||
+      'tenant_navayu';
     const params = new URLSearchParams({
       branchId,
-      tenantId: session.tenantId,
+      tenantId,
     });
     const url = `${domainBase()}/realtime/stream?${params.toString()}`;
     const es = new EventSource(url);

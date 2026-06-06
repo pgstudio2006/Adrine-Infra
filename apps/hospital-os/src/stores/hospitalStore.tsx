@@ -2757,9 +2757,6 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
         return merged.sort((a, b) => a.tokenNo - b.tokenNo);
       });
     } catch (err) {
-      if (isPlatformAuthoritative()) {
-        setQueue([]);
-      }
       const now = Date.now();
       if (now - lastQueueSyncErrorAtRef.current > 8000) {
         lastQueueSyncErrorAtRef.current = now;

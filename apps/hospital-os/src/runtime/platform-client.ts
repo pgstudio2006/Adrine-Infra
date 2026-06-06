@@ -55,7 +55,6 @@ const failCounts = new Map<string, number>();
 /** Per-URL cooldown expiry timestamp (ms). While active the URL is skipped. */
 const cooldowns = new Map<string, number>();
 
-const MAX_INFLIGHT = 8;
 const MAX_BACKOFF_MS = 30_000;
 const MAX_COOLDOWN_ENTRIES = 200;
 
@@ -129,12 +128,6 @@ export async function platformFetch<T>(
     }
   }
 
-  // ── Concurrency guard (GET only): if too many unique requests in-flight, reject ─
-  if (canDedup && inflight.size >= MAX_INFLIGHT) {
-    // status 0 = client-side throttle, not a real HTTP error
-    throw new PlatformApiError('Client-side concurrency limit reached', 0);
-  }
-
   const promise = (async () => {
     try {
       const res = await fetch(fullUrl, {
@@ -158,7 +151,9 @@ export async function platformFetch<T>(
       if (canDedup) recordSuccess(key);
       return (await res.json()) as T;
     } catch (err) {
-      if (canDedup) recordFailure(key);
+      if (canDedup && !(err instanceof PlatformApiError && err.status === 0)) {
+        recordFailure(key);
+      }
       throw err;
     }
   })();

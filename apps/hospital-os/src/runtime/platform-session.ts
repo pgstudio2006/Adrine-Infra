@@ -44,13 +44,15 @@ export function platformHeaders(): Record<string, string> {
   }
 
   const tenantId =
-    session?.tenantId ?? (import.meta.env.VITE_DEV_TENANT_ID as string) ?? 'tenant_dev';
+    session?.tenantId?.trim() ||
+    (import.meta.env.VITE_DEV_TENANT_ID as string | undefined)?.trim() ||
+    'tenant_navayu';
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'x-tenant-id': tenantId,
   };
-  if (session?.branchId) {
-    headers['x-branch-id'] = session.branchId;
+  if (session?.branchId?.trim()) {
+    headers['x-branch-id'] = session.branchId.trim();
   } else if (runtimeOn && production) {
     throw new Error('Branch context required for platform API calls in production.');
   }
