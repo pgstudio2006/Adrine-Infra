@@ -116,11 +116,22 @@ export async function platformEnsureActiveOpdVisit(input: {
 export async function platformListOpdBoard(branchId: string): Promise<PlatformOpdVisit[]> {
   const base = domainBase();
   if (!base) return [];
-  const rows = await platformFetch<PlatformOpdVisit[]>(
-    base,
-    `/opd/visits/board?branchId=${encodeURIComponent(branchId)}`,
-  );
-  return rows;
+  const query = `branchId=${encodeURIComponent(branchId)}`;
+  /** Prefer alias — old deploys routed visits/board to visits/:id with id=board. */
+  const paths = [`/opd/board/visits?${query}`, `/opd/visits/board?${query}`];
+  let lastError: PlatformApiError | undefined;
+  for (const path of paths) {
+    try {
+      return await platformFetch<PlatformOpdVisit[]>(base, path);
+    } catch (err) {
+      if (err instanceof PlatformApiError && err.status === 404) {
+        lastError = err;
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastError ?? new PlatformApiError('OPD board unavailable', 404);
 }
 
 export async function platformGetOpdVisit(visitId: string): Promise<PlatformOpdVisit> {

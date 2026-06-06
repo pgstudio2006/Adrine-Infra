@@ -372,7 +372,7 @@ export class OpdService {
     const urgent =
       redFlags.length > 0 && !redFlags.every((flag) => flag === 'none');
 
-    const visit = await this.patchVisitMetadata(tenantId, visitId, {
+    await this.patchVisitMetadata(tenantId, visitId, {
       navayu: {
         intake: {
           formId: body.formId,

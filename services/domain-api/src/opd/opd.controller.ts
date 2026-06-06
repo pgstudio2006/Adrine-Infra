@@ -26,6 +26,17 @@ export class OpdController {
     return this.opd.createVisit(tenantId ?? 'tenant_dev', branchId ?? 'branch_main', body);
   }
 
+  /** Alias path — never shadowed by visits/:id (legacy bug treated id=board). */
+  @Get('board/visits')
+  boardAlias(
+    @Headers('x-tenant-id') tenantId: string,
+    @Query('branchId') branchId: string | undefined,
+    @Headers('x-branch-id') headerBranch: string | undefined,
+  ) {
+    const bid = branchId ?? headerBranch ?? 'branch_main';
+    return this.opd.listBoardVisits(tenantId ?? 'tenant_dev', bid);
+  }
+
   /** Queue / consultation board for a branch (Hospital OS hydration). Must be before visits/:id. */
   @Get('visits/board')
   board(

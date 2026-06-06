@@ -160,7 +160,13 @@ function connectBranchStream(branchId: string, stream: BranchStream) {
   };
 
   try {
-    const url = `${domainBase()}/realtime/stream?branchId=${encodeURIComponent(branchId)}`;
+    const session = getPlatformSession();
+    if (!session) return;
+    const params = new URLSearchParams({
+      branchId,
+      tenantId: session.tenantId,
+    });
+    const url = `${domainBase()}/realtime/stream?${params.toString()}`;
     const es = new EventSource(url);
     stream.es = es;
 
