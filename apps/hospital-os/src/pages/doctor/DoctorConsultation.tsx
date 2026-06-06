@@ -7,7 +7,6 @@ import ConsultationVitals from './consultation/ConsultationVitals';
 import ConsultationComplaints, { type Complaint } from './consultation/ConsultationComplaints';
 import ConsultationDiagnosis, { type Diagnosis } from './consultation/ConsultationDiagnosis';
 import ConsultationExamination, { type ExamFindings } from './consultation/ConsultationExamination';
-import ConsultationOrders, { type LabTest, type RadiologyOrder, type ProcedureOrder } from './consultation/ConsultationOrders';
 import ConsultationMedications, { type Medication } from './consultation/ConsultationMedications';
 import ConsultationRightPanel, { type AdmissionRecommendationPayload } from './consultation/ConsultationRightPanel';
 import PrescriptionPreview from './consultation/PrescriptionPreview';
@@ -232,14 +231,11 @@ export default function DoctorConsultation() {
   const patientAllergies = patient?.allergies ? patient.allergies.split(',').map(a => a.trim()) : [];
 
   // Vitals
-  const [vitals, setVitals] = useState({ bp: '120/80', spo2: '98', temp: '98.6', pulse: '72', weight: '70', sugar: '110', height: '170', rr: '18', bmi: '24.2' });
-  const [complaints, setComplaints] = useState<Complaint[]>([{ id: '1', text: 'Fever and headache', duration: '2 days', severity: 'moderate' }]);
+  const [vitals, setVitals] = useState({ bp: '', spo2: '', temp: '', pulse: '', weight: '', sugar: '', height: '', rr: '', bmi: '' });
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [hpiNotes, setHpiNotes] = useState('');
   const [examFindings, setExamFindings] = useState<ExamFindings>({ general: '', cardiovascular: '', respiratory: '', neurological: '', abdominal: '', musculoskeletal: '', ent: '', dermatological: '' });
   const [diagnoses, setDiagnoses] = useState<Diagnosis[]>([]);
-  const [labTests, setLabTests] = useState<LabTest[]>([]);
-  const [radiologyOrders, setRadiologyOrders] = useState<RadiologyOrder[]>([]);
-  const [procedures, setProcedures] = useState<ProcedureOrder[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [treatmentPlan, setTreatmentPlan] = useState('');
   const [advice, setAdvice] = useState('');
@@ -247,7 +243,7 @@ export default function DoctorConsultation() {
   const [followUpDays, setFollowUpDays] = useState('15');
   const [followUpUnit, setFollowUpUnit] = useState('Days');
   const [viewMode, setViewMode] = useState<'Digital' | 'Tablet'>('Digital');
-  const [leftTab, setLeftTab] = useState<'clinical' | 'orders' | 'photos'>('clinical');
+  const [leftTab, setLeftTab] = useState<'clinical' | 'photos'>('clinical');
   const [showPreview, setShowPreview] = useState(false);
   const [showAIScribe, setShowAIScribe] = useState(false);
   const navayuMode = isNavayuTenant();
@@ -437,8 +433,6 @@ export default function DoctorConsultation() {
     if (result.complaints.length > 0) setComplaints(result.complaints);
     if (result.diagnoses.length > 0) setDiagnoses(result.diagnoses);
     if (result.medications.length > 0) setMedications(result.medications);
-    if (result.labTests.length > 0) setLabTests(result.labTests);
-    if (result.radiologyOrders.length > 0) setRadiologyOrders(result.radiologyOrders);
     if (result.advice) setAdvice(result.advice);
     if (result.followUpDays) setFollowUpDays(result.followUpDays);
     // Apply vitals if present
@@ -458,19 +452,11 @@ export default function DoctorConsultation() {
       return;
     }
 
-    if (diagnoses.length === 0) {
-      toast.error('Add at least one diagnosis before saving', {
-        description: 'Platform OPD requires coded diagnosis to complete consultation.',
-      });
-      return;
-    }
-
     const ok = await saveConsultation({
       uhid: patientId,
       patientName,
       doctor: user?.name || 'Dr. Doctor',
       department: patient?.department || queueEntry?.department || user?.department || 'General Medicine',
-      labTests: labTests.map(t => ({ tests: t.text, category: 'General', priority: t.priority === 'stat' ? 'Emergency' as const : t.priority === 'urgent' ? 'Urgent' as const : 'Routine' as const })),
       medications: medications.map(m => ({
         drug: m.name,
         dosage: m.dosage,
@@ -478,11 +464,6 @@ export default function DoctorConsultation() {
         duration: m.duration || '7 days',
         route: m.route || 'Oral',
         qty: 10,
-      })),
-      radiologyOrders: radiologyOrders.map(r => ({
-        study: `${r.type} - ${r.bodyPart}`,
-        modality: r.type,
-        priority: r.priority === 'urgent' ? 'Urgent' as const : 'Routine' as const,
       })),
       consultationFee: 800,
     });
@@ -590,10 +571,6 @@ export default function DoctorConsultation() {
               className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${leftTab === 'clinical' ? 'bg-muted text-foreground' : 'text-muted-foreground'}`}>
               Clinical
             </button>
-            <button onClick={() => setLeftTab('orders')}
-              className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${leftTab === 'orders' ? 'bg-muted text-foreground' : 'text-muted-foreground'}`}>
-              Orders
-            </button>
             <button onClick={() => setLeftTab('photos')}
               className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors flex items-center justify-center gap-1 ${leftTab === 'photos' ? 'bg-muted text-foreground' : 'text-muted-foreground'}`}>
               <Camera className="w-3 h-3" /> Photos
@@ -644,14 +621,6 @@ export default function DoctorConsultation() {
                 <ConsultationDiagnosis diagnoses={diagnoses} onChange={setDiagnoses} />
               ) : null}
             </div>
-          ) : leftTab === 'orders' ? (
-            <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
-              <ConsultationOrders
-                labTests={labTests} onLabChange={setLabTests}
-                radiologyOrders={radiologyOrders} onRadiologyChange={setRadiologyOrders}
-                procedures={procedures} onProcedureChange={setProcedures}
-              />
-            </div>
           ) : (
             <DoctorPhotoViewer patientId={patientId || ''} />
           )}
@@ -659,7 +628,16 @@ export default function DoctorConsultation() {
 
         {/* Center — Medications */}
         <motion.div {...fadeIn(2)}>
-          <ConsultationMedications medications={medications} onChange={setMedications} allergies={patientAllergies} />
+          {navayuMode && navayuJunior ? (
+            <div className="rounded-xl border border-dashed bg-card p-6 text-sm text-muted-foreground">
+              <p className="font-medium text-foreground">Orders removed for junior MSK workflow</p>
+              <p className="mt-1 text-xs">
+                Junior doctor handoff captures intake, complaints, vitals, regional MSK exam, and investigations only.
+              </p>
+            </div>
+          ) : (
+            <ConsultationMedications medications={medications} onChange={setMedications} allergies={patientAllergies} />
+          )}
         </motion.div>
 
         {/* Right Column */}
@@ -754,8 +732,8 @@ export default function DoctorConsultation() {
           complaints,
           diagnoses,
           medications,
-          labTests,
-          radiologyOrders,
+          labTests: [],
+          radiologyOrders: [],
           advice,
           followUpDays,
           followUpUnit,

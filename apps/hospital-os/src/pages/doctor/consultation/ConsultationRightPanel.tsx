@@ -60,6 +60,7 @@ export default function ConsultationRightPanel({
   });
   const [referralData, setReferralData] = useState({ doctor: '', department: '', reason: '' });
   const [certificateType, setCertificateType] = useState('medical-leave');
+  const [certificateNote, setCertificateNote] = useState('');
 
   const handleSubmitAdmission = () => {
     if (!admissionData.reason.trim()) {
@@ -68,6 +69,41 @@ export default function ConsultationRightPanel({
 
     onRecommendAdmission?.(admissionData);
     setShowAdmission(false);
+  };
+
+  const generateCertificate = () => {
+    const title = certificateType
+      .split('-')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+    const html = `<!doctype html>
+      <html>
+        <head>
+          <title>${title}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 40px; color: #111; }
+            .page { max-width: 760px; margin: 0 auto; border: 1px solid #ddd; padding: 32px; }
+            h1 { font-size: 22px; text-align: center; margin-bottom: 32px; }
+            p { font-size: 14px; line-height: 1.7; }
+            .meta { display: flex; justify-content: space-between; margin-top: 40px; font-size: 12px; color: #555; }
+            .sign { margin-top: 72px; text-align: right; }
+          </style>
+        </head>
+        <body>
+          <div class="page">
+            <h1>${title} Certificate</h1>
+            <p>This is to certify that the patient was examined at Navayu Spine & Joint Care.</p>
+            <p>${certificateNote.trim() || 'Clinical certificate issued as per doctor assessment.'}</p>
+            <div class="meta"><span>Date: ${new Date().toLocaleDateString('en-IN')}</span><span>Generated from Adrine HMS</span></div>
+            <div class="sign">Doctor Signature</div>
+          </div>
+          <script>window.print();</script>
+        </body>
+      </html>`;
+    const win = window.open('', '_blank', 'width=820,height=900');
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
   };
 
   return (
@@ -227,7 +263,13 @@ export default function ConsultationRightPanel({
                 <SelectItem value="fitness-to-work">Fitness to Work</SelectItem>
               </SelectContent>
             </Select>
-            <Button size="sm" className="h-7 text-xs w-full">Generate Certificate</Button>
+            <Textarea
+              value={certificateNote}
+              onChange={(e) => setCertificateNote(e.target.value)}
+              placeholder="Certificate note / rest advice / fitness remarks..."
+              className="text-xs min-h-[54px] resize-none"
+            />
+            <Button size="sm" className="h-7 text-xs w-full" onClick={generateCertificate}>Generate Certificate</Button>
           </div>
         )}
       </div>

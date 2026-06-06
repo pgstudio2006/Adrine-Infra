@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useHospital } from '@/stores/hospitalStore';
 import { isPlatformRuntimeEnabled } from '@/runtime/platform-session';
@@ -92,12 +92,13 @@ const validateABHA = (abha: string) => /^\d{2}-\d{4}-\d{4}-\d{4}$/.test(abha);
 
 function patientIntakeUrl(visitId: string): string {
   const base =
-    (import.meta.env.VITE_PATIENT_APP_URL as string | undefined) ?? 'http://localhost:3101';
+    (import.meta.env.VITE_PATIENT_APP_URL as string | undefined) ??
+    (import.meta.env.PROD ? 'https://book.adrine.in' : 'http://localhost:3101');
   return `${base.replace(/\/$/, '')}/intake?visitId=${encodeURIComponent(visitId)}`;
 }
 
 export default function ReceptionRegistration() {
-  const { patients: storePatients, startFrontDeskVisit, createEmergencyCase, refreshPatientsFromPlatform, backfillPlatformPatientId } = useHospital();
+  const { patients: storePatients, startFrontDeskVisit, createEmergencyCase, refreshPatientsFromPlatform, backfillPlatformPatientId, updatePatient } = useHospital();
   const { settings } = useTenantSettings();
   const navayuMode = isNavayuTenant();
   const defaultPatientType = settings.registration.patientTypes[0]?.label ?? 'OPD';
@@ -110,6 +111,8 @@ export default function ReceptionRegistration() {
   const [searchBy, setSearchBy] = useState<'all' | 'uhid' | 'phone' | 'name' | 'aadhaar' | 'abha'>('all');
   const [selectedBranch, setSelectedBranch] = useState('Main Hospital');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [allowDuplicateRegistration, setAllowDuplicateRegistration] = useState(false);
+  const [editingUhid, setEditingUhid] = useState<string | null>(null);
   const [demoResult, setDemoResult] = useState<null | {
     patientName: string;
     uhid: string;
@@ -145,11 +148,16 @@ export default function ReceptionRegistration() {
     isMLC: false, mlcPoliceCase: '', mlcReportingAuthority: '', mlcIncidentDescription: '',
     // Photo
     hasPhoto: false,
+    photoDataUrl: '',
     // Branch
     branch: 'Main Hospital',
-    documents: [] as { name: string; type: string }[],
+    documents: [] as { name: string; type: string; size: number; dataUrl: string }[],
   });
   const [navayuFields, setNavayuFields] = useState<NavayuRegistrationFormState>(createDefaultNavayuRegistrationState);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const routingDepartments = navayuMode ? NAVAYU_CLINICAL_DEPARTMENTS : settings.registration.departments;
 
@@ -219,10 +227,106 @@ export default function ReceptionRegistration() {
 
   const updateField = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    if (['firstName', 'lastName', 'phone', 'aadhaar'].includes(field)) {
+      setAllowDuplicateRegistration(false);
+    }
     // Clear validation error
     if (validationErrors[field]) {
       setValidationErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
     }
+  };
+
+  const handlePhotoFile = (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Photo must be an image');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setFormData(prev => ({
+        ...prev,
+        hasPhoto: true,
+        photoDataUrl: typeof reader.result === 'string' ? reader.result : '',
+      }));
+      toast.success('Patient photo attached');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const stopCamera = useCallback(() => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setCameraOpen(false);
+  }, []);
+
+  const openCamera = useCallback(async () => {
+    setCameraError(null);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError('Camera is not available in this browser. Use Upload Photo instead.');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+      streamRef.current = stream;
+      setCameraOpen(true);
+      window.setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          void videoRef.current.play();
+        }
+      }, 0);
+    } catch (error) {
+      setCameraError(error instanceof Error ? error.message : 'Could not open camera');
+    }
+  }, []);
+
+  const captureCameraPhoto = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+      toast.error('Camera is not ready yet');
+      return;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+    setFormData(prev => ({ ...prev, hasPhoto: true, photoDataUrl: dataUrl }));
+    toast.success('Patient photo captured');
+    stopCamera();
+  }, [stopCamera]);
+
+  const handleDocumentFiles = (files: FileList | null) => {
+    if (!files?.length) return;
+    Array.from(files).forEach((file) => {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`${file.name} is larger than 5 MB`);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        setFormData(prev => ({
+          ...prev,
+          documents: [
+            ...prev.documents,
+            {
+              name: file.name,
+              type: file.type || 'application/octet-stream',
+              size: file.size,
+              dataUrl: typeof reader.result === 'string' ? reader.result : '',
+            },
+          ],
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+    toast.success(`${files.length} document${files.length > 1 ? 's' : ''} attached`);
   };
 
   // Validation per step
@@ -323,6 +427,41 @@ export default function ReceptionRegistration() {
     if (searchBy === 'abha') return p.abhaId?.toLowerCase().includes(q) ?? false;
     return p.name.toLowerCase().includes(q) || p.uhid.toLowerCase().includes(q) || p.phone.includes(search);
   });
+
+  const startEditingPatient = (uhid: string) => {
+    const patient = storePatients.find((item) => item.uhid === uhid);
+    if (!patient) return;
+    const [firstName = patient.name, ...rest] = patient.name.split(' ');
+    setEditingUhid(uhid);
+    setFormData(prev => ({
+      ...prev,
+      firstName,
+      lastName: rest.join(' '),
+      dob: '',
+      gender: patient.gender === 'F' ? 'female' : patient.gender === 'M' ? 'male' : 'other',
+      phone: patient.phone,
+      patientType: patient.registrationPatientType ?? patient.patientType,
+      category: patient.category,
+      bloodGroup: patient.bloodGroup ?? '',
+      abhaId: patient.abhaId ?? '',
+      aadhaar: patient.aadhaar ?? '',
+      department: patient.department ?? '',
+      assignedDoctor: patient.assignedDoctor ?? '',
+      allergies: patient.allergies ?? '',
+      chronicDiseases: patient.chronicDiseases ?? '',
+      branch: patient.branch,
+      insuranceProvider: patient.insuranceProvider ?? '',
+      policyNo: patient.policyNo ?? '',
+      referralSource: patient.referralSource ?? 'walk-in',
+      photoDataUrl: patient.photoUrl ?? '',
+      hasPhoto: Boolean(patient.photoUrl),
+      documents: patient.documents ?? [],
+    }));
+    setAllowDuplicateRegistration(true);
+    setRegistrationTab('full');
+    setStep(0);
+    setMode('new');
+  };
 
   const FieldError = ({ field }: { field: string }) => validationErrors[field] ? (
     <p className="text-xs text-destructive mt-1">{validationErrors[field]}</p>
@@ -718,6 +857,13 @@ export default function ReceptionRegistration() {
         setValidationErrors({ hearAboutNavayu: 'Select how the patient heard about us' });
         return;
       }
+      const existingMatch = duplicatePhoneWarning ?? duplicateWarning;
+      if (existingMatch?.uhid && !allowDuplicateRegistration) {
+        toast.error('Possible duplicate patient', {
+          description: 'Open the existing record, merge it, or click Continue anyway before creating another record.',
+        });
+        return;
+      }
       setPlatformError(null);
       try {
         const patientName = `${formData.firstName} ${formData.lastName}`.trim();
@@ -729,7 +875,10 @@ export default function ReceptionRegistration() {
             gender: formData.gender === 'female' ? 'F' : formData.gender === 'male' ? 'M' : 'O',
             phone: formData.phone,
             category: formData.category,
-            patientType: 'OPD',
+            patientType: selectedJourneyType,
+            registrationPatientType: formData.patientType,
+            photoUrl: formData.photoDataUrl || undefined,
+            documents: formData.documents,
             department: formData.department || routingDepartments[0] || 'Spine & MSK',
             assignedDoctor: formData.assignedDoctor || getDefaultAssignedDoctor(formData.department || routingDepartments[0]),
             branch: formData.branch,
@@ -749,6 +898,7 @@ export default function ReceptionRegistration() {
         setRegistrationTab('full');
         setStep(0);
         setNavayuFields(createDefaultNavayuRegistrationState());
+        setAllowDuplicateRegistration(false);
         navigate('/reception/queue');
       } catch (e) {
         setPlatformError(e instanceof Error ? e.message : 'Walk-in registration failed');
@@ -761,10 +911,10 @@ export default function ReceptionRegistration() {
 
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">New Patient Registration</h1>
-            <p className="text-sm text-muted-foreground mt-1">UHID: <span className="font-mono font-semibold text-foreground">{newUHID}</span> · Branch: {formData.branch}</p>
+            <h1 className="text-2xl font-bold tracking-tight">{editingUhid ? 'Edit Patient Information' : 'New Patient Registration'}</h1>
+            <p className="text-sm text-muted-foreground mt-1">UHID: <span className="font-mono font-semibold text-foreground">{editingUhid ?? newUHID}</span> · Branch: {formData.branch}</p>
           </div>
-          <button onClick={() => { setMode('list'); setStep(0); setRegistrationTab('full'); }} className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"><X className="w-4 h-4" /> Cancel</button>
+          <button onClick={() => { setMode('list'); setStep(0); setRegistrationTab('full'); setEditingUhid(null); }} className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"><X className="w-4 h-4" /> Cancel</button>
         </div>
 
         <Tabs
@@ -842,9 +992,31 @@ export default function ReceptionRegistration() {
                   Patient <strong>{(duplicateWarning || duplicatePhoneWarning)!.name}</strong> ({(duplicateWarning || duplicatePhoneWarning)!.uhid}) has matching data.
                 </p>
                 <div className="flex gap-2 mt-2">
-                  <button className="text-xs px-2 py-1 rounded bg-accent hover:bg-accent/80">View existing record</button>
+                  <button
+                    onClick={() => {
+                      const existing = duplicatePhoneWarning ?? duplicateWarning;
+                      if (existing?.uhid) {
+                        setSearch(existing.uhid);
+                        setSearchBy('uhid');
+                        setMode('list');
+                      }
+                    }}
+                    className="text-xs px-2 py-1 rounded bg-accent hover:bg-accent/80"
+                  >
+                    View existing record
+                  </button>
                   <button onClick={() => setMode('merge')} className="text-xs px-2 py-1 rounded bg-accent hover:bg-accent/80">Merge records</button>
-                  <button className="text-xs px-2 py-1 rounded bg-accent hover:bg-accent/80">Continue anyway</button>
+                  <button
+                    onClick={() => {
+                      setAllowDuplicateRegistration(true);
+                      toast.warning('Duplicate override enabled', {
+                        description: 'Reception can continue, but this will create another patient record.',
+                      });
+                    }}
+                    className="text-xs px-2 py-1 rounded bg-accent hover:bg-accent/80"
+                  >
+                    Continue anyway
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -881,18 +1053,52 @@ export default function ReceptionRegistration() {
               <h2 className="font-semibold flex items-center gap-2"><User className="w-4 h-4" /> Patient Information</h2>
               {/* Photo Capture */}
               <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-xl border-2 border-dashed flex items-center justify-center bg-muted/30 cursor-pointer hover:bg-accent/30 transition-colors">
-                  {formData.hasPhoto ? (
-                    <div className="w-full h-full rounded-xl bg-muted flex items-center justify-center text-sm font-semibold">Photo</div>
+                <label className="w-20 h-20 rounded-xl border-2 border-dashed flex items-center justify-center bg-muted/30 cursor-pointer hover:bg-accent/30 transition-colors overflow-hidden">
+                  {formData.photoDataUrl ? (
+                    <img src={formData.photoDataUrl} alt="Patient" className="h-full w-full object-cover" />
                   ) : (
                     <Camera className="w-6 h-6 text-muted-foreground" />
                   )}
-                </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="user"
+                    className="hidden"
+                    onChange={(e) => handlePhotoFile(e.target.files?.[0])}
+                  />
+                </label>
                 <div>
-                  <button onClick={() => updateField('hasPhoto', true)} className="text-xs px-3 py-1.5 rounded-lg border hover:bg-accent font-medium">Capture Photo</button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void openCamera()}
+                      className="inline-flex text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
+                    >
+                      {formData.hasPhoto ? 'Retake photo' : 'Open camera'}
+                    </button>
+                    <label className="inline-flex text-xs px-3 py-1.5 rounded-lg border hover:bg-accent font-medium cursor-pointer">
+                      Upload Photo
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handlePhotoFile(e.target.files?.[0])}
+                      />
+                    </label>
+                  </div>
+                  {cameraError ? <p className="text-xs text-destructive mt-1">{cameraError}</p> : null}
                   <p className="text-xs text-muted-foreground mt-1">Patient photo for ID verification</p>
                 </div>
               </div>
+              {cameraOpen ? (
+                <div className="rounded-xl border bg-muted/20 p-3 space-y-3">
+                  <video ref={videoRef} className="w-full max-w-sm rounded-lg bg-black" playsInline muted />
+                  <div className="flex gap-2">
+                    <Button type="button" size="sm" onClick={captureCameraPhoto}>Capture photo</Button>
+                    <Button type="button" size="sm" variant="outline" onClick={stopCamera}>Cancel camera</Button>
+                  </div>
+                </div>
+              ) : null}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label className="text-sm font-medium mb-1 block">First Name *</label>
@@ -1341,11 +1547,38 @@ export default function ReceptionRegistration() {
                 </div>
                 <div className="sm:col-span-2 border-t pt-4 mt-2">
                   <h3 className="text-sm font-semibold mb-3">Document Upload</h3>
-                  <div className="rounded-lg border-2 border-dashed p-6 text-center hover:bg-accent/30 transition-colors cursor-pointer">
+                  <label className="block rounded-lg border-2 border-dashed p-6 text-center hover:bg-accent/30 transition-colors cursor-pointer">
                     <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
                     <p className="text-sm text-muted-foreground">Drop files or click to upload</p>
                     <p className="text-xs text-muted-foreground mt-1">ID proofs, insurance cards, referral letters, previous records</p>
-                  </div>
+                    <input
+                      type="file"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => handleDocumentFiles(e.target.files)}
+                    />
+                  </label>
+                  {formData.documents.length > 0 && (
+                    <div className="mt-3 space-y-1.5">
+                      {formData.documents.map((doc, index) => (
+                        <div key={`${doc.name}-${index}`} className="flex items-center justify-between rounded-lg border px-3 py-2 text-xs">
+                          <span className="truncate">{doc.name}</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFormData(prev => ({
+                                ...prev,
+                                documents: prev.documents.filter((_, i) => i !== index),
+                              }))
+                            }
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1427,6 +1660,7 @@ export default function ReceptionRegistration() {
                   <p className="text-sm"><span className="text-muted-foreground">DOB:</span> {formData.dob || '—'} {calculatedAge !== null ? `(${calculatedAge}y)` : ''}</p>
                   <p className="text-sm"><span className="text-muted-foreground">Gender:</span> {formData.gender}</p>
                   <p className="text-sm"><span className="text-muted-foreground">Photo:</span> {formData.hasPhoto ? '✓ Captured' : 'Not captured'}</p>
+                  <p className="text-sm"><span className="text-muted-foreground">Documents:</span> {formData.documents.length}</p>
                 </div>
                 <div className="rounded-lg border p-4 space-y-1.5">
                   <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Contact</p>
@@ -1473,13 +1707,49 @@ export default function ReceptionRegistration() {
               const registrationPatientType = formData.patientType;
               const journeyPatientType = selectedJourneyType;
 
-              if (navayuMode && !navayuFields.hearAboutNavayu) {
+              if (!editingUhid && navayuMode && !navayuFields.hearAboutNavayu) {
                 setValidationErrors({ hearAboutNavayu: 'Select how the patient heard about us' });
                 setStep(3);
                 return;
               }
 
+              if (editingUhid) {
+                updatePatient(editingUhid, {
+                  name: patientName,
+                  age: calculatedAge ?? 0,
+                  gender: formData.gender === 'male' ? 'M' : formData.gender === 'female' ? 'F' : 'O',
+                  phone: formData.phone,
+                  photoUrl: formData.photoDataUrl || undefined,
+                  documents: formData.documents,
+                  bloodGroup: formData.bloodGroup || undefined,
+                  abhaId: formData.abhaId || undefined,
+                  aadhaar: formData.aadhaar || undefined,
+                  category: formData.category,
+                  patientType: journeyPatientType,
+                  registrationPatientType,
+                  department: formData.department || undefined,
+                  assignedDoctor: formData.assignedDoctor || undefined,
+                  allergies: formData.allergies || undefined,
+                  chronicDiseases: formData.chronicDiseases || undefined,
+                  branch: formData.branch,
+                  insuranceProvider: formData.insuranceProvider || undefined,
+                  policyNo: formData.policyNo || undefined,
+                  referralSource: navayuFields.hearAboutNavayu || formData.referralSource || undefined,
+                });
+                setEditingUhid(null);
+                setMode('list');
+                setStep(0);
+                return;
+              }
+
               const existingMatch = duplicatePhoneWarning ?? duplicateWarning;
+              if (existingMatch?.uhid && !allowDuplicateRegistration) {
+                toast.error('Possible duplicate patient', {
+                  description: `Use View existing record / Merge records, or click Continue anyway to override.`,
+                });
+                setStep(0);
+                return;
+              }
               if (existingMatch?.uhid) {
                 await backfillPlatformPatientId(existingMatch.uhid);
               }
@@ -1494,7 +1764,8 @@ export default function ReceptionRegistration() {
                   age: calculatedAge ?? 0,
                   gender: formData.gender === 'male' ? 'M' : formData.gender === 'female' ? 'F' : 'O',
                   phone: formData.phone,
-                  photoUrl: formData.hasPhoto ? `captured:${Date.now()}` : undefined,
+                  photoUrl: formData.photoDataUrl || undefined,
+                  documents: formData.documents,
                   guardianName: formData.guardianName || undefined,
                   guardianRelation: formData.guardianRelation || undefined,
                   guardianPhone: formData.guardianPhone || undefined,
@@ -1546,10 +1817,11 @@ export default function ReceptionRegistration() {
                 ...result,
               });
               setNavayuFields(createDefaultNavayuRegistrationState());
+              setAllowDuplicateRegistration(false);
               setMode('list'); setStep(0);
             }}
               className="px-6 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2">
-              <Check className="w-4 h-4" /> Start Live Visit
+              <Check className="w-4 h-4" /> {editingUhid ? 'Save Patient Info' : 'Start Live Visit'}
             </button>
           )}
         </div>
@@ -1757,7 +2029,31 @@ export default function ReceptionRegistration() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1">
-                    <button className="p-1.5 rounded hover:bg-accent" title="View profile"><Eye className="w-3.5 h-3.5 text-muted-foreground" /></button>
+                    <button
+                      type="button"
+                      className="p-1.5 rounded hover:bg-accent"
+                      title="Edit patient info"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        startEditingPatient(p.uhid);
+                      }}
+                    >
+                      <Eye className="w-3.5 h-3.5 text-muted-foreground" />
+                    </button>
+                    <button
+                      type="button"
+                      className="p-1.5 rounded hover:bg-accent"
+                      title="Copy intake link"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        const visitId = p.platformOpdVisitId ?? p.uhid;
+                        const intakeUrl = patientIntakeUrl(visitId);
+                        void navigator.clipboard.writeText(intakeUrl);
+                        toast.success('Intake link copied');
+                      }}
+                    >
+                      <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
+                    </button>
                     <button className="p-1.5 rounded hover:bg-accent" title="Visit history"><History className="w-3.5 h-3.5 text-muted-foreground" /></button>
                   </div>
                 </td>

@@ -265,9 +265,9 @@ export default function ConsultationDiagnosis({ diagnoses, onChange }: Props) {
 
       {/* Clinical Decision Support hint */}
       {diagnoses.length === 0 && (
-        <div className="flex items-center gap-1.5 text-[10px] text-amber-600 bg-amber-500/5 border border-amber-500/20 rounded-lg px-2.5 py-1.5 mb-2">
+        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground bg-muted/30 border rounded-lg px-2.5 py-1.5 mb-2">
           <AlertTriangle className="w-3 h-3" />
-          Recording a diagnosis is mandatory before finalizing consultation.
+          Diagnosis is optional. Add it only when the clinician is ready.
         </div>
       )}
 
@@ -283,7 +283,7 @@ export default function ConsultationDiagnosis({ diagnoses, onChange }: Props) {
 
       <div className="flex gap-1.5 relative">
         <Input
-          placeholder="Search ICD-10 diagnosis..."
+          placeholder="Search ICD-10 diagnosis or enter free text..."
           value={search}
           onChange={e => { setSearch(e.target.value); setShowSuggestions(true); }}
           onFocus={() => setShowSuggestions(true)}

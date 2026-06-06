@@ -122,6 +122,7 @@ export interface HospitalPatient {
   gender: string;
   phone: string;
   photoUrl?: string;
+  documents?: { name: string; type: string; size: number; dataUrl: string }[];
   guardianName?: string;
   guardianRelation?: string;
   guardianPhone?: string;
@@ -1038,6 +1039,7 @@ interface HospitalStore {
 
   // Actions
   registerPatient: (data: Omit<HospitalPatient, 'uhid' | 'registeredOn'>) => string;
+  updatePatient: (uhid: string, patch: Partial<HospitalPatient>) => void;
   /** Hydrate / search patients from domain-api; merges and backfills `platformPatientId`. */
   refreshPatientsFromPlatform: (query?: string) => Promise<void>;
   /** Resolve domain patient id for a local UHID when platform runtime is on. */
@@ -1306,8 +1308,8 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
   const [prescriptions, setPrescriptions] = useState<PrescriptionOrder[]>(SEED_PRESCRIPTIONS);
   const [pharmacyInventory, setPharmacyInventory] = useState<PharmacyInventoryItem[]>(SEED_PHARMACY_INVENTORY);
   const [radiologyOrders, setRadiologyOrders] = useState<RadiologyOrder[]>(SEED_RADIOLOGY);
-  const [invoices, setInvoices] = useState<BillingInvoice[]>(SEED_INVOICES);
-  const [estimates, setEstimates] = useState<BillingEstimate[]>(SEED_ESTIMATES);
+  const [invoices, setInvoices] = useState<BillingInvoice[]>(() => (USE_PLATFORM_EMPTY_SEED ? [] : SEED_INVOICES));
+  const [estimates, setEstimates] = useState<BillingEstimate[]>(() => (USE_PLATFORM_EMPTY_SEED ? [] : SEED_ESTIMATES));
   const [emergencyCases, setEmergencyCases] = useState<EmergencyCase[]>(SEED_EMERGENCY_CASES);
   const [admissions, setAdmissions] = useState<AdmissionCase[]>(SEED_ADMISSIONS);
   const [nursingRounds, setNursingRounds] = useState<NursingRound[]>(SEED_NURSING_ROUNDS);
@@ -1319,7 +1321,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
   const [roomShiftHistory, setRoomShiftHistory] = useState<RoomShiftRecord[]>(SEED_ROOM_SHIFTS);
   const [departmentTransfers, setDepartmentTransfers] = useState<DepartmentTransferRecord[]>(SEED_DEPARTMENT_TRANSFERS);
   const [notificationLogs, setNotificationLogs] = useState<NotificationLog[]>(SEED_NOTIFICATION_LOGS);
-  const [billingTransactions, setBillingTransactions] = useState<BillingTransaction[]>(SEED_BILLING_TRANSACTIONS);
+  const [billingTransactions, setBillingTransactions] = useState<BillingTransaction[]>(() => (USE_PLATFORM_EMPTY_SEED ? [] : SEED_BILLING_TRANSACTIONS));
   const [workflowEvents, setWorkflowEvents] = useState<WorkflowEvent[]>([]);
 
   const admissionsRef = useRef(admissions);
@@ -1641,6 +1643,20 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     }
 
     return uhid;
+  }, [pushWorkflowEvent]);
+
+  const updatePatient = useCallback((uhid: string, patch: Partial<HospitalPatient>) => {
+    setPatients(prev => prev.map(patient => patient.uhid === uhid ? { ...patient, ...patch, uhid } : patient));
+    const nextName = patch.name ?? patientsRef.current.find(patient => patient.uhid === uhid)?.name;
+    pushWorkflowEvent({
+      module: 'reception',
+      action: 'patient_updated',
+      uhid,
+      patientName: nextName,
+      refId: uhid,
+      details: 'Reception updated patient demographics and documents',
+    });
+    toast.success('Patient information updated', { description: uhid });
   }, [pushWorkflowEvent]);
 
   const refreshPatientsFromPlatform = useCallback(async (query?: string) => {
@@ -5702,7 +5718,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
       emergencyCases, admissions, nursingRounds, doctorProgressNotes, admissionTasks, inpatientCareOrders,
       wardMedicineIssues, otRecords, roomShiftHistory, departmentTransfers, notificationLogs, billingTransactions,
       workflowEvents,
-      registerPatient, refreshPatientsFromPlatform, backfillPlatformPatientId, startFrontDeskVisit, admitPatient, transferOpdToIPD, convertOpdToIPDByUHID, bookAppointment, updateAppointmentStatus, checkInPatient,
+      registerPatient, updatePatient, refreshPatientsFromPlatform, backfillPlatformPatientId, startFrontDeskVisit, admitPatient, transferOpdToIPD, convertOpdToIPDByUHID, bookAppointment, updateAppointmentStatus, checkInPatient,
       updateQueueStatus, refreshQueueFromPlatform, refreshAppointmentsFromPlatform, refreshPlatformIpdSnapshots, refreshDepartmentWorklistsFromPlatform, nextQueuePatient, saveConsultation, updateLabStage, updateLabOrder,
       updatePrescriptionStatus, updateMedicationLineStatus, dispensePrescription, updateRadiologyOrder,
       addDailyServiceCharge, issueWardMedicine, updateWardMedicineIssueStatus,

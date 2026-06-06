@@ -25,7 +25,20 @@ const severityColors = {
   severe: 'bg-destructive/10 text-destructive',
 };
 
-// Dermatology & weight loss focused AI suggestions
+const QUICK_COMPLAINTS = [
+  'Low back pain',
+  'Neck pain',
+  'Knee pain',
+  'Shoulder pain',
+  'Radiating leg pain',
+  'Numbness / tingling',
+  'Difficulty walking',
+  'Posture imbalance',
+  'Sports injury',
+  'Follow-up review',
+];
+
+// Navayu MSK-focused clinical prompts for junior doctor handoff.
 const AI_SYMPTOM_MAP: Record<string, {
   possibleDiagnoses: string[];
   suggestedTreatments: string[];
@@ -33,6 +46,28 @@ const AI_SYMPTOM_MAP: Record<string, {
   specialistReferral?: string;
   doctorNote?: string;
 }> = {
+  'back': {
+    possibleDiagnoses: ['Mechanical low back pain', 'Lumbar radiculopathy', 'Discogenic pain', 'Facet joint pain'],
+    suggestedTreatments: ['Document ODI/VAS', 'Screen red flags', 'Start lumbar exam form', 'Escalate to senior if neurological deficit'],
+    redFlags: ['Bowel/bladder symptoms', 'Progressive weakness', 'Saddle anesthesia', 'Fever/weight loss'],
+    doctorNote: 'Complete regional MSK exam and submit junior MSK exam before senior handoff.',
+  },
+  'neck': {
+    possibleDiagnoses: ['Cervical strain', 'Cervical radiculopathy', 'Postural neck pain'],
+    suggestedTreatments: ['Document NDI/VAS', 'Assess neurological signs', 'Capture pain regions', 'Consider senior review if radiating pain'],
+    redFlags: ['Myelopathy signs', 'Trauma', 'Progressive weakness', 'Severe night pain'],
+    doctorNote: 'Use the cervical MSK form if neck is selected as pain region.',
+  },
+  'knee': {
+    possibleDiagnoses: ['Knee osteoarthritis', 'Ligament sprain', 'Meniscal pathology', 'Patellofemoral pain'],
+    suggestedTreatments: ['Document WOMAC/KOOS', 'Assess gait and swelling', 'Record pain score', 'Map protocol after senior classification'],
+    redFlags: ['Hot swollen joint', 'Unable to bear weight', 'Recent trauma', 'Neurovascular compromise'],
+  },
+  'shoulder': {
+    possibleDiagnoses: ['Rotator cuff tendinopathy', 'Frozen shoulder', 'Impingement syndrome'],
+    suggestedTreatments: ['Document SPADI/DASH', 'Record ROM limitation', 'Add investigation if clinically needed'],
+    redFlags: ['Trauma with deformity', 'Acute weakness', 'Fever', 'Neurovascular symptoms'],
+  },
   'acne': {
     possibleDiagnoses: ['Acne vulgaris (comedonal/inflammatory)', 'Hormonal acne', 'Rosacea', 'Perioral dermatitis'],
     suggestedTreatments: ['Topical clindamycin 1% gel BD', 'Benzoyl peroxide 2.5% wash', 'Tab. Doxycycline 100mg BD × 6 weeks', 'Tretinoin 0.025% cream at night'],
@@ -140,8 +175,23 @@ export default function ConsultationComplaints({ complaints, onChange, hpiNotes,
           ))}
         </div>
         <div className="flex gap-1.5">
+          <Select
+            value=""
+            onValueChange={(value) => {
+              setNewText(value);
+            }}
+          >
+            <SelectTrigger className="h-7 text-xs w-[150px]">
+              <SelectValue placeholder="Pick complaint" />
+            </SelectTrigger>
+            <SelectContent>
+              {QUICK_COMPLAINTS.map((item) => (
+                <SelectItem key={item} value={item}>{item}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Input
-            placeholder="Complaint (e.g. acne, hair loss, weight gain)…"
+            placeholder="Complaint (e.g. low back pain, neck stiffness)…"
             value={newText}
             onChange={e => setNewText(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && add()}
@@ -163,6 +213,14 @@ export default function ConsultationComplaints({ complaints, onChange, hpiNotes,
               <SelectItem value="severe">Severe</SelectItem>
             </SelectContent>
           </Select>
+          <button
+            type="button"
+            onClick={add}
+            className="h-7 px-3 rounded-md bg-foreground text-background text-xs font-medium disabled:opacity-40"
+            disabled={!newText.trim()}
+          >
+            Add
+          </button>
         </div>
 
         {/* AI Suggestions trigger */}
@@ -201,7 +259,7 @@ export default function ConsultationComplaints({ complaints, onChange, hpiNotes,
                 </div>
                 <p className="text-xs font-semibold text-violet-700">AI Clinical Decision Support</p>
                 <span className="text-[10px] bg-violet-500/10 text-violet-600 px-2 py-0.5 rounded-full ml-auto">
-                  Dermatology · Weight Management
+                  Navayu MSK
                 </span>
               </div>
 

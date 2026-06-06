@@ -96,6 +96,7 @@ export default function ReceptionAppointments() {
     updateAppointmentStatus,
     refreshAppointmentsFromPlatform,
     refreshQueueFromPlatform,
+    refreshPatientsFromPlatform,
   } = useHospital();
   const [view, setView] = useState<"day" | "week" | "list">("day");
   const [search, setSearch] = useState("");
@@ -125,6 +126,7 @@ export default function ReceptionAppointments() {
   const syncPlatformAppointments = useCallback(async () => {
     try {
       await Promise.all([
+        refreshPatientsFromPlatform(),
         refreshAppointmentsFromPlatform(),
         refreshQueueFromPlatform(),
       ]);
@@ -134,7 +136,7 @@ export default function ReceptionAppointments() {
         error instanceof Error ? error.message : "Appointment sync failed",
       );
     }
-  }, [refreshAppointmentsFromPlatform, refreshQueueFromPlatform]);
+  }, [refreshAppointmentsFromPlatform, refreshPatientsFromPlatform, refreshQueueFromPlatform]);
 
   const branchId = getPlatformSession()?.branchId;
   useOperationalEventStream(branchId, {
