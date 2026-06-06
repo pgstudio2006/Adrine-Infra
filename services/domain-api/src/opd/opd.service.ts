@@ -710,8 +710,8 @@ export class OpdService {
 
   /** Navayu MSK AI summary — LLM when OPENROUTER_API_KEY or AI_GATEWAY_URL is set; else rule-based. */
   async generateNavayuAiSummary(
-    tenantId: string,
-    visitId: string,
+    _tenantId: string,
+    _visitId: string,
     body: Record<string, unknown>,
   ) {
     const openRouterKey = process.env.OPENROUTER_API_KEY?.trim();
