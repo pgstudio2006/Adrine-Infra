@@ -1,5 +1,6 @@
 import { Activity } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { useTenantSettings } from '@/hooks/useTenantSettings';
 
 interface Vitals {
   bp: string; spo2: string; temp: string; pulse: string; weight: string; sugar: string;
@@ -12,17 +13,25 @@ interface Props {
 }
 
 export default function ConsultationVitals({ vitals, onChange }: Props) {
-  const fields = [
-    { label: 'BP', key: 'bp' as const },
-    { label: 'SPO2 (%)', key: 'spo2' as const },
-    { label: 'TEMP (°F)', key: 'temp' as const },
-    { label: 'PULSE', key: 'pulse' as const },
-    { label: 'RESP RATE', key: 'rr' as const },
-    { label: 'WEIGHT (KG)', key: 'weight' as const },
-    { label: 'HEIGHT (CM)', key: 'height' as const },
-    { label: 'BMI', key: 'bmi' as const },
-    { label: 'SUGAR/RBS', key: 'sugar' as const },
-  ];
+  const { settings } = useTenantSettings();
+  const form = settings.dynamicForms.consultation_vitals_v0;
+  const fields = (form?.sections.flatMap((section) => section.fields) ?? [
+    { label: 'BP', id: 'bp' },
+    { label: 'SPO2 (%)', id: 'spo2' },
+    { label: 'TEMP (°F)', id: 'temp' },
+    { label: 'PULSE', id: 'pulse' },
+    { label: 'RESP RATE', id: 'rr' },
+    { label: 'WEIGHT (KG)', id: 'weight' },
+    { label: 'HEIGHT (CM)', id: 'height' },
+    { label: 'BMI', id: 'bmi' },
+    { label: 'SUGAR/RBS', id: 'sugar' },
+  ]).filter((field) => field.id in vitals) as Array<{
+    id: keyof Vitals;
+    label: string;
+    min?: number;
+    max?: number;
+    type?: string;
+  }>;
 
   return (
     <div className="border rounded-xl bg-card p-4">
@@ -31,11 +40,14 @@ export default function ConsultationVitals({ vitals, onChange }: Props) {
       </p>
       <div className="grid grid-cols-3 gap-2">
         {fields.map(v => (
-          <div key={v.key}>
+          <div key={v.id}>
             <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{v.label}</label>
             <Input
-              value={vitals[v.key]}
-              onChange={e => onChange({ ...vitals, [v.key]: e.target.value })}
+              type={v.type === 'number' ? 'number' : 'text'}
+              min={v.min}
+              max={v.max}
+              value={vitals[v.id]}
+              onChange={e => onChange({ ...vitals, [v.id]: e.target.value })}
               className="mt-1 h-7 text-xs"
             />
           </div>

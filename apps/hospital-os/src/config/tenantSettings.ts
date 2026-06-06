@@ -69,6 +69,48 @@ export interface TenantFormTemplateConfig {
 
 export type TenantFormTemplates = Record<TenantFormTemplateKey, TenantFormTemplateConfig>;
 
+export type TenantDynamicFormFieldType =
+  | 'text'
+  | 'number'
+  | 'select'
+  | 'multiselect'
+  | 'boolean'
+  | 'calculator'
+  | 'pain_map'
+  | 'file';
+
+export interface TenantDynamicFormOption {
+  value: string;
+  label: string;
+}
+
+export interface TenantDynamicFormField {
+  id: string;
+  label: string;
+  type: TenantDynamicFormFieldType;
+  required?: boolean;
+  min?: number;
+  max?: number;
+  calculatorId?: string;
+  accept?: string;
+  options?: TenantDynamicFormOption[];
+}
+
+export interface TenantDynamicFormSection {
+  id: string;
+  label: string;
+  fields: TenantDynamicFormField[];
+}
+
+export interface TenantDynamicFormDefinition {
+  formId: string;
+  version: string;
+  label: string;
+  sections: TenantDynamicFormSection[];
+}
+
+export type TenantDynamicForms = Record<string, TenantDynamicFormDefinition>;
+
 export interface NavProfileMatch {
   role?: UserRole;
   department?: string;
@@ -90,6 +132,7 @@ export interface TenantSettings {
   featureFlags: Record<TenantFeatureFlag, boolean>;
   registration: TenantRegistrationConfig;
   forms: TenantFormTemplates;
+  dynamicForms: TenantDynamicForms;
   navProfiles?: Record<string, NavProfile>;
 }
 
@@ -196,6 +239,259 @@ const DEFAULT_FORM_TEMPLATES: TenantFormTemplates = {
   },
 };
 
+const DEFAULT_DYNAMIC_FORMS: TenantDynamicForms = {
+  registration_v0: {
+    formId: 'navayu.reception.registration',
+    version: 'admin-v1',
+    label: 'Reception Registration',
+    sections: [
+      {
+        id: 'referral',
+        label: 'Referral source',
+        fields: [
+          {
+            id: 'hearAboutNavayu',
+            type: 'select',
+            label: 'How did you hear about us?',
+            required: true,
+            options: [
+              { value: 'google', label: 'Google' },
+              { value: 'instagram', label: 'Instagram' },
+              { value: 'facebook', label: 'Facebook' },
+              { value: 'youtube', label: 'YouTube' },
+              { value: 'existing_patient', label: 'Existing Patient' },
+              { value: 'doctor_referral', label: 'Doctor Referral' },
+              { value: 'walk_in', label: 'Walk-in' },
+              { value: 'other', label: 'Other' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'pain_regions',
+        label: 'Pain regions',
+        fields: [
+          {
+            id: 'bodyRegions',
+            type: 'multiselect',
+            label: 'Affected regions',
+            options: [
+              { value: 'neck', label: 'Neck' },
+              { value: 'back', label: 'Back / lumbar' },
+              { value: 'knee', label: 'Knee' },
+              { value: 'shoulder', label: 'Shoulder' },
+              { value: 'hip', label: 'Hip' },
+              { value: 'multiple', label: 'Multiple regions' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  msk_lumbar_v0: {
+    formId: 'navayu.exam.lumbar',
+    version: 'admin-v1',
+    label: 'Lumbar MSK Exam',
+    sections: [
+      {
+        id: 'scores',
+        label: 'Scores',
+        fields: [
+          { id: 'odi', type: 'calculator', calculatorId: 'odi', label: 'ODI', required: true },
+          { id: 'vas', type: 'calculator', calculatorId: 'vas', label: 'VAS', required: true },
+        ],
+      },
+      {
+        id: 'exam',
+        label: 'Lumbar examination',
+        fields: [
+          {
+            id: 'slrt',
+            type: 'select',
+            label: 'Straight leg raise',
+            required: true,
+            options: [
+              { value: 'negative', label: 'Negative' },
+              { value: 'positive_left', label: 'Positive left' },
+              { value: 'positive_right', label: 'Positive right' },
+              { value: 'positive_bilateral', label: 'Positive bilateral' },
+            ],
+          },
+          { id: 'gait', type: 'text', label: 'Gait / posture notes' },
+          { id: 'neuroNotes', type: 'text', label: 'Neurological findings' },
+        ],
+      },
+    ],
+  },
+  senior_review_v0: {
+    formId: 'navayu.senior.review',
+    version: 'admin-v1',
+    label: 'Senior Review',
+    sections: [
+      {
+        id: 'pathway',
+        label: 'Pathway decision',
+        fields: [
+          {
+            id: 'pathwayDecision',
+            type: 'select',
+            label: 'Recommended pathway',
+            required: true,
+            options: [
+              { value: 'conservative', label: 'Conservative / physiotherapy' },
+              { value: 'interventional', label: 'Interventional (injection)' },
+              { value: 'surgical_consult', label: 'Surgical consult' },
+              { value: 'regenerative', label: 'Regenerative protocol' },
+            ],
+          },
+          { id: 'confirmedDiagnosis', type: 'text', label: 'Confirmed diagnosis' },
+          { id: 'seniorNotes', type: 'text', label: 'Senior notes' },
+        ],
+      },
+    ],
+  },
+  investigations_v0: {
+    formId: 'navayu.investigations',
+    version: 'admin-v1',
+    label: 'Investigations Upload',
+    sections: [
+      {
+        id: 'imaging',
+        label: 'Imaging',
+        fields: [
+          { id: 'mriUpload', type: 'file', label: 'MRI', accept: 'image/*,.pdf' },
+          { id: 'xrayUpload', type: 'file', label: 'X-ray', accept: 'image/*,.pdf' },
+        ],
+      },
+    ],
+  },
+  consultation_vitals_v0: {
+    formId: 'opd.consultation.vitals',
+    version: 'admin-v1',
+    label: 'OPD Consultation Vitals',
+    sections: [
+      {
+        id: 'vitals',
+        label: 'Vitals',
+        fields: [
+          { id: 'bp', type: 'text', label: 'BP' },
+          { id: 'spo2', type: 'number', label: 'SPO2 (%)', min: 0, max: 100 },
+          { id: 'temp', type: 'number', label: 'Temp (F)' },
+          { id: 'pulse', type: 'number', label: 'Pulse' },
+          { id: 'rr', type: 'number', label: 'Resp Rate' },
+          { id: 'weight', type: 'number', label: 'Weight (kg)' },
+          { id: 'height', type: 'number', label: 'Height (cm)' },
+          { id: 'bmi', type: 'number', label: 'BMI' },
+          { id: 'sugar', type: 'number', label: 'Sugar/RBS' },
+        ],
+      },
+    ],
+  },
+  consultation_complaints_v0: {
+    formId: 'opd.consultation.complaints',
+    version: 'admin-v1',
+    label: 'Chief Complaints',
+    sections: [
+      {
+        id: 'complaints',
+        label: 'Complaints',
+        fields: [
+          {
+            id: 'quickComplaint',
+            type: 'select',
+            label: 'Quick complaint',
+            options: [
+              { value: 'Low back pain', label: 'Low back pain' },
+              { value: 'Neck pain', label: 'Neck pain' },
+              { value: 'Knee pain', label: 'Knee pain' },
+              { value: 'Shoulder pain', label: 'Shoulder pain' },
+              { value: 'Radiating leg pain', label: 'Radiating leg pain' },
+              { value: 'Numbness / tingling', label: 'Numbness / tingling' },
+              { value: 'Difficulty walking', label: 'Difficulty walking' },
+              { value: 'Posture imbalance', label: 'Posture imbalance' },
+              { value: 'Sports injury', label: 'Sports injury' },
+              { value: 'Follow-up review', label: 'Follow-up review' },
+            ],
+          },
+          { id: 'duration', type: 'text', label: 'Duration' },
+          {
+            id: 'severity',
+            type: 'select',
+            label: 'Severity',
+            options: [
+              { value: 'mild', label: 'Mild' },
+              { value: 'moderate', label: 'Moderate' },
+              { value: 'severe', label: 'Severe' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  appointment_booking_v0: {
+    formId: 'reception.appointment.booking',
+    version: 'admin-v1',
+    label: 'Book Appointment',
+    sections: [
+      {
+        id: 'booking',
+        label: 'Appointment details',
+        fields: [
+          { id: 'patientUhid', type: 'text', label: 'Patient UHID', required: true },
+          { id: 'patientName', type: 'text', label: 'Patient Name', required: true },
+          { id: 'phone', type: 'text', label: 'Phone', required: true },
+          { id: 'department', type: 'select', label: 'Department', required: true },
+          { id: 'doctor', type: 'select', label: 'Doctor', required: true },
+          { id: 'date', type: 'text', label: 'Date', required: true },
+          { id: 'time', type: 'select', label: 'Time', required: true },
+          { id: 'duration', type: 'select', label: 'Duration', required: true },
+          { id: 'notes', type: 'text', label: 'Notes' },
+        ],
+      },
+    ],
+  },
+  reception_walkin_v0: {
+    formId: 'reception.walkin.checkin',
+    version: 'admin-v1',
+    label: 'Walk-in Check-in',
+    sections: [
+      {
+        id: 'walkin',
+        label: 'Walk-in token',
+        fields: [
+          { id: 'name', type: 'text', label: 'Patient name', required: true },
+          { id: 'age', type: 'number', label: 'Age' },
+          { id: 'gender', type: 'select', label: 'Gender', options: [{ value: 'M', label: 'Male' }, { value: 'F', label: 'Female' }, { value: 'O', label: 'Other' }] },
+          { id: 'phone', type: 'text', label: 'Phone', required: true },
+          { id: 'department', type: 'select', label: 'Department' },
+          { id: 'doctor', type: 'select', label: 'Doctor' },
+          { id: 'notes', type: 'text', label: 'Notes' },
+        ],
+      },
+    ],
+  },
+  billing_invoice_v0: {
+    formId: 'billing.invoice',
+    version: 'admin-v1',
+    label: 'Billing Invoice',
+    sections: [
+      {
+        id: 'invoice',
+        label: 'Invoice',
+        fields: [
+          { id: 'patient', type: 'text', label: 'Patient', required: true },
+          { id: 'uhid', type: 'text', label: 'UHID', required: true },
+          { id: 'category', type: 'select', label: 'Category', required: true, options: [{ value: 'OPD', label: 'OPD' }, { value: 'IPD', label: 'IPD' }, { value: 'Emergency', label: 'Emergency' }, { value: 'Lab', label: 'Lab' }, { value: 'Radiology', label: 'Radiology' }, { value: 'Package', label: 'Package' }] },
+          { id: 'service', type: 'text', label: 'Service', required: true },
+          { id: 'qty', type: 'number', label: 'Qty', min: 1 },
+          { id: 'rate', type: 'number', label: 'Rate' },
+          { id: 'tax', type: 'number', label: 'Tax %' },
+        ],
+      },
+    ],
+  },
+};
+
 const ROLE_KEYS = Object.keys(ROLE_LABELS) as UserRole[];
 
 function buildDefaultNavigation(): Record<UserRole, Record<string, TenantNavigationItemConfig>> {
@@ -251,6 +547,7 @@ export const DEFAULT_TENANT_SETTINGS: TenantSettings = {
     patientTypes: DEFAULT_REGISTRATION_PATIENT_TYPES,
   },
   forms: DEFAULT_FORM_TEMPLATES,
+  dynamicForms: DEFAULT_DYNAMIC_FORMS,
 };
 
 /** Primary mark in app chrome (navbar). Platform brand unless tenant white-labels. */
@@ -381,6 +678,76 @@ function coerceFormTemplates(value: unknown, fallback: TenantFormTemplates): Ten
   }, {} as TenantFormTemplates);
 }
 
+const DYNAMIC_FIELD_TYPES: TenantDynamicFormFieldType[] = [
+  'text',
+  'number',
+  'select',
+  'multiselect',
+  'boolean',
+  'calculator',
+  'pain_map',
+  'file',
+];
+
+function coerceDynamicField(value: unknown): TenantDynamicFormField | null {
+  const source = asRecord(value);
+  const id = getString(source.id, '').trim();
+  const label = getString(source.label, '').trim();
+  const rawType = getString(source.type, 'text') as TenantDynamicFormFieldType;
+  if (!id || !label) return null;
+  const type = DYNAMIC_FIELD_TYPES.includes(rawType) ? rawType : 'text';
+  const options = Array.isArray(source.options)
+    ? source.options
+        .map((option) => {
+          const opt = asRecord(option);
+          const value = getString(opt.value, '').trim();
+          const label = getString(opt.label, '').trim();
+          return value && label ? { value, label } : null;
+        })
+        .filter((option): option is TenantDynamicFormOption => option !== null)
+    : undefined;
+  return {
+    id,
+    label,
+    type,
+    ...(typeof source.required === 'boolean' ? { required: source.required } : {}),
+    ...(typeof source.min === 'number' ? { min: source.min } : {}),
+    ...(typeof source.max === 'number' ? { max: source.max } : {}),
+    ...(typeof source.calculatorId === 'string' ? { calculatorId: source.calculatorId } : {}),
+    ...(typeof source.accept === 'string' ? { accept: source.accept } : {}),
+    ...(options?.length ? { options } : {}),
+  };
+}
+
+function coerceDynamicForms(value: unknown, fallback: TenantDynamicForms): TenantDynamicForms {
+  const source = asRecord(value);
+  const keys = new Set([...Object.keys(fallback), ...Object.keys(source)]);
+  const result: TenantDynamicForms = {};
+  keys.forEach((key) => {
+    const formSource = asRecord(source[key]);
+    const fallbackForm = fallback[key];
+    const formId = getString(formSource.formId, fallbackForm?.formId ?? key).trim();
+    const version = getString(formSource.version, fallbackForm?.version ?? 'admin-v1').trim();
+    const label = getString(formSource.label, fallbackForm?.label ?? key).trim();
+    const sourceSections = Array.isArray(formSource.sections) ? formSource.sections : fallbackForm?.sections ?? [];
+    const sections = sourceSections
+      .map((section) => {
+        const sectionSource = asRecord(section);
+        const id = getString(sectionSource.id, '').trim();
+        const label = getString(sectionSource.label, '').trim();
+        const fields = Array.isArray(sectionSource.fields)
+          ? sectionSource.fields.map(coerceDynamicField).filter((field): field is TenantDynamicFormField => field !== null)
+          : [];
+        return id && label && fields.length ? { id, label, fields } : null;
+      })
+      .filter((section): section is TenantDynamicFormSection => section !== null);
+    if (formId && label && sections.length) {
+      result[key] = { formId, version, label, sections };
+    }
+  });
+  return Object.keys(result).length ? result : fallback;
+}
+
 export function coerceTenantSettings(input: unknown): TenantSettings {
   const source = asRecord(input);
   const brandingSource = asRecord(source.branding);
@@ -389,6 +756,7 @@ export function coerceTenantSettings(input: unknown): TenantSettings {
   const featureSource = asRecord(source.featureFlags);
   const registrationSource = asRecord(source.registration);
   const formsSource = asRecord(source.forms);
+  const dynamicFormsSource = asRecord(source.dynamicForms);
 
   const roles = ROLE_KEYS.reduce((result, role) => {
     const roleDefaults = DEFAULT_TENANT_SETTINGS.roles[role];
@@ -429,6 +797,7 @@ export function coerceTenantSettings(input: unknown): TenantSettings {
   };
 
   const forms = coerceFormTemplates(formsSource, DEFAULT_TENANT_SETTINGS.forms);
+  const dynamicForms = coerceDynamicForms(dynamicFormsSource, DEFAULT_TENANT_SETTINGS.dynamicForms);
   const navProfiles = coerceNavProfiles(source.navProfiles);
 
   return {
@@ -449,6 +818,7 @@ export function coerceTenantSettings(input: unknown): TenantSettings {
     featureFlags,
     registration,
     forms,
+    dynamicForms,
     navProfiles,
   };
 }

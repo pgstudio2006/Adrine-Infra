@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTenantSettings } from '@/hooks/useTenantSettings';
 
 interface Complaint {
   id: string;
@@ -143,10 +144,23 @@ function getAISuggestions(complaints: Complaint[]) {
 }
 
 export default function ConsultationComplaints({ complaints, onChange, hpiNotes, onHPIChange }: Props) {
+  const { settings } = useTenantSettings();
   const [newText, setNewText] = useState('');
   const [newDuration, setNewDuration] = useState('');
   const [newSeverity, setNewSeverity] = useState<'mild' | 'moderate' | 'severe'>('mild');
   const [showAI, setShowAI] = useState(false);
+  const complaintForm = settings.dynamicForms.consultation_complaints_v0;
+  const complaintFields = complaintForm?.sections.flatMap((section) => section.fields) ?? [];
+  const quickComplaintOptions =
+    complaintFields.find((field) => field.id === 'quickComplaint')?.options?.map((option) => option.value) ??
+    QUICK_COMPLAINTS;
+  const severityOptions =
+    complaintFields.find((field) => field.id === 'severity')?.options ??
+    [
+      { value: 'mild', label: 'Mild' },
+      { value: 'moderate', label: 'Moderate' },
+      { value: 'severe', label: 'Severe' },
+    ];
 
   const add = () => {
     if (!newText.trim()) return;
@@ -185,7 +199,7 @@ export default function ConsultationComplaints({ complaints, onChange, hpiNotes,
               <SelectValue placeholder="Pick complaint" />
             </SelectTrigger>
             <SelectContent>
-              {QUICK_COMPLAINTS.map((item) => (
+              {quickComplaintOptions.map((item) => (
                 <SelectItem key={item} value={item}>{item}</SelectItem>
               ))}
             </SelectContent>
@@ -208,9 +222,9 @@ export default function ConsultationComplaints({ complaints, onChange, hpiNotes,
               <SelectValue placeholder="Severity" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="mild">Mild</SelectItem>
-              <SelectItem value="moderate">Moderate</SelectItem>
-              <SelectItem value="severe">Severe</SelectItem>
+              {severityOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <button

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ROLE_TABS } from '@/config/roleNavigation';
 import {
   REGISTRATION_JOURNEY_OPTIONS,
+  TenantDynamicFormDefinition,
   TenantFormTemplateKey,
   RegistrationJourneyType,
   TENANT_FEATURE_LABELS,
@@ -75,6 +76,7 @@ export default function AdminSettings() {
     updateFeatureFlag,
     updateRegistration,
     updateFormTemplate,
+    updateDynamicForm,
     replaceSettings,
     resetSettings,
   } = useTenantSettings();
@@ -86,13 +88,22 @@ export default function AdminSettings() {
     settings.registration.patientTypes.map((item) => `${item.label}|${item.journeyType}`).join('\n'),
   );
   const [formTemplateDrafts, setFormTemplateDrafts] = useState(() => buildFormTemplateDrafts(settings.forms));
+  const [selectedDynamicFormKey, setSelectedDynamicFormKey] = useState(() => Object.keys(settings.dynamicForms)[0] ?? '');
+  const [dynamicFormJson, setDynamicFormJson] = useState(() =>
+    JSON.stringify(settings.dynamicForms[Object.keys(settings.dynamicForms)[0] ?? ''] ?? {}, null, 2),
+  );
 
   useEffect(() => {
     setJsonText(JSON.stringify(settings, null, 2));
     setDepartmentText(settings.registration.departments.join('\n'));
     setPatientTypeText(settings.registration.patientTypes.map((item) => `${item.label}|${item.journeyType}`).join('\n'));
     setFormTemplateDrafts(buildFormTemplateDrafts(settings.forms));
-  }, [settings]);
+    const firstKey = selectedDynamicFormKey && settings.dynamicForms[selectedDynamicFormKey]
+      ? selectedDynamicFormKey
+      : Object.keys(settings.dynamicForms)[0] ?? '';
+    setSelectedDynamicFormKey(firstKey);
+    setDynamicFormJson(JSON.stringify(settings.dynamicForms[firstKey] ?? {}, null, 2));
+  }, [settings, selectedDynamicFormKey]);
 
   function applyAdvancedJson() {
     try {
@@ -164,6 +175,26 @@ export default function AdminSettings() {
       fields,
     });
     toast.success('Form template updated');
+  }
+
+  function applyDynamicForm() {
+    if (!selectedDynamicFormKey) {
+      toast.error('Select a form');
+      return;
+    }
+    try {
+      const parsed = JSON.parse(dynamicFormJson) as TenantDynamicFormDefinition;
+      if (!parsed.formId || !parsed.label || !Array.isArray(parsed.sections)) {
+        toast.error('Invalid form definition', {
+          description: 'A form needs formId, label, and sections.',
+        });
+        return;
+      }
+      updateDynamicForm(selectedDynamicFormKey, parsed);
+      toast.success('Dynamic form definition updated');
+    } catch {
+      toast.error('Invalid JSON', { description: 'Please fix the form JSON syntax.' });
+    }
   }
 
   return (
@@ -408,6 +439,61 @@ export default function AdminSettings() {
             <CardTitle className="text-base">Tenant Form Builder</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="rounded-lg border p-4 space-y-4">
+              <div>
+                <p className="text-sm font-semibold">Dynamic Form Registry</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  These JSON definitions control metadata-driven screens such as Navayu registration, MSK exams,
+                  senior review, and investigations. Add/remove fields, change labels, mark required fields, or
+                  update dropdown options here.
+                </p>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-[260px,1fr]">
+                <div className="space-y-2">
+                  <Label>Form</Label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={selectedDynamicFormKey}
+                    onChange={(event) => {
+                      const key = event.target.value;
+                      setSelectedDynamicFormKey(key);
+                      setDynamicFormJson(JSON.stringify(settings.dynamicForms[key] ?? {}, null, 2));
+                    }}
+                  >
+                    {Object.entries(settings.dynamicForms).map(([key, form]) => (
+                      <option key={key} value={key}>
+                        {form.label} ({key})
+                      </option>
+                    ))}
+                  </select>
+                  <div className="rounded-md bg-muted/40 p-3 text-[11px] text-muted-foreground space-y-1">
+                    <p><strong>Allowed types:</strong> text, number, select, multiselect, boolean, calculator, pain_map, file</p>
+                    <p><strong>Options:</strong> use <code>{'{"value":"x","label":"X"}'}</code> for select fields.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Definition JSON</Label>
+                  <Textarea
+                    className="min-h-[360px] font-mono text-xs"
+                    value={dynamicFormJson}
+                    onChange={(event) => setDynamicFormJson(event.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={applyDynamicForm}>Apply Dynamic Form</Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setDynamicFormJson(JSON.stringify(settings.dynamicForms[selectedDynamicFormKey] ?? {}, null, 2))}
+                >
+                  Reset Draft
+                </Button>
+              </div>
+            </div>
+
             {(Object.keys(settings.forms) as TenantFormTemplateKey[]).map((templateKey) => (
               <div key={templateKey} className="rounded-lg border p-4 space-y-3">
                 <div className="grid gap-3 md:grid-cols-[1fr,auto] md:items-center">

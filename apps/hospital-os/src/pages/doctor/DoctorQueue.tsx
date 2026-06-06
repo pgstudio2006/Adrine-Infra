@@ -120,16 +120,35 @@ export default function DoctorQueue() {
   }, [activePatient?.uhid, activePatient?.platformOpdVisitId, activePatient?.visitMetadata, queue]);
 
   const handleNext = () => {
-    if (!doctorName) return;
-    nextQueuePatient(doctorName);
+    const next = myQueue.find((q) => q.status === 'waiting');
+    if (next) {
+      handleStart(next);
+      return;
+    }
+    if (doctorName) nextQueuePatient(doctorName);
   };
 
-  const handleStart = (tokenNo: number) => {
+  const handleStart = (entry: (typeof myQueue)[number]) => {
     const currentEntry = myQueue.find((q) => q.status === 'in-consultation');
-    if (currentEntry) updateQueueStatus(currentEntry.tokenNo, 'completed');
-    updateQueueStatus(tokenNo, 'in-consultation');
-    const entry = myQueue.find((q) => q.tokenNo === tokenNo);
-    if (entry) navigate(`${roleBasePath}/consultation/${entry.uhid}`);
+    if (currentEntry && currentEntry.platformOpdVisitId !== entry.platformOpdVisitId) {
+      updateQueueStatus(
+        {
+          platformOpdVisitId: currentEntry.platformOpdVisitId,
+          tokenNo: currentEntry.tokenNo,
+          uhid: currentEntry.uhid,
+        },
+        'completed',
+      );
+    }
+    updateQueueStatus(
+      {
+        platformOpdVisitId: entry.platformOpdVisitId,
+        tokenNo: entry.tokenNo,
+        uhid: entry.uhid,
+      },
+      'in-consultation',
+    );
+    navigate(`${roleBasePath}/consultation/${entry.uhid}`);
   };
 
   const filtered = myQueue.filter(
@@ -243,13 +262,15 @@ export default function DoctorQueue() {
 
       <motion.div {...fadeIn(3)} className="border rounded-xl bg-card overflow-hidden">
         <div className="divide-y">
-          {filtered.map((p) => {
+          {filtered.map((p, index) => {
             const isCalled = p.status === 'called';
             const isActive = p.status === 'waiting' || isCalled || p.status === 'in-consultation';
+            const queueRank = myQueue.indexOf(p) + 1;
+            const displayToken = p.tokenNo > 0 ? p.tokenNo : queueRank;
 
             return (
               <div
-                key={p.platformOpdVisitId ?? `${p.uhid}-${p.tokenNo}`}
+                key={p.platformOpdVisitId ?? `${p.uhid}-${p.tokenNo}-${index}`}
                 className={`flex items-center gap-3 px-4 py-3.5 transition-colors ${
                   !isActive ? 'opacity-50' : ''
                 } ${isCalled ? 'bg-primary/5' : ''}`}
@@ -259,7 +280,7 @@ export default function DoctorQueue() {
                     isCalled ? 'bg-primary text-primary-foreground' : 'bg-muted'
                   }`}
                 >
-                  #{p.tokenNo}
+                  #{displayToken}
                 </span>
                 <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center shrink-0">
                   <span className="text-xs font-semibold">
@@ -291,7 +312,7 @@ export default function DoctorQueue() {
                     {p.status.replace('-', ' ')}
                   </span>
                   {p.status === 'waiting' || p.status === 'called' ? (
-                    <Button size="sm" onClick={() => handleStart(p.tokenNo)} className="gap-1 text-xs h-8">
+                    <Button size="sm" onClick={() => handleStart(p)} className="gap-1 text-xs h-8">
                       <Play className="w-3 h-3" />
                       {p.status === 'called' ? 'Start consult' : 'Call & start'}
                     </Button>

@@ -21,6 +21,16 @@ import {
   platformRegisterOpdPatient,
 } from '@/runtime/opd-runtime';
 import { toAppointmentIso } from '@/lib/opd/appointment-datetime';
+import {
+  findQueueEntry,
+  normalizeQueueLookup,
+  patchQueueEntries,
+  type QueueEntryLookup,
+} from '@/lib/opd/queue-presenters';
+import {
+  isNavayuMskClinicalDepartment,
+  shouldUseNavayuMskPoolQueue,
+} from '@/lib/opd/branch-clinical-roster';
 import { platformEnqueueOpdVisitToBoard } from '@/lib/opd/platform-opd-enqueue';
 import { useAuth } from '@/contexts/AuthContext';
 import { platformSaveNavayuRegistration } from '@/lib/navayu/navayu-runtime';
@@ -1111,7 +1121,7 @@ interface HospitalStore {
   bookAppointment: (data: Omit<HospitalAppointment, 'id'>) => string;
   updateAppointmentStatus: (id: string, status: HospitalAppointment['status']) => void;
   checkInPatient: (appointmentId: string, complaint?: string) => number;
-  updateQueueStatus: (tokenNo: number, status: QueueEntry['status']) => void;
+  updateQueueStatus: (key: number | QueueEntryLookup, status: QueueEntry['status']) => void;
   refreshQueueFromPlatform: () => Promise<void>;
   /** Hydrate appointment board from domain-api scheduling + OPD visit linkage. */
   refreshAppointmentsFromPlatform: (from?: string, to?: string) => Promise<void>;
@@ -1119,7 +1129,7 @@ interface HospitalStore {
   refreshPlatformIpdSnapshots: () => Promise<void>;
   /** Merge lab / radiology / pharmacy department lists from domain-api when `VITE_PLATFORM_RUNTIME`. */
   refreshDepartmentWorklistsFromPlatform: () => Promise<void>;
-  nextQueuePatient: (doctor: string) => void;
+  nextQueuePatient: (doctor: string, preferVisitId?: string) => void;
   
   // Doctor consultation actions
   saveConsultation: (data: {
@@ -2739,7 +2749,9 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
               ? 'in-consultation'
               : prior?.status === 'called' && platformWaiting
                 ? 'called'
-                : 'waiting';
+                : prior?.status === 'in-consultation' && platformWaiting
+                  ? 'in-consultation'
+                  : 'waiting';
           const boardSinceAt = v.createdAt ?? prior?.boardSinceAt;
           const waitMinutes =
             platformWaiting && boardSinceAt
@@ -2794,38 +2806,62 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     refreshQueueFromPlatformRef.current = refreshQueueFromPlatform;
   }, [refreshQueueFromPlatform]);
 
-  const updateQueueStatus = useCallback((tokenNo: number, status: QueueEntry['status']) => {
-    const entry = queue.find(q => q.tokenNo === tokenNo);
-    if (!isPlatformAuthoritative() || status === 'called') {
-      setQueue(prev => prev.map(q => (q.tokenNo === tokenNo ? { ...q, status } : q)));
+  const updateQueueStatus = useCallback((key: number | QueueEntryLookup, status: QueueEntry['status']) => {
+    const lookup = normalizeQueueLookup(key);
+    const entry = findQueueEntry(queue, lookup);
+    const applyPatch = (patch: Partial<QueueEntry>) => {
+      setQueue((prev) => patchQueueEntries(prev, lookup, patch));
+    };
+
+    if (
+      !isPlatformAuthoritative() ||
+      status === 'called' ||
+      status === 'in-consultation' ||
+      status === 'completed' ||
+      status === 'skipped'
+    ) {
+      applyPatch({ status });
     }
 
     if (status === 'in-consultation' && entry) {
-      const patient = patients.find(p => p.uhid === entry.uhid);
-      if (canUseOpdRuntime() && patient?.platformOpdVisitId) {
+      const visitId = entry.platformOpdVisitId;
+      const patient = patients.find((p) => p.uhid === entry.uhid);
+      if (canUseOpdRuntime() && visitId) {
         void (async () => {
           try {
-            const currentState = getClientOpdState(patient.opdState, entry.status === 'in-consultation' ? 'in_consultation' : 'queued');
+            const currentState = getClientOpdState(
+              patient?.opdState,
+              entry.status === 'in-consultation' ? 'in_consultation' : 'queued',
+            );
             if (currentState === 'in_consultation') {
-              setQueue(prev => prev.map(q => (q.tokenNo === tokenNo ? { ...q, status: 'in-consultation' } : q)));
+              applyPatch({ status: 'in-consultation' });
               await refreshQueueFromPlatform();
               return;
             }
-            const { visit } = await platformOpdTransition(patient.platformOpdVisitId!, 'call_patient');
-            setPatients(prev =>
-              prev.map(p => (p.uhid === patient.uhid ? { ...p, opdState: visit.state } : p)),
-            );
+            const actorRole = getPlatformSession()?.role ?? 'doctor';
+            guardOpdTransition(currentState, 'call_patient', actorRole);
+            const { visit } = await platformOpdTransition(visitId, 'call_patient');
+            if (patient) {
+              setPatients((prev) =>
+                prev.map((p) =>
+                  p.uhid === patient.uhid
+                    ? { ...p, opdState: visit.state, platformOpdVisitId: visit.id }
+                    : p,
+                ),
+              );
+            }
             await platformRecordMetering(['opd.consultation_started'], visit.id);
             if (isPlatformAuthoritative()) {
               await refreshQueueFromPlatform();
             } else {
-              setQueue(prev => prev.map(q => (q.tokenNo === tokenNo ? { ...q, status } : q)));
+              applyPatch({ status });
             }
           } catch (err) {
             const body = err instanceof PlatformApiError ? err.body : undefined;
-            const description = formatPlatformErrorBody(body) ?? (err instanceof Error ? err.message : undefined);
+            const description =
+              formatPlatformErrorBody(body) ?? (err instanceof Error ? err.message : undefined);
             if (description?.includes('not valid from state "in_consultation"')) {
-              setQueue(prev => prev.map(q => (q.tokenNo === tokenNo ? { ...q, status: 'in-consultation' } : q)));
+              applyPatch({ status: 'in-consultation' });
               await refreshQueueFromPlatform();
               return;
             }
@@ -2834,9 +2870,13 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
             });
           }
         })();
+      } else if (!visitId) {
+        toast.error('Cannot start consultation', {
+          description: 'Visit is not linked to the platform board yet.',
+        });
       }
     } else if (!isPlatformAuthoritative()) {
-      setQueue(prev => prev.map(q => (q.tokenNo === tokenNo ? { ...q, status } : q)));
+      applyPatch({ status });
     }
   }, [queue, patients, refreshQueueFromPlatform]);
 
@@ -2926,43 +2966,43 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     refreshQueueFromPlatform,
   ]);
 
-  const nextQueuePatient = useCallback((doctor: string) => {
-    let nextUhid: string | undefined;
-    setQueue(prev => {
-      const updated = [...prev];
-      const currentIdx = updated.findIndex(q => q.doctor === doctor && q.status === 'in-consultation');
-      if (currentIdx >= 0) updated[currentIdx].status = 'completed';
-      const nextIdx = updated.findIndex(q => q.doctor === doctor && q.status === 'waiting');
-      if (nextIdx >= 0) {
-        updated[nextIdx].status = 'in-consultation';
-        nextUhid = updated[nextIdx].uhid;
-      }
-      return updated;
-    });
+  const nextQueuePatient = useCallback((doctor: string, preferVisitId?: string) => {
+    const navayuPool = shouldUseNavayuMskPoolQueue() && isPlatformAuthoritative();
+    const matchesDoctorQueue = (entry: QueueEntry) => {
+      if (preferVisitId && entry.platformOpdVisitId === preferVisitId) return true;
+      if (entry.doctor === doctor) return true;
+      if (!navayuPool) return false;
+      return isNavayuMskClinicalDepartment(entry.department) || entry.department === 'MSK';
+    };
 
-    if (nextUhid && canUseOpdRuntime()) {
-      const patient = patients.find(p => p.uhid === nextUhid);
-      if (patient?.platformOpdVisitId) {
-        void (async () => {
-          try {
-            guardOpdTransition(getClientOpdState(patient.opdState, 'queued'), 'call_patient', 'doctor');
-            const { visit } = await platformOpdTransition(patient.platformOpdVisitId!, 'call_patient');
-            setPatients(prev =>
-              prev.map(p => (p.uhid === nextUhid ? { ...p, opdState: visit.state } : p)),
-            );
-            await platformRecordMetering(['opd.consultation_started'], visit.id);
-            if (isPlatformAuthoritative()) {
-              await refreshQueueFromPlatform();
-            }
-          } catch (err) {
-            toast.error('Platform queue call failed', {
-              description: err instanceof Error ? err.message : undefined,
-            });
-          }
-        })();
-      }
+    const currentEntry = queue.find(
+      (q) => matchesDoctorQueue(q) && q.status === 'in-consultation',
+    );
+    if (currentEntry) {
+      updateQueueStatus(
+        {
+          platformOpdVisitId: currentEntry.platformOpdVisitId,
+          tokenNo: currentEntry.tokenNo,
+          uhid: currentEntry.uhid,
+        },
+        'completed',
+      );
     }
-  }, [patients, refreshQueueFromPlatform]);
+
+    const nextEntry = preferVisitId
+      ? queue.find((q) => q.platformOpdVisitId === preferVisitId && q.status === 'waiting')
+      : queue.find((q) => matchesDoctorQueue(q) && q.status === 'waiting');
+    if (!nextEntry) return;
+
+    updateQueueStatus(
+      {
+        platformOpdVisitId: nextEntry.platformOpdVisitId,
+        tokenNo: nextEntry.tokenNo,
+        uhid: nextEntry.uhid,
+      },
+      'in-consultation',
+    );
+  }, [queue, updateQueueStatus]);
 
   const saveConsultation = useCallback(async (data: {
     uhid: string; patientName: string; doctor: string; department: string;

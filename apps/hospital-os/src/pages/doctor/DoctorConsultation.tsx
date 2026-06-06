@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Sparkles, Monitor, Tablet, Mic, Camera, ZoomIn, ZoomOut, X as XIcon, Circle, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -220,9 +220,18 @@ export default function DoctorConsultation() {
   const roleBasePath = useClinicalBasePath();
 
   const patient = patientId ? getPatient(patientId) : undefined;
-  const queueEntry = queue.find((entry) => entry.uhid === patientId);
+  const queueEntry = useMemo(() => {
+    if (!patientId) return undefined;
+    const active = queue.find(
+      (entry) =>
+        entry.uhid === patientId &&
+        (entry.status === 'in-consultation' || entry.status === 'called'),
+    );
+    if (active) return active;
+    return queue.find((entry) => entry.uhid === patientId);
+  }, [patientId, queue]);
   const hasAccess = !!patientId && canAccessPatient(patientId);
-  const opdVisitId = patient?.platformOpdVisitId;
+  const opdVisitId = queueEntry?.platformOpdVisitId ?? patient?.platformOpdVisitId;
   const { hasCritical: saveBlockedByPlatform } = useConsultationBlockers(opdVisitId);
   const patientName = patient?.name ?? queueEntry?.patientName ?? 'Patient';
   const patientInfo = patient 

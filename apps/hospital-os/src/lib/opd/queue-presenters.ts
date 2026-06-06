@@ -1,3 +1,48 @@
+import type { QueueEntry } from '@/stores/hospitalStore';
+
+export type QueueEntryLookup = {
+  platformOpdVisitId?: string;
+  tokenNo?: number;
+  uhid?: string;
+};
+
+export function normalizeQueueLookup(key: number | QueueEntryLookup): QueueEntryLookup {
+  return typeof key === 'number' ? { tokenNo: key } : key;
+}
+
+/** Resolve a queue row — prefer platform visit id when multiple rows share token/UHID. */
+export function findQueueEntry(
+  entries: QueueEntry[],
+  lookup: QueueEntryLookup,
+): QueueEntry | undefined {
+  if (lookup.platformOpdVisitId) {
+    return entries.find((entry) => entry.platformOpdVisitId === lookup.platformOpdVisitId);
+  }
+  if (lookup.tokenNo != null && lookup.uhid) {
+    return entries.find(
+      (entry) => entry.tokenNo === lookup.tokenNo && entry.uhid === lookup.uhid,
+    );
+  }
+  if (lookup.tokenNo != null) {
+    return entries.find((entry) => entry.tokenNo === lookup.tokenNo);
+  }
+  if (lookup.uhid) {
+    return entries.find((entry) => entry.uhid === lookup.uhid);
+  }
+  return undefined;
+}
+
+export function patchQueueEntries(
+  entries: QueueEntry[],
+  lookup: QueueEntryLookup,
+  patch: Partial<QueueEntry>,
+): QueueEntry[] {
+  return entries.map((entry) => {
+    const match = findQueueEntry([entry], lookup);
+    return match ? { ...entry, ...patch } : entry;
+  });
+}
+
 /** Minutes since ISO timestamp (board `createdAt` or check-in time). */
 export function computeWaitMinutes(isoOrNull?: string | null): number | null {
   if (!isoOrNull) return null;

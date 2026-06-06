@@ -4,6 +4,7 @@ import { mergeOperationalTabs } from '@/operations/merge-navigation';
 import {
   DEFAULT_TENANT_SETTINGS,
   TenantBranding,
+  TenantDynamicFormDefinition,
   TenantFeatureFlag,
   TenantFormTemplateConfig,
   TenantFormTemplateKey,
@@ -123,6 +124,16 @@ export function TenantSettingsProvider({ children }: { children: React.ReactNode
     }));
   }
 
+  function updateDynamicForm(formKey: string, definition: TenantDynamicFormDefinition) {
+    setSettings((current) => ({
+      ...current,
+      dynamicForms: {
+        ...current.dynamicForms,
+        [formKey]: definition,
+      },
+    }));
+  }
+
   function replaceSettings(next: unknown) {
     setSettings(coerceTenantSettings(next));
   }
@@ -227,6 +238,7 @@ export function TenantSettingsProvider({ children }: { children: React.ReactNode
         updateFeatureFlag,
         updateRegistration,
         updateFormTemplate,
+        updateDynamicForm,
         replaceSettings,
         resetSettings,
         getRoleLabel,

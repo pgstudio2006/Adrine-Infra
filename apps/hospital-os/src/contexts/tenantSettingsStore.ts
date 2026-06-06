@@ -3,6 +3,7 @@ import { ROLE_TABS, RoleTab } from '@/config/roleNavigation';
 import {
   TenantBranding,
   TenantFeatureFlag,
+  TenantDynamicFormDefinition,
   TenantFormTemplateConfig,
   TenantFormTemplateKey,
   TenantNavigationItemConfig,
@@ -21,6 +22,7 @@ export interface TenantSettingsContextType {
   updateFeatureFlag: (flag: TenantFeatureFlag, value: boolean) => void;
   updateRegistration: (patch: Partial<TenantRegistrationConfig>) => void;
   updateFormTemplate: (templateKey: TenantFormTemplateKey, patch: Partial<TenantFormTemplateConfig>) => void;
+  updateDynamicForm: (formKey: string, definition: TenantDynamicFormDefinition) => void;
   replaceSettings: (next: unknown) => void;
   resetSettings: () => void;
   getRoleLabel: (role: UserRole) => string;

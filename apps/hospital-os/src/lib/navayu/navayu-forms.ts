@@ -365,7 +365,24 @@ function coerceFormDefinition(value: unknown, fallback: NavayuFormDefinition): N
   };
 }
 
+function getAdminDynamicForms(): Record<string, unknown> | null {
+  try {
+    const raw = localStorage.getItem('adrine_tenant_settings');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { dynamicForms?: unknown };
+    return parsed.dynamicForms && typeof parsed.dynamicForms === 'object' && !Array.isArray(parsed.dynamicForms)
+      ? (parsed.dynamicForms as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function loadFormFromBranch(key: string, fallback: NavayuFormDefinition): NavayuFormDefinition {
+  const adminForms = getAdminDynamicForms();
+  if (adminForms?.[key]) {
+    return coerceFormDefinition(adminForms[key], fallback);
+  }
   const forms = getServerTenantForms();
   if (!forms?.[key]) {
     return fallback;
