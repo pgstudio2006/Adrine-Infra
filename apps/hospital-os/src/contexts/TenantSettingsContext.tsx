@@ -12,6 +12,7 @@ import {
   TenantRoleConfig,
   TenantSettings,
   coerceTenantSettings,
+  getDocumentTitle,
 } from '@/config/tenantSettings';
 import { TenantSettingsContext, TenantSettingsContextType } from '@/contexts/tenantSettingsStore';
 import { getCounsellorCrmTabs, getEffectiveTabVisibility, NavUserContext, resolveNavProfile } from '@/config/routeAccess';
@@ -25,15 +26,16 @@ const STORAGE_KEY = 'adrine_tenant_settings';
 
 export function TenantSettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<TenantSettings>(() => {
+    if (isPlatformRuntimeEnabled()) {
+      return DEFAULT_TENANT_SETTINGS;
+    }
     const stored = localStorage.getItem(STORAGE_KEY);
     return stored ? coerceTenantSettings(JSON.parse(stored)) : DEFAULT_TENANT_SETTINGS;
   });
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    document.title = settings.featureFlags.whiteLabelMode
-      ? settings.branding.organizationName
-      : settings.branding.platformName;
+    document.title = getDocumentTitle(settings);
   }, [settings]);
 
   useEffect(() => {

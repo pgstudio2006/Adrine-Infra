@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROLE_BASE_PATH } from "@/config/roleNavigation";
+import { getHeaderBrandMark } from "@/config/tenantSettings";
 import { useTenantSettings } from "@/hooks/useTenantSettings";
 import { Search, Bell, LogOut, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -131,7 +132,7 @@ export default function TopNavbar() {
             className="font-bold text-lg tracking-tight cursor-pointer hover:text-muted-foreground transition-colors"
             onClick={() => navigate(ROLE_BASE_PATH[user.role])}
           >
-            {settings.branding.organizationShortName}
+            {getHeaderBrandMark(settings)}
           </span>
           <div className="h-4 w-[1px] bg-border" />
           <span className="text-xs font-medium tracking-wide uppercase text-muted-foreground">

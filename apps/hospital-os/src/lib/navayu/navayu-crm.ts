@@ -31,7 +31,7 @@ export async function maybeCreateNavayuCrmLead(input: {
           `Referral: ${channel}`,
           regions ? `Pain regions: ${regions}` : null,
           input.opdVisitId ? `Visit: ${input.opdVisitId}` : null,
-          `Navayu reception → CRM handoff`,
+          `Reception → CRM handoff`,
         ]
           .filter(Boolean)
           .join(' · '),

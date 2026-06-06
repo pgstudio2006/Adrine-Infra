@@ -1605,7 +1605,7 @@ export default function ReceptionRegistration() {
               return (
                 <div className="rounded-lg border border-dashed p-3 space-y-2 w-full lg:w-auto lg:min-w-[20rem]">
                   <p className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
-                    <Link2 className="w-3.5 h-3.5" /> Patient tablet intake (Navayu UAT)
+                    <Link2 className="w-3.5 h-3.5" /> Patient tablet intake
                   </p>
                   <p className="text-xs font-mono break-all text-foreground/80">{intakeUrl}</p>
                   <p className="text-xs text-muted-foreground">

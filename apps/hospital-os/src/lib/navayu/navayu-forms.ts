@@ -115,7 +115,7 @@ const VISIT_META_PREFIX = 'adrine_navayu_visit_meta:';
 const DEFAULT_REGISTRATION_FORM: NavayuFormDefinition = {
   formId: 'navayu.reception.registration',
   version: 'v0',
-  label: 'Navayu Reception Registration',
+  label: 'Reception Registration',
   sections: [
     {
       id: 'referral',
@@ -124,7 +124,7 @@ const DEFAULT_REGISTRATION_FORM: NavayuFormDefinition = {
         {
           id: 'hearAboutNavayu',
           type: 'select',
-          label: 'How did you hear about Navayu?',
+          label: 'How did you hear about us?',
           required: true,
           options: [
             { value: 'google', label: 'Google' },
@@ -184,7 +184,7 @@ const DEFAULT_REGISTRATION_FORM: NavayuFormDefinition = {
 const DEFAULT_LUMBAR_FORM: NavayuFormDefinition = {
   formId: 'navayu.exam.lumbar',
   version: 'v0',
-  label: 'Navayu Lumbar MSK Exam',
+  label: 'Lumbar MSK Exam',
   sections: [
     {
       id: 'scores',
@@ -229,7 +229,7 @@ const DEFAULT_LUMBAR_FORM: NavayuFormDefinition = {
 const DEFAULT_SENIOR_REVIEW_FORM: NavayuFormDefinition = {
   formId: 'navayu.senior.review',
   version: 'v0',
-  label: 'Navayu Senior Review',
+  label: 'Senior Review',
   sections: [
     {
       id: 'pathway',
@@ -258,7 +258,7 @@ const DEFAULT_SENIOR_REVIEW_FORM: NavayuFormDefinition = {
 const DEFAULT_INTAKE_FORM: NavayuFormDefinition = {
   formId: 'navayu.patient.intake',
   version: 'v0',
-  label: 'Navayu Patient Intake',
+  label: 'Patient Intake',
   sections: [
     {
       id: 'complaint',
@@ -387,14 +387,14 @@ export function getNavayuIntakeForm(): NavayuFormDefinition {
 const DEFAULT_CERVICAL_FORM: NavayuFormDefinition = {
   formId: 'navayu.exam.cervical',
   version: 'v0',
-  label: 'Navayu Cervical MSK Exam',
+  label: 'Cervical MSK Exam',
   sections: [{ id: 'scores', label: 'Scores', fields: [{ id: 'ndi', type: 'calculator', calculatorId: 'ndi', label: 'NDI' }] }],
 };
 
 const DEFAULT_KNEE_FORM: NavayuFormDefinition = {
   formId: 'navayu.exam.knee',
   version: 'v0',
-  label: 'Navayu Knee MSK Exam',
+  label: 'Knee MSK Exam',
   sections: [
     {
       id: 'scores',
@@ -410,7 +410,7 @@ const DEFAULT_KNEE_FORM: NavayuFormDefinition = {
 const DEFAULT_SHOULDER_FORM: NavayuFormDefinition = {
   formId: 'navayu.exam.shoulder',
   version: 'v0',
-  label: 'Navayu Shoulder MSK Exam',
+  label: 'Shoulder MSK Exam',
   sections: [
     {
       id: 'scores',
@@ -426,7 +426,7 @@ const DEFAULT_SHOULDER_FORM: NavayuFormDefinition = {
 const DEFAULT_HIP_FORM: NavayuFormDefinition = {
   formId: 'navayu.exam.hip',
   version: 'v0',
-  label: 'Navayu Hip MSK Exam',
+  label: 'Hip MSK Exam',
   sections: [
     {
       id: 'scores',
@@ -439,7 +439,7 @@ const DEFAULT_HIP_FORM: NavayuFormDefinition = {
 const DEFAULT_INVESTIGATIONS_FORM: NavayuFormDefinition = {
   formId: 'navayu.investigations',
   version: 'v0',
-  label: 'Navayu Investigations',
+  label: 'Investigations Upload',
   sections: [
     {
       id: 'imaging',
@@ -647,7 +647,7 @@ export function buildNavayuRegistrationNotes(metadata: NavayuRegistrationMetadat
     .join(', ');
   const regions = metadata.bodyRegions.map(painRegionLabel).join(', ');
   return [
-    `Navayu MSK registration`,
+    `MSK registration`,
     `Referral: ${referralLabel(metadata.hearAboutNavayu)}`,
     regions ? `Pain regions: ${regions}` : null,
     lifestyleActive ? `Lifestyle flags: ${lifestyleActive}` : null,

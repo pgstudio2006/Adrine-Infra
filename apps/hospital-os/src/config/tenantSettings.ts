@@ -252,6 +252,19 @@ export const DEFAULT_TENANT_SETTINGS: TenantSettings = {
   forms: DEFAULT_FORM_TEMPLATES,
 };
 
+/** Primary mark in app chrome (navbar). Platform brand unless tenant white-labels. */
+export function getHeaderBrandMark(settings: TenantSettings): string {
+  return settings.featureFlags.whiteLabelMode
+    ? settings.branding.organizationShortName
+    : settings.branding.platformMark;
+}
+
+export function getDocumentTitle(settings: TenantSettings): string {
+  return settings.featureFlags.whiteLabelMode
+    ? settings.branding.organizationName
+    : settings.branding.platformName;
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {};
