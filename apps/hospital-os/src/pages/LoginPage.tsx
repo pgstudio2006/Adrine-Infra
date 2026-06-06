@@ -19,11 +19,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { HospitalLoginWizard } from '@/components/login/HospitalLoginWizard';
 
 const ROLE_ICONS: Record<UserRole, React.ReactNode> = {
   admin: <Shield className="w-6 h-6" />,
@@ -103,7 +103,7 @@ const generateTicketId = () => {
 };
 
 export default function LoginPage() {
-  const { login, loginWithCredentials, platformConnected } = useAuth();
+  const { login, platformConnected } = useAuth();
   const platformRuntime = isPlatformRuntimeEnabled();
   const kernelUrl = import.meta.env.VITE_KERNEL_API_URL as string | undefined;
   const existingSession = getPlatformSession();
@@ -113,11 +113,9 @@ export default function LoginPage() {
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [selectedDoctor, setSelectedDoctor] = useState('');
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [credentialSubmitting, setCredentialSubmitting] = useState(false);
   const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
   const [ticketForm, setTicketForm] = useState<TicketFormState>(createInitialTicketForm());
+  const openTicketDialog = () => setIsTicketDialogOpen(true);
 
   const doctorDirectory = useMemo(() => {
     const departmentMap = new Map<string, Set<string>>();
@@ -254,17 +252,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleCredentialLogin = async () => {
-    if (!loginEmail.trim() || !loginPassword) {
-      toast.error('Enter email and password');
-      return;
-    }
-    setCredentialSubmitting(true);
-    const ok = await loginWithCredentials(loginEmail, loginPassword);
-    setCredentialSubmitting(false);
-    if (ok) navigate('/dashboard');
-  };
-
   const handleLogin = () => {
     if (!selectedRole) return;
 
@@ -321,44 +308,7 @@ export default function LoginPage() {
         </div>
 
         {useCredentialLogin ? (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="max-w-md mx-auto mb-12 border border-border/70 rounded-md bg-card p-6 space-y-4"
-          >
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <KeyRound className="w-4 h-4" />
-              Staff sign-in
-            </div>
-            <label className="space-y-1.5 block">
-              <span className="text-xs font-semibold text-muted-foreground">Email</span>
-              <Input
-                type="email"
-                autoComplete="username"
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                placeholder="admin@navayuhealth.in"
-              />
-            </label>
-            <label className="space-y-1.5 block">
-              <span className="text-xs font-semibold text-muted-foreground">Password</span>
-              <Input
-                type="password"
-                autoComplete="current-password"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                placeholder="••••••••"
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => void handleCredentialLogin()}
-              disabled={credentialSubmitting}
-              className="w-full rounded-md py-3 font-bold tracking-widest uppercase text-xs bg-foreground text-background hover:opacity-90 disabled:opacity-50"
-            >
-              {credentialSubmitting ? 'Signing in…' : 'Sign in'}
-            </button>
-          </motion.div>
+          <HospitalLoginWizard onRaiseTicket={openTicketDialog} />
         ) : (
           <>
         {/* Role Grid */}
@@ -478,122 +428,121 @@ export default function LoginPage() {
             </button>
           </motion.div>
 
-          <Dialog open={isTicketDialogOpen} onOpenChange={handleTicketDialogOpenChange}>
-            <DialogTrigger asChild>
-              <button
-                type="button"
-                className="mt-3 w-full rounded-md border border-border bg-card px-4 py-3 text-xs font-bold uppercase tracking-[0.2em] text-foreground transition-colors hover:border-primary/60 hover:text-primary"
-              >
-                Raise Support Ticket
-              </button>
-            </DialogTrigger>
+          <button
+            type="button"
+            onClick={openTicketDialog}
+            className="mt-3 w-full rounded-md border border-border bg-card px-4 py-3 text-xs font-bold uppercase tracking-[0.2em] text-foreground transition-colors hover:border-primary/60 hover:text-primary"
+          >
+            Raise Support Ticket
+          </button>
+        </div>
+          </>
+        )}
 
-            <DialogContent className="sm:max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Raise A Ticket</DialogTitle>
-                <DialogDescription>
-                  Share the issue with our support team. You will receive your ticket ID immediately.
-                </DialogDescription>
-              </DialogHeader>
+        <Dialog open={isTicketDialogOpen} onOpenChange={handleTicketDialogOpenChange}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Raise A Ticket</DialogTitle>
+              <DialogDescription>
+                Share the issue with our support team. You will receive your ticket ID immediately.
+              </DialogDescription>
+            </DialogHeader>
 
-              <div className="grid gap-4 py-2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="space-y-1.5">
-                    <span className="text-xs font-semibold text-muted-foreground">Full Name *</span>
-                    <Input
-                      value={ticketForm.reporterName}
-                      onChange={(event) => updateTicketForm('reporterName', event.target.value)}
-                      placeholder="Enter your name"
-                    />
-                  </label>
-
-                  <label className="space-y-1.5">
-                    <span className="text-xs font-semibold text-muted-foreground">Email / Phone *</span>
-                    <Input
-                      value={ticketForm.contact}
-                      onChange={(event) => updateTicketForm('contact', event.target.value)}
-                      placeholder="you@example.com or +91..."
-                    />
-                  </label>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <label className="space-y-1.5">
-                    <span className="text-xs font-semibold text-muted-foreground">Role</span>
-                    <AppSelect
-                      value={ticketForm.role || undefined}
-                      onValueChange={(value) => updateTicketForm('role', value)}
-                      options={[
-                        ...roles.map((role) => ({ value: role, label: getRoleLabel(role) })),
-                        { value: 'other', label: 'Other / Not Sure' },
-                      ]}
-                      placeholder="Select role"
-                      className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
-                    />
-                  </label>
-
-                  <label className="space-y-1.5">
-                    <span className="text-xs font-semibold text-muted-foreground">Issue Type</span>
-                    <AppSelect
-                      value={ticketForm.category}
-                      onValueChange={(value) => updateTicketForm('category', value as TicketCategory)}
-                      options={TICKET_CATEGORY_OPTIONS}
-                      className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
-                    />
-                  </label>
-
-                  <label className="space-y-1.5">
-                    <span className="text-xs font-semibold text-muted-foreground">Priority</span>
-                    <AppSelect
-                      value={ticketForm.priority}
-                      onValueChange={(value) => updateTicketForm('priority', value as TicketPriority)}
-                      options={TICKET_PRIORITY_OPTIONS}
-                      className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
-                    />
-                  </label>
-                </div>
-
+            <div className="grid gap-4 py-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="space-y-1.5">
-                  <span className="text-xs font-semibold text-muted-foreground">Short Summary *</span>
+                  <span className="text-xs font-semibold text-muted-foreground">Full Name *</span>
                   <Input
-                    value={ticketForm.summary}
-                    onChange={(event) => updateTicketForm('summary', event.target.value)}
-                    placeholder="Eg. Unable to open pharmacy billing"
+                    value={ticketForm.reporterName}
+                    onChange={(event) => updateTicketForm('reporterName', event.target.value)}
+                    placeholder="Enter your name"
                   />
                 </label>
 
                 <label className="space-y-1.5">
-                  <span className="text-xs font-semibold text-muted-foreground">Describe Your Issue *</span>
-                  <Textarea
-                    value={ticketForm.details}
-                    onChange={(event) => updateTicketForm('details', event.target.value)}
-                    placeholder="Explain what happened and what you expected."
-                    rows={5}
+                  <span className="text-xs font-semibold text-muted-foreground">Email / Phone *</span>
+                  <Input
+                    value={ticketForm.contact}
+                    onChange={(event) => updateTicketForm('contact', event.target.value)}
+                    placeholder="you@example.com or +91..."
                   />
                 </label>
               </div>
 
-              <DialogFooter>
-                <button
-                  type="button"
-                  onClick={() => handleTicketDialogOpenChange(false)}
-                  className="rounded-md border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleRaiseTicket}
-                  className="rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-background hover:opacity-90"
-                >
-                  Submit Ticket
-                </button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-          </>
-        )}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label className="space-y-1.5">
+                  <span className="text-xs font-semibold text-muted-foreground">Role</span>
+                  <AppSelect
+                    value={ticketForm.role || undefined}
+                    onValueChange={(value) => updateTicketForm('role', value)}
+                    options={[
+                      ...roles.map((role) => ({ value: role, label: getRoleLabel(role) })),
+                      { value: 'other', label: 'Other / Not Sure' },
+                    ]}
+                    placeholder="Select role"
+                    className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
+                  />
+                </label>
+
+                <label className="space-y-1.5">
+                  <span className="text-xs font-semibold text-muted-foreground">Issue Type</span>
+                  <AppSelect
+                    value={ticketForm.category}
+                    onValueChange={(value) => updateTicketForm('category', value as TicketCategory)}
+                    options={TICKET_CATEGORY_OPTIONS}
+                    className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
+                  />
+                </label>
+
+                <label className="space-y-1.5">
+                  <span className="text-xs font-semibold text-muted-foreground">Priority</span>
+                  <AppSelect
+                    value={ticketForm.priority}
+                    onValueChange={(value) => updateTicketForm('priority', value as TicketPriority)}
+                    options={TICKET_PRIORITY_OPTIONS}
+                    className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
+                  />
+                </label>
+              </div>
+
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold text-muted-foreground">Short Summary *</span>
+                <Input
+                  value={ticketForm.summary}
+                  onChange={(event) => updateTicketForm('summary', event.target.value)}
+                  placeholder="Eg. Unable to open pharmacy billing"
+                />
+              </label>
+
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold text-muted-foreground">Describe Your Issue *</span>
+                <Textarea
+                  value={ticketForm.details}
+                  onChange={(event) => updateTicketForm('details', event.target.value)}
+                  placeholder="Explain what happened and what you expected."
+                  rows={5}
+                />
+              </label>
+            </div>
+
+            <DialogFooter>
+              <button
+                type="button"
+                onClick={() => handleTicketDialogOpenChange(false)}
+                className="rounded-md border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleRaiseTicket}
+                className="rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-background hover:opacity-90"
+              >
+                Submit Ticket
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {platformRuntime && (
           <motion.div
@@ -606,8 +555,8 @@ export default function LoginPage() {
               <p className="text-xs font-bold uppercase tracking-wider text-foreground">Platform authentication</p>
             </div>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Staff sign-in uses kernel <code className="font-mono text-[10px]">/auth/login</code> with
-              your provisioned staff emails. Your branch is assigned from your account — Gurgaon and Pataudi sessions stay isolated.
+              Multi-step sign-in: hospital verification, branch selection, module choice, then staff credentials.
+              Gurgaon and Pataudi sessions stay isolated per branch.
             </p>
             <div className="mt-2 flex flex-wrap gap-2 text-[10px]">
               <span className={`rounded px-2 py-0.5 border ${kernelUrl ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300' : 'border-amber-500/40 text-amber-700'}`}>

@@ -22,6 +22,22 @@ export type LoginInput = {
   password: string;
   tenantId?: string;
   branchId?: string;
+  expectedRole?: string;
+};
+
+export type HospitalGateResult = {
+  tenantId: string;
+  organizationName: string;
+  branches: { id: string; code: string; name: string; timezone: string | null }[];
+  canAccessAllBranches: boolean;
+  userBranchId: string;
+  verifiedEmail: string;
+};
+
+export type BranchPortalRole = {
+  role: string;
+  label: string;
+  description: string;
 };
 
 @Injectable()
@@ -35,16 +51,12 @@ export class AuthService {
     const email = input.email.trim().toLowerCase();
     const tenantId = input.tenantId ?? process.env.NAVAYU_DEFAULT_TENANT_ID ?? 'tenant_navayu';
 
-    const user = await this.prisma.platformUser.findUnique({
-      where: { tenantId_email: { tenantId, email } },
-    });
+    const user = await this.authenticatePlatformUser(email, input.password, tenantId);
 
-    if (!user || !user.isActive) {
-      throw new UnauthorizedException('Invalid email or password');
-    }
-
-    if (!verifyPassword(input.password, user.passwordHash)) {
-      throw new UnauthorizedException('Invalid email or password');
+    if (input.expectedRole?.trim() && user.role !== input.expectedRole.trim()) {
+      throw new UnauthorizedException(
+        `This account is not authorized for ${input.expectedRole} access`,
+      );
     }
 
     let branchId = user.branchId;
@@ -62,6 +74,70 @@ export class AuthService {
     }
 
     return this.issueSession(user, tenantId, branchId);
+  }
+
+  /** Validates hospital affiliation without issuing a session (login wizard step 1). */
+  async verifyHospitalGate(input: LoginInput): Promise<HospitalGateResult> {
+    const email = input.email.trim().toLowerCase();
+    const tenantId = input.tenantId ?? process.env.NAVAYU_DEFAULT_TENANT_ID ?? 'tenant_navayu';
+
+    const user = await this.authenticatePlatformUser(email, input.password, tenantId);
+
+    const org = await this.prisma.organization.findFirst({ where: { tenantId } });
+    const allBranches = await this.listBranchesForTenant(tenantId);
+
+    const canAccessAllBranches = user.role === 'admin';
+    const branches = canAccessAllBranches
+      ? allBranches
+      : allBranches.filter((branch) => branch.id === user.branchId);
+
+    if (branches.length === 0) {
+      throw new UnauthorizedException('No active branch found for this account');
+    }
+
+    return {
+      tenantId,
+      organizationName: org?.name ?? tenantId,
+      branches,
+      canAccessAllBranches,
+      userBranchId: user.branchId,
+      verifiedEmail: email,
+    };
+  }
+
+  /** Enabled roles/modules for a branch (login wizard step 3). */
+  async getBranchPortalRoles(tenantId: string, branchId: string): Promise<{ roles: BranchPortalRole[] }> {
+    const branch = await this.prisma.branch.findFirst({
+      where: { tenantId, id: branchId, isActive: true },
+    });
+    if (!branch) {
+      throw new UnauthorizedException('Invalid branch for tenant');
+    }
+
+    const configRow = await this.prisma.branchConfig.findFirst({
+      where: { tenantId, branchId, key: 'tenant.settings' },
+    });
+    const settings = (configRow?.value ?? {}) as Record<string, unknown>;
+    const rolesSource = (settings.roles ?? {}) as Record<
+      string,
+      { label?: string; description?: string; enabled?: boolean }
+    >;
+    const featureFlags = (settings.featureFlags ?? {}) as Record<string, boolean>;
+    const patientRelationsEnabled = featureFlags.patientRelationsEnabled !== false;
+
+    const roles: BranchPortalRole[] = [];
+    for (const [role, meta] of Object.entries(rolesSource)) {
+      if (meta?.enabled === false) continue;
+      if (role === 'crm_manager' && !patientRelationsEnabled) continue;
+      roles.push({
+        role,
+        label: meta?.label?.trim() || role.replace(/_/g, ' '),
+        description: meta?.description?.trim() || '',
+      });
+    }
+
+    roles.sort((a, b) => a.label.localeCompare(b.label));
+    return { roles };
   }
 
   async devLogin(input: DevLoginInput) {
@@ -151,6 +227,22 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
     return { revoked: 'all_active' };
+  }
+
+  private async authenticatePlatformUser(email: string, password: string, tenantId: string) {
+    const user = await this.prisma.platformUser.findUnique({
+      where: { tenantId_email: { tenantId, email } },
+    });
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    if (!verifyPassword(password, user.passwordHash)) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    return user;
   }
 
   private async issueSession(

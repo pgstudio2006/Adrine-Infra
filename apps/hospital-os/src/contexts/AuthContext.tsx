@@ -38,7 +38,7 @@ interface AuthContextType {
   loginWithCredentials: (
     email: string,
     password: string,
-    options?: { branchId?: string },
+    options?: { branchId?: string; expectedRole?: string },
   ) => Promise<boolean>;
   logout: () => void;
   canAccess: (module: ModuleKey) => boolean;
@@ -133,7 +133,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const loginWithCredentials = useCallback(
-    async (email: string, password: string, options?: { branchId?: string }) => {
+    async (
+      email: string,
+      password: string,
+      options?: { branchId?: string; expectedRole?: string },
+    ) => {
       const kernel = import.meta.env.VITE_KERNEL_API_URL as string | undefined;
       if (!kernel) {
         toast.error('Platform auth not configured', {
@@ -156,6 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               password,
               tenantId: import.meta.env.VITE_DEV_TENANT_ID ?? 'tenant_navayu',
               branchId: options?.branchId,
+              expectedRole: options?.expectedRole,
             }),
           },
           { unauthenticated: true },

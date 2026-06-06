@@ -34,6 +34,7 @@ export class AuthController {
       password: string;
       tenantId?: string;
       branchId?: string;
+      expectedRole?: string;
     },
   ) {
     const tenantId =
@@ -42,6 +43,35 @@ export class AuthController {
       process.env.NAVAYU_DEFAULT_TENANT_ID ||
       'tenant_navayu';
     return this.auth.login({ ...body, tenantId });
+  }
+
+  /** Hospital affiliation check for multi-step login (no JWT issued). */
+  @Post('hospital-gate')
+  hospitalGate(
+    @Headers('x-tenant-id') headerTenantId: string | undefined,
+    @Body()
+    body: {
+      email: string;
+      password: string;
+      tenantId?: string;
+    },
+  ) {
+    const tenantId =
+      body.tenantId?.trim() ||
+      headerTenantId?.trim() ||
+      process.env.NAVAYU_DEFAULT_TENANT_ID ||
+      'tenant_navayu';
+    return this.auth.verifyHospitalGate({ ...body, tenantId });
+  }
+
+  /** Enabled modules/roles for a branch (login wizard, no auth). */
+  @Get('branches/:branchId/portal-roles')
+  branchPortalRoles(
+    @Param('branchId') branchId: string,
+    @Query('tenantId') tenantId?: string,
+  ) {
+    const tid = tenantId ?? process.env.NAVAYU_DEFAULT_TENANT_ID ?? 'tenant_navayu';
+    return this.auth.getBranchPortalRoles(tid, branchId);
   }
 
   @Post('dev-login')
