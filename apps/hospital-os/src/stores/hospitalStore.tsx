@@ -1325,6 +1325,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
   const admissionsRef = useRef(admissions);
   const patientsRef = useRef(patients);
   const refreshQueueFromPlatformRef = useRef<() => Promise<void>>(async () => {});
+  const lastQueueSyncErrorAtRef = useRef(0);
   useEffect(() => {
     admissionsRef.current = admissions;
   }, [admissions]);
@@ -2759,10 +2760,14 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
       if (isPlatformAuthoritative()) {
         setQueue([]);
       }
-      const body = err instanceof PlatformApiError ? err.body : undefined;
-      toast.error('Queue sync failed', {
-        description: formatPlatformErrorBody(body) ?? (err instanceof Error ? err.message : 'Could not load OPD board'),
-      });
+      const now = Date.now();
+      if (now - lastQueueSyncErrorAtRef.current > 8000) {
+        lastQueueSyncErrorAtRef.current = now;
+        const body = err instanceof PlatformApiError ? err.body : undefined;
+        toast.error('Queue sync failed', {
+          description: formatPlatformErrorBody(body) ?? (err instanceof Error ? err.message : 'Could not load OPD board'),
+        });
+      }
     }
   }, []);
 
