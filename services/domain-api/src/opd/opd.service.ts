@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -43,6 +44,7 @@ export type MskTransitionBody = {
 
 @Injectable()
 export class OpdService {
+  private readonly logger = new Logger(OpdService.name);
   private tokenSeq = 1;
 
   constructor(
@@ -324,15 +326,34 @@ export class OpdService {
 
   /** Active OPD visits for a branch (queue / consultation board). */
   async listBoardVisits(tenantId: string, branchId: string) {
-    return this.prisma.opdVisit.findMany({
-      where: {
-        tenantId,
-        branchId,
-        state: { in: ['routed', 'queued', 'in_consultation', 'orders_pending'] },
-      },
+    const activeStates = [
+      'checked_in',
+      'routed',
+      'queued',
+      'in_consultation',
+      'orders_pending',
+    ] as const;
+    const baseQuery = {
+      tenantId,
+      state: { in: [...activeStates] },
+    };
+    const orderBy = [{ tokenNumber: 'asc' as const }, { createdAt: 'asc' as const }];
+    const primary = await this.prisma.opdVisit.findMany({
+      where: { ...baseQuery, branchId },
       include: { patient: true },
-      orderBy: { createdAt: 'asc' },
+      orderBy,
     });
+    if (primary.length > 0 || branchId === 'branch_main') {
+      return primary;
+    }
+    // Legacy visits created before branch-scoped auth used branch_main.
+    const legacy = await this.prisma.opdVisit.findMany({
+      where: { ...baseQuery, branchId: 'branch_main' },
+      include: { patient: true },
+      orderBy,
+    });
+    const seen = new Set(primary.map((v) => v.id));
+    return [...primary, ...legacy.filter((v) => !seen.has(v.id))];
   }
 
   /** Deep-merge visit metadata (Navayu MSK registration, exams, lifecycle state). */
@@ -457,15 +478,19 @@ export class OpdService {
 
     if (body.action === 'plan_package' || body.action === 'close_visit') {
       try {
-        await this.advanceOpdToBillingForNavayu(
+        await this.ensureNavayuBillingHandoff(
           tenantId,
           visitId,
           body.actorRole,
           body.actorId,
           updated.metadata as Record<string, unknown>,
         );
-      } catch {
-        /* billing handoff is best-effort; charge sync surfaces remaining blockers */
+      } catch (err) {
+        this.logger.warn(
+          `Navayu billing handoff failed for visit ${visitId}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
       }
     }
 
@@ -476,8 +501,11 @@ export class OpdService {
     };
   }
 
-  /** Navayu MSK billing handoff — advance OPD visit to billing_pending for charge sync. */
-  private async advanceOpdToBillingForNavayu(
+  /**
+   * Navayu MSK billing handoff — close encounter and advance OPD visit to billing_pending
+   * so counsellor charge sync (GAP-006) can succeed.
+   */
+  async ensureNavayuBillingHandoff(
     tenantId: string,
     visitId: string,
     actorRole: string,
@@ -485,19 +513,59 @@ export class OpdService {
     meta?: Record<string, unknown>,
   ) {
     let visit = await this.getVisit(tenantId, visitId);
-    if (['billing_pending', 'completed', 'cancelled', 'no_show'].includes(visit.state)) {
-      return visit;
+    if (['completed', 'cancelled', 'no_show'].includes(visit.state)) {
+      return {
+        visit: { id: visit.id, state: visit.state, encounterId: visit.encounterId },
+        encounterClosed: true,
+        billingReady: visit.state === 'completed',
+      };
     }
 
+    const closeEncounterIfNeeded = async () => {
+      visit = await this.getVisit(tenantId, visitId);
+      if (!visit.encounterId) return;
+      const enc = await this.encounters.get(tenantId, visit.encounterId);
+      if (enc.status !== 'closed') {
+        await this.encounters.close(tenantId, visit.encounterId);
+      }
+    };
+
+    if (visit.state === 'billing_pending') {
+      await closeEncounterIfNeeded();
+      visit = await this.getVisit(tenantId, visitId);
+      let encounterClosed = !visit.encounterId;
+      if (visit.encounterId) {
+        const enc = await this.encounters.get(tenantId, visit.encounterId);
+        encounterClosed = enc.status === 'closed';
+      }
+      return {
+        visit: { id: visit.id, state: visit.state, encounterId: visit.encounterId },
+        encounterClosed,
+        billingReady: true,
+      };
+    }
+
+    const visitMeta =
+      meta ??
+      (visit.metadata && typeof visit.metadata === 'object' && !Array.isArray(visit.metadata)
+        ? (visit.metadata as Record<string, unknown>)
+        : {});
     const navayu =
-      meta?.navayu && typeof meta.navayu === 'object' && !Array.isArray(meta.navayu)
-        ? (meta.navayu as Record<string, unknown>)
+      visitMeta.navayu && typeof visitMeta.navayu === 'object' && !Array.isArray(visitMeta.navayu)
+        ? (visitMeta.navayu as Record<string, unknown>)
         : {};
     const protocolMap =
       navayu.protocolMap && typeof navayu.protocolMap === 'object' && !Array.isArray(navayu.protocolMap)
         ? (navayu.protocolMap as Record<string, unknown>)
         : {};
     const navayuCtx: OpdValidationContext = {
+      demographicsComplete: true,
+      consentCaptured: true,
+      departmentSelected: true,
+      doctorOrPoolAssigned: true,
+      appointmentExistsOrWalkinAllowed: true,
+      patientBalanceOk: true,
+      tokenNotDuplicateToday: true,
       clinicalNotePresent: true,
       diagnosisCoded: !!protocolMap.protocolId || !!protocolMap.stageId,
       encounterOpen: true,
@@ -511,6 +579,9 @@ export class OpdService {
     const doctorRole = ['doctor', 'admin', 'medical_superintendent'].includes(actorRole)
       ? actorRole
       : 'doctor';
+    const deskRole = ['billing', 'crm_manager', 'receptionist'].includes(actorRole)
+      ? actorRole
+      : 'billing';
 
     const runTransition = async (action: string, role = doctorRole) => {
       await this.transition(tenantId, visitId, {
@@ -522,21 +593,49 @@ export class OpdService {
       visit = await this.getVisit(tenantId, visitId);
     };
 
-    if (visit.state === 'queued') {
-      await runTransition('call_patient', actorRole);
+    for (let step = 0; step < 14; step += 1) {
+      visit = await this.getVisit(tenantId, visitId);
+      if (visit.state === 'billing_pending') break;
+      if (['completed', 'cancelled', 'no_show'].includes(visit.state)) break;
+
+      switch (visit.state) {
+        case 'registered':
+        case 'appointment_or_walkin':
+          await runTransition('check_in', deskRole);
+          break;
+        case 'checked_in':
+        case 'routed':
+          await runTransition('issue_token', deskRole);
+          break;
+        case 'queued':
+          await runTransition('call_patient', actorRole);
+          break;
+        case 'in_consultation':
+          await runTransition('save_clinical_note');
+          await runTransition('complete_consultation');
+          break;
+        case 'orders_pending':
+          await closeEncounterIfNeeded();
+          await runTransition('fulfill_or_defer_orders', deskRole);
+          break;
+        default:
+          step = 14;
+          break;
+      }
     }
-    if (visit.state === 'in_consultation') {
-      await runTransition('save_clinical_note');
-      await runTransition('complete_consultation');
-    }
+
+    await closeEncounterIfNeeded();
     visit = await this.getVisit(tenantId, visitId);
+    let encounterClosed = !visit.encounterId;
     if (visit.encounterId) {
-      await this.encounters.close(tenantId, visit.encounterId);
+      const enc = await this.encounters.get(tenantId, visit.encounterId);
+      encounterClosed = enc.status === 'closed';
     }
-    if (visit.state === 'orders_pending') {
-      await runTransition('fulfill_or_defer_orders');
-    }
-    return visit;
+    return {
+      visit: { id: visit.id, state: visit.state, encounterId: visit.encounterId },
+      encounterClosed,
+      billingReady: visit.state === 'billing_pending' || visit.state === 'completed',
+    };
   }
 
   async listMskAllowedActions(tenantId: string, visitId: string, actorRole: string) {

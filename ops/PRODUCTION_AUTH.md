@@ -13,9 +13,12 @@ Hospital OS must not rely on mock role cards alone when `VITE_PLATFORM_RUNTIME=t
 
 **kernel-api and domain-api (runtime):**
 
-| Variable | Example |
+| Variable | Purpose |
 |----------|---------|
+| `NODE_ENV` | `production` — domain-api middleware rejects requests without `x-tenant-id` and `x-branch-id` |
+| `DOMAIN_RBAC_ENFORCE` | `true` (default when `NODE_ENV=production`) — mutating API calls require `x-actor-role` |
 | `CORS_ORIGINS` | `https://hms.adrine.in,https://book.adrine.in` |
+| `DATABASE_RLS_ENABLED` | `true` — tenant row-level isolation on Postgres |
 
 Without `CORS_ORIGINS`, the APIs do not send `Access-Control-Allow-Origin` and browser login from Hospital OS or patient-app fails.
 

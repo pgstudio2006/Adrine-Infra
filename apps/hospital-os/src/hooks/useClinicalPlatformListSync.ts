@@ -31,7 +31,7 @@ export function useClinicalPlatformListSync(options: ClinicalListSyncOptions = {
   useEffect(() => {
     if (!isPlatformAuthoritative()) return;
     const tasks: Promise<void>[] = [];
-    if (options.departmentWorklists ?? true) {
+    if (options.departmentWorklists) {
       tasks.push(refreshDepartmentWorklistsFromPlatform());
     }
     if (options.ipd) tasks.push(refreshPlatformIpdSnapshots());

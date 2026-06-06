@@ -21,13 +21,19 @@ export function useReceptionPlatform(options?: {
   const patients = options?.patients ?? false;
 
   const platformOn = isPlatformRuntimeEnabled() && canUseOpdRuntime();
-  const branchId = getPlatformSession()?.branchId;
+  const branchId = getPlatformSession()?.branchId?.trim();
   const [loading, setLoading] = useState(platformOn);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!platformOn) {
       setLoading(false);
+      setError(null);
+      return;
+    }
+    if (!branchId) {
+      setLoading(false);
+      setError('Branch context missing — sign out and sign in again.');
       return;
     }
     setLoading(true);
@@ -45,6 +51,7 @@ export function useReceptionPlatform(options?: {
     }
   }, [
     platformOn,
+    branchId,
     queue,
     appointments,
     patients,

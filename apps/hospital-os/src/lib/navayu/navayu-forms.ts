@@ -675,17 +675,19 @@ export function isNavayuSeniorDoctor(
   name?: string | null,
 ): boolean {
   if (role === 'jr_doctor') return false;
-  if (role === 'doctor') return true;
 
   const emailNorm = email?.trim().toLowerCase() ?? '';
   const nameNorm = name?.trim().toLowerCase() ?? '';
 
   if (
+    /junior@navayuhealth\.in$/i.test(emailNorm) ||
     emailNorm.includes('junior@') ||
     (nameNorm.includes('junior') && nameNorm.includes('associate'))
   ) {
     return false;
   }
+
+  if (role === 'doctor') return true;
 
   if (!isNavayuTenant()) {
     return /senior@navayuhealth\.in$/i.test(emailNorm);

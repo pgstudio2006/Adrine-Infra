@@ -74,6 +74,7 @@ const C1_LEANING_EXACT: readonly string[] = [
   "/crm/leads",
   "/crm/campaigns",
   "/crm/lifecycle",
+  "/crm/drip-campaigns",
   "/admin/crm",
 ];
 
@@ -118,33 +119,27 @@ const C1_LEANING_PREFIXES: readonly string[] = [
 
 /** Demo / MIS admin surfaces — preview until wired. */
 const ADMIN_PREVIEW_EXACT = new Set([
-  "/admin/mortality",
-  "/admin/ai-workflow",
-  "/admin/disease-mapping",
-  "/admin/data-mining",
-  "/admin/kaizen",
-  "/admin/revenue-cycle",
-  "/admin/treatment-success",
-  "/admin/morning-briefing",
-  "/admin/staff",
-  "/admin/departments",
-  "/admin/finance",
-  "/admin/expenses",
-  "/admin/approvals",
-  "/admin/claims",
-  "/admin/mrd",
-  "/admin/audit",
-  "/admin/settings",
-  "/admin/doctor-sharing",
-  "/admin/phonebook",
-  "/admin/geo-intelligence",
+  '/admin/disease-mapping',
+  '/admin/data-mining',
+  '/admin/kaizen',
+  '/admin/treatment-success',
+  '/admin/departments',
+  '/admin/finance',
+  '/admin/expenses',
+  '/admin/approvals',
+  '/admin/claims',
+  '/admin/doctor-sharing',
+  '/admin/phonebook',
+  '/admin/mortality',
+  '/admin/geo-intelligence',
 ]);
 
 const DOCTOR_PREVIEW_EXACT = new Set([
-  "/doctor/analytics",
-  "/doctor/inbox",
-  "/doctor/critical",
-  "/doctor/emr",
+  '/doctor/analytics',
+  '/doctor/patients',
+  '/doctor/inbox',
+  '/doctor/critical',
+  '/doctor/emr',
 ]);
 
 const NURSE_PREVIEW_EXACT = new Set([
@@ -164,10 +159,14 @@ const NURSE_PREVIEW_EXACT = new Set([
 ]);
 
 const PHARMACY_PREVIEW_EXACT = new Set([
-  "/pharmacy/formulary",
-  "/pharmacy/indent",
-  "/pharmacy/returns",
-  "/pharmacy/narcotics",
+  '/pharmacy/formulary',
+  '/pharmacy/indent',
+  '/pharmacy/returns',
+  '/pharmacy/purchase',
+  '/pharmacy/queries',
+  '/pharmacy/suppliers',
+  '/pharmacy/schedule-h',
+  '/pharmacy/narcotics',
   "/pharmacy/expiry",
   "/pharmacy/audit",
   "/pharmacy/barcode",
@@ -239,7 +238,6 @@ const RADIOLOGY_PREVIEW_EXACT = new Set([
 const CRM_PREVIEW_EXACT = new Set([
   "/crm/experience",
   "/crm/reports",
-  "/crm/drip-campaigns",
 ]);
 
 function matchesPrefix(pathname: string, prefixes: readonly string[]): boolean {
@@ -314,13 +312,12 @@ function isPreviewRoute(pathname: string): boolean {
     return true;
   }
   if (
-    pathname === "/doctor" ||
-    pathname === "/doctor/patients" ||
-    pathname === "/doctor/schedule"
+    pathname === '/doctor' ||
+    pathname === '/doctor/schedule'
   ) {
     return false;
   }
-  if (pathname.startsWith("/doctor/patients/")) {
+  if (pathname.startsWith('/doctor/patients/')) {
     return false;
   }
   return false;

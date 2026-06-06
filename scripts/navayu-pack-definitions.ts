@@ -45,26 +45,33 @@ const PATAUDI_ROLE_ENABLED: UserRole[] = [
   'lab_technician',
 ];
 
-const GURGAON_ADMIN_TABS = allTabKeys('admin');
+const GURGAON_ADMIN_TABS = [
+  'dashboard',
+  'command-center',
+  'morning-briefing',
+  'ai-workflow',
+  'revenue-cycle',
+  'mrd',
+  'staff',
+  'mis',
+  'audit',
+  'settings',
+];
 
-const GURGAON_DOCTOR_TABS = ['dashboard', 'patients', 'queue', 'ipd', 'schedule', 'analytics'];
+const GURGAON_DOCTOR_TABS = ['dashboard', 'queue', 'ipd', 'schedule'];
 
-const GURGAON_JR_DOCTOR_TABS = ['dashboard', 'queue', 'patients'];
+const GURGAON_JR_DOCTOR_TABS = ['dashboard', 'queue'];
 
-const GURGAON_PHARMACY_TABS = [
+const NAVAYU_PHARMACY_LIVE_TABS = [
   'dashboard',
   'prescriptions',
   'inventory',
   'drugs',
   'reports',
   'billing',
-  'schedule-h',
-  'purchase',
-  'queries',
-  'suppliers',
-  'indent',
-  'returns',
 ];
+
+const GURGAON_PHARMACY_TABS = NAVAYU_PHARMACY_LIVE_TABS;
 
 const GURGAON_RECEPTION_TABS = [
   'dashboard',
@@ -77,23 +84,44 @@ const GURGAON_RECEPTION_TABS = [
   'ipd',
   'visitors',
   'handover',
-  'feedback',
-  'enquiries',
 ];
 
 const GURGAON_NURSE_TABS = [
   'dashboard',
-  'ward',
-  'vitals',
-  'medications',
-  'discharge',
   'shift',
   'task-board',
+  'ward',
   'admissions',
   'orders',
+  'medications',
+  'vitals',
   'assessments',
-  'io',
+  'discharge',
+];
+
+const PATAUDI_LAB_LIVE_TABS = [
+  'dashboard',
+  'orders',
+  'phlebotomy',
+  'accession',
+  'worklist',
+  'sections',
+  'samples',
+  'entry',
+  'verification',
+  'critical',
+  'amendments',
   'reports',
+  'audit',
+  'tat',
+  'billing-handoff',
+  'storage',
+];
+
+const PATAUDI_NURSE_TABS = [
+  ...GURGAON_NURSE_TABS,
+  'tasks',
+  'care-plan',
 ];
 
 const GURGAON_CRM_TABS = [
@@ -102,8 +130,6 @@ const GURGAON_CRM_TABS = [
   'lifecycle',
   'campaigns',
   'drip-campaigns',
-  'experience',
-  'reports',
 ];
 
 const GURGAON_COUNSELLOR_BILLING_TABS = ['dashboard', 'packages', 'counselling', 'revenue'];
@@ -116,23 +142,14 @@ const PATAUDI_ADMIN_TABS = [
   'mis',
 ];
 
-const PATAUDI_DOCTOR_TABS = allTabKeys('doctor');
-const PATAUDI_NURSE_TABS = allTabKeys('nurse');
-const PATAUDI_RECEPTION_TABS = allTabKeys('receptionist');
-const PATAUDI_PHARMACY_TABS = [
-  'dashboard',
-  'prescriptions',
-  'inventory',
-  'drugs',
-  'reports',
-  'billing',
-  'purchase',
-  'queries',
-  'suppliers',
-  'indent',
-  'returns',
-];
-const PATAUDI_LAB_TABS = allTabKeys('lab_technician');
+const PATAUDI_DOCTOR_TABS = allTabKeys('doctor').filter(
+  (key) => key !== 'analytics' && key !== 'patients',
+);
+const PATAUDI_RECEPTION_TABS = allTabKeys('receptionist').filter(
+  (key) => key !== 'feedback' && key !== 'enquiries',
+);
+const PATAUDI_PHARMACY_TABS = NAVAYU_PHARMACY_LIVE_TABS;
+const PATAUDI_LAB_TABS = PATAUDI_LAB_LIVE_TABS;
 const PATAUDI_BILLING_TABS = [
   'dashboard',
   'invoices',
@@ -142,8 +159,6 @@ const PATAUDI_BILLING_TABS = [
   'revenue',
   'insurance',
   'reports',
-  'charge-master',
-  'cashier',
 ];
 
 function buildRoles(enabled: UserRole[], labels: Partial<Record<UserRole, { label: string; description: string }>>) {

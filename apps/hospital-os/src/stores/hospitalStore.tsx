@@ -1128,7 +1128,9 @@ interface HospitalStore {
   /** Refresh ward/bed from `GET /ipd/admissions/:id` for admissions with `platformAdmissionId`. */
   refreshPlatformIpdSnapshots: () => Promise<void>;
   /** Merge lab / radiology / pharmacy department lists from domain-api when `VITE_PLATFORM_RUNTIME`. */
-  refreshDepartmentWorklistsFromPlatform: () => Promise<void>;
+  refreshDepartmentWorklistsFromPlatform: (
+    module?: 'lab' | 'radiology' | 'pharmacy',
+  ) => Promise<void>;
   nextQueuePatient: (doctor: string, preferVisitId?: string) => void;
   
   // Doctor consultation actions
@@ -1314,23 +1316,51 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     USE_PLATFORM_EMPTY_SEED ? [] : SEED_APPOINTMENTS,
   );
   const [queue, setQueue] = useState<QueueEntry[]>(() => (USE_PLATFORM_EMPTY_SEED ? [] : SEED_QUEUE));
-  const [labOrders, setLabOrders] = useState<LabOrder[]>(SEED_LAB_ORDERS);
-  const [prescriptions, setPrescriptions] = useState<PrescriptionOrder[]>(SEED_PRESCRIPTIONS);
-  const [pharmacyInventory, setPharmacyInventory] = useState<PharmacyInventoryItem[]>(SEED_PHARMACY_INVENTORY);
-  const [radiologyOrders, setRadiologyOrders] = useState<RadiologyOrder[]>(SEED_RADIOLOGY);
+  const [labOrders, setLabOrders] = useState<LabOrder[]>(() => (USE_PLATFORM_EMPTY_SEED ? [] : SEED_LAB_ORDERS));
+  const [prescriptions, setPrescriptions] = useState<PrescriptionOrder[]>(() =>
+    USE_PLATFORM_EMPTY_SEED ? [] : SEED_PRESCRIPTIONS,
+  );
+  const [pharmacyInventory, setPharmacyInventory] = useState<PharmacyInventoryItem[]>(() =>
+    USE_PLATFORM_EMPTY_SEED ? [] : SEED_PHARMACY_INVENTORY,
+  );
+  const [radiologyOrders, setRadiologyOrders] = useState<RadiologyOrder[]>(() =>
+    USE_PLATFORM_EMPTY_SEED ? [] : SEED_RADIOLOGY,
+  );
   const [invoices, setInvoices] = useState<BillingInvoice[]>(() => (USE_PLATFORM_EMPTY_SEED ? [] : SEED_INVOICES));
   const [estimates, setEstimates] = useState<BillingEstimate[]>(() => (USE_PLATFORM_EMPTY_SEED ? [] : SEED_ESTIMATES));
-  const [emergencyCases, setEmergencyCases] = useState<EmergencyCase[]>(SEED_EMERGENCY_CASES);
-  const [admissions, setAdmissions] = useState<AdmissionCase[]>(SEED_ADMISSIONS);
-  const [nursingRounds, setNursingRounds] = useState<NursingRound[]>(SEED_NURSING_ROUNDS);
-  const [doctorProgressNotes, setDoctorProgressNotes] = useState<DoctorProgressNote[]>(SEED_DOCTOR_PROGRESS_NOTES);
-  const [admissionTasks, setAdmissionTasks] = useState<AdmissionTask[]>(SEED_ADMISSION_TASKS);
-  const [inpatientCareOrders, setInpatientCareOrders] = useState<InpatientCareOrder[]>(SEED_INPATIENT_CARE_ORDERS);
-  const [wardMedicineIssues, setWardMedicineIssues] = useState<WardMedicineIssue[]>(SEED_WARD_MEDICINE_ISSUES);
-  const [otRecords, setOtRecords] = useState<OTSurgeryRecord[]>(SEED_OT_RECORDS);
-  const [roomShiftHistory, setRoomShiftHistory] = useState<RoomShiftRecord[]>(SEED_ROOM_SHIFTS);
-  const [departmentTransfers, setDepartmentTransfers] = useState<DepartmentTransferRecord[]>(SEED_DEPARTMENT_TRANSFERS);
-  const [notificationLogs, setNotificationLogs] = useState<NotificationLog[]>(SEED_NOTIFICATION_LOGS);
+  const [emergencyCases, setEmergencyCases] = useState<EmergencyCase[]>(() =>
+    USE_PLATFORM_EMPTY_SEED ? [] : SEED_EMERGENCY_CASES,
+  );
+  const [admissions, setAdmissions] = useState<AdmissionCase[]>(() =>
+    USE_PLATFORM_EMPTY_SEED ? [] : SEED_ADMISSIONS,
+  );
+  const [nursingRounds, setNursingRounds] = useState<NursingRound[]>(() =>
+    USE_PLATFORM_EMPTY_SEED ? [] : SEED_NURSING_ROUNDS,
+  );
+  const [doctorProgressNotes, setDoctorProgressNotes] = useState<DoctorProgressNote[]>(() =>
+    USE_PLATFORM_EMPTY_SEED ? [] : SEED_DOCTOR_PROGRESS_NOTES,
+  );
+  const [admissionTasks, setAdmissionTasks] = useState<AdmissionTask[]>(() =>
+    USE_PLATFORM_EMPTY_SEED ? [] : SEED_ADMISSION_TASKS,
+  );
+  const [inpatientCareOrders, setInpatientCareOrders] = useState<InpatientCareOrder[]>(() =>
+    USE_PLATFORM_EMPTY_SEED ? [] : SEED_INPATIENT_CARE_ORDERS,
+  );
+  const [wardMedicineIssues, setWardMedicineIssues] = useState<WardMedicineIssue[]>(() =>
+    USE_PLATFORM_EMPTY_SEED ? [] : SEED_WARD_MEDICINE_ISSUES,
+  );
+  const [otRecords, setOtRecords] = useState<OTSurgeryRecord[]>(() =>
+    USE_PLATFORM_EMPTY_SEED ? [] : SEED_OT_RECORDS,
+  );
+  const [roomShiftHistory, setRoomShiftHistory] = useState<RoomShiftRecord[]>(() =>
+    USE_PLATFORM_EMPTY_SEED ? [] : SEED_ROOM_SHIFTS,
+  );
+  const [departmentTransfers, setDepartmentTransfers] = useState<DepartmentTransferRecord[]>(() =>
+    USE_PLATFORM_EMPTY_SEED ? [] : SEED_DEPARTMENT_TRANSFERS,
+  );
+  const [notificationLogs, setNotificationLogs] = useState<NotificationLog[]>(() =>
+    USE_PLATFORM_EMPTY_SEED ? [] : SEED_NOTIFICATION_LOGS,
+  );
   const [billingTransactions, setBillingTransactions] = useState<BillingTransaction[]>(() => (USE_PLATFORM_EMPTY_SEED ? [] : SEED_BILLING_TRANSACTIONS));
   const [workflowEvents, setWorkflowEvents] = useState<WorkflowEvent[]>([]);
 
@@ -1810,10 +1840,12 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
       };
 
       setAppointments(prev => [appointment, ...prev]);
-      setQueue(prev => {
-        const withoutDuplicate = prev.filter((entry) => entry.appointmentId !== appointmentId && entry.uhid !== uhid);
-        return [...withoutDuplicate, queueEntry].sort((a, b) => a.tokenNo - b.tokenNo);
-      });
+      if (!isPlatformAuthoritative()) {
+        setQueue(prev => {
+          const withoutDuplicate = prev.filter((entry) => entry.appointmentId !== appointmentId && entry.uhid !== uhid);
+          return [...withoutDuplicate, queueEntry].sort((a, b) => a.tokenNo - b.tokenNo);
+        });
+      }
       pushWorkflowEvent({
         module: 'scheduling',
         action: 'appointment_checked_in',
@@ -2585,7 +2617,10 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
       guardOpdTransition('routed', 'issue_token', actorRole, {
         tokenNotDuplicateToday: true,
       });
-    } catch {
+    } catch (err) {
+      toast.error('Check-in blocked', {
+        description: err instanceof Error ? err.message : 'OPD lifecycle guard rejected check-in',
+      });
       return 0;
     }
 
@@ -2716,10 +2751,25 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
 
   const refreshQueueFromPlatform = useCallback(async () => {
     if (!canUseOpdRuntime()) return;
-    const branchId = getPlatformSession()?.branchId ?? 'branch_main';
+    const sessionBranchId = getPlatformSession()?.branchId?.trim();
+    if (!sessionBranchId) {
+      const message = 'Branch context missing — sign out and sign in again.';
+      const now = Date.now();
+      if (now - lastQueueSyncErrorAtRef.current > 8000) {
+        lastQueueSyncErrorAtRef.current = now;
+        toast.error('Queue sync failed', { description: message });
+      }
+      throw new Error(message);
+    }
     try {
-      const visits = await platformListOpdBoard(branchId);
+      const visits = await platformListOpdBoard(sessionBranchId);
       const currentPatients = patientsRef.current;
+      const resolvePatientForVisit = (patientId: string, mrn?: string | null) =>
+        currentPatients.find(
+          (p) =>
+            p.platformPatientId === patientId
+            || (mrn && p.uhid === mrn),
+        );
       setPatients((prev) =>
         prev.map((patient) => {
           if (!patient.platformPatientId) return patient;
@@ -2742,11 +2792,11 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
           prev.filter(q => q.platformOpdVisitId).map(q => [q.platformOpdVisitId!, q]),
         );
         const boardEntries: QueueEntry[] = visits.map(v => {
-          const pt = currentPatients.find(p => p.platformPatientId === v.patientId);
+          const pt = resolvePatientForVisit(v.patientId, v.patient?.mrn);
           const uhid = pt?.uhid ?? v.patient?.mrn ?? v.patientId;
           const prior = prevByVisit.get(v.id);
           const st = v.state;
-          const platformWaiting = st === 'routed' || st === 'queued';
+          const platformWaiting = st === 'checked_in' || st === 'routed' || st === 'queued';
           const localStatus: QueueEntry['status'] =
             st === 'completed' || st === 'billing_pending' || st === 'follow_up_scheduled'
               ? 'completed'
@@ -2782,9 +2832,9 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
             checkedInAt:
               prior?.checkedInAt ??
               new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
-            complaint: prior?.complaint,
+            complaint: v.complaint ?? prior?.complaint,
             platformOpdVisitId: v.id,
-            appointmentId: prior?.appointmentId,
+            appointmentId: prior?.appointmentId ?? v.appointmentId ?? undefined,
             boardSinceAt,
             waitMinutes,
             branchId: v.branchId,
@@ -2798,6 +2848,9 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
         return merged.sort((a, b) => a.tokenNo - b.tokenNo);
       });
     } catch (err) {
+      if (err instanceof PlatformApiError && err.status === 0) {
+        return;
+      }
       const now = Date.now();
       if (now - lastQueueSyncErrorAtRef.current > 8000) {
         lastQueueSyncErrorAtRef.current = now;
@@ -2806,6 +2859,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
           description: formatPlatformErrorBody(body) ?? (err instanceof Error ? err.message : 'Could not load OPD board'),
         });
       }
+      throw err;
     }
   }, []);
 
@@ -2889,17 +2943,20 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
 
   const refreshAppointmentsFromPlatform = useCallback(async (from?: string, to?: string) => {
     if (!canUseSchedulingRuntime() && !canUseOpdRuntime()) return;
-    const branchId = getPlatformSession()?.branchId ?? 'branch_main';
+    const sessionBranchId = getPlatformSession()?.branchId?.trim();
+    if (!sessionBranchId) {
+      throw new Error('Branch context missing — sign out and sign in again.');
+    }
     const fromIso = from ?? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const toIso = to ?? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
     try {
-      const mapped = await fetchMappedAppointmentsInRange(fromIso, toIso, patients, branchId);
+      const mapped = await fetchMappedAppointmentsInRange(fromIso, toIso, patientsRef.current, sessionBranchId);
       if (mapped === null) return;
       setAppointments(prev => mergeAppointmentsFromPlatform(prev, mapped));
-    } catch {
-      /* keep last merged snapshot */
+    } catch (err) {
+      throw err instanceof Error ? err : new Error('Appointment sync failed');
     }
-  }, [patients]);
+  }, []);
 
   const refreshPlatformIpdSnapshots = useCallback(async () => {
     if (!canUseIpdRuntime()) return;
@@ -2933,30 +2990,60 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
-  const refreshDepartmentWorklistsFromPlatform = useCallback(async () => {
+  const refreshDepartmentWorklistsFromPlatform = useCallback(async (
+    module?: 'lab' | 'radiology' | 'pharmacy',
+  ) => {
     if (!isPlatformAuthoritative()) return;
+    const platformMode = true;
     try {
-      const [labs, rads, rx] = await Promise.all([
-        fetchMappedLabBranchWorklist(),
-        fetchMappedRadiologyBranchWorklist(),
-        fetchMappedPharmacyBranchWorklist(),
-      ]);
-      if (labs !== null) {
-        setLabOrders(prev => mergeLabDepartmentWorklist(prev, labs));
+      const tasks: Promise<void>[] = [];
+      if (!module || module === 'lab') {
+        tasks.push((async () => {
+          const labs = await fetchMappedLabBranchWorklist();
+          if (labs !== null) {
+            setLabOrders((prev) => mergeLabDepartmentWorklist(prev, labs, platformMode));
+          }
+        })());
       }
-      if (rads !== null) {
-        setRadiologyOrders(prev => mergeRadiologyDepartmentWorklist(prev, rads));
+      if (!module || module === 'radiology') {
+        tasks.push((async () => {
+          const rads = await fetchMappedRadiologyBranchWorklist();
+          if (rads !== null) {
+            setRadiologyOrders((prev) => mergeRadiologyDepartmentWorklist(prev, rads, platformMode));
+          }
+        })());
       }
-      if (rx !== null) {
-        setPrescriptions(prev => mergePharmacyDepartmentWorklist(prev, rx));
+      if (!module || module === 'pharmacy') {
+        tasks.push((async () => {
+          const rx = await fetchMappedPharmacyBranchWorklist();
+          if (rx !== null) {
+            setPrescriptions((prev) => mergePharmacyDepartmentWorklist(prev, rx, platformMode));
+          }
+        })());
       }
+      await Promise.all(tasks);
     } catch {
       /* keep last merged snapshot */
     }
   }, []);
 
+  const purgeDemoDepartmentRows = useCallback(() => {
+    if (!USE_PLATFORM_EMPTY_SEED && !isPlatformAuthoritative()) return;
+    setLabOrders((prev) =>
+      prev.filter((row) => row.platformLabOrderId || !row.uhid.startsWith('UH-2024-')),
+    );
+    setPrescriptions((prev) =>
+      prev.filter((row) => row.platformFulfillmentId || !row.uhid.startsWith('UHID-2400')),
+    );
+    setRadiologyOrders((prev) =>
+      prev.filter((row) => row.platformRadiologyOrderId || !row.uhid.startsWith('UHID-2400')),
+    );
+    setPharmacyInventory((prev) => (USE_PLATFORM_EMPTY_SEED ? [] : prev));
+  }, []);
+
   useEffect(() => {
     if (!platformConnected || !user || !isPlatformAuthoritative()) return;
+    purgeDemoDepartmentRows();
     void refreshPatientsFromPlatform();
     void refreshAppointmentsFromPlatform();
     void refreshDepartmentWorklistsFromPlatform();
@@ -2966,6 +3053,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     platformConnected,
     user?.id,
     user?.role,
+    purgeDemoDepartmentRows,
     refreshPatientsFromPlatform,
     refreshAppointmentsFromPlatform,
     refreshDepartmentWorklistsFromPlatform,

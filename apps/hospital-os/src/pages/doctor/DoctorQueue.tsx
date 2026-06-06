@@ -46,8 +46,8 @@ const statusStyle: Record<string, string> = {
 };
 
 export default function DoctorQueue() {
-  const { updateQueueStatus, nextQueuePatient, patients } = useHospital();
-  const { isDoctor, doctorName, department, queue } = useDoctorScope();
+  const { updateQueueStatus, nextQueuePatient } = useHospital();
+  const { isDoctor, doctorName, department, queue, patients } = useDoctorScope();
   const { user } = useAuth();
   const roleBasePath = useClinicalBasePath();
   const navayuMode = isNavayuTenant();

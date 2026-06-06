@@ -1,12 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
 import { motion } from 'framer-motion';
-import { Monitor, Users, Clock, AlertTriangle, SkipForward, Phone, Play, Megaphone } from 'lucide-react';
+import { Monitor, Users, Clock, AlertTriangle, SkipForward, Phone, Play, Megaphone, RefreshCw } from 'lucide-react';
 import { OPDTVDisplay } from '@/components/reception/OPDTVDisplay';
 import { useHospital } from '@/stores/hospitalStore';
-import { useOperationalEventStream } from '@/runtime/realtime-runtime';
-import { getPlatformSession, isPlatformRuntimeEnabled } from '@/runtime/platform-session';
 import { InlinePlatformError } from '@/components/opd/InlinePlatformError';
-import { useClinicalPlatformListSync } from '@/hooks/useClinicalPlatformListSync';
+import { useReceptionPlatform } from '@/hooks/useReceptionPlatform';
 import { averageWaitMinutes, formatWaitMinutes, queueEntryKey } from '@/lib/opd/queue-presenters';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,33 +30,18 @@ const statusLabels: Record<string, string> = {
 };
 
 export default function ReceptionQueue() {
-  const { queue, updateQueueStatus, refreshQueueFromPlatform } = useHospital();
+  const { queue, updateQueueStatus } = useHospital();
+  const { error: platformError, loading, refresh, platformOn } = useReceptionPlatform({
+    queue: true,
+    appointments: false,
+  });
   const [selectedDept, setSelectedDept] = useState<string>('all');
   const [tvMode, setTvMode] = useState(false);
-  const [platformError, setPlatformError] = useState<string | null>(null);
-  useClinicalPlatformListSync({ queue: true, appointments: true, departmentWorklists: false, ipd: false });
-
-  const branchId = getPlatformSession()?.branchId;
-  useOperationalEventStream(branchId, {
-    onSnapshot: () => {
-      void refreshQueueFromPlatform().catch((e) =>
-        setPlatformError(e instanceof Error ? e.message : 'Queue refresh failed'),
-      );
-    },
-    onDelta: () => {
-      void refreshQueueFromPlatform().catch((e) =>
-        setPlatformError(e instanceof Error ? e.message : 'Queue refresh failed'),
-      );
-    },
-  });
+  const [errorDismissed, setErrorDismissed] = useState(false);
 
   useEffect(() => {
-    if (isPlatformRuntimeEnabled()) {
-      void refreshQueueFromPlatform()
-        .then(() => setPlatformError(null))
-        .catch((e) => setPlatformError(e instanceof Error ? e.message : 'Queue refresh failed'));
-    }
-  }, [refreshQueueFromPlatform]);
+    setErrorDismissed(false);
+  }, [platformError]);
 
   const queuesByDepartment = useMemo<QueueGroup>(() => {
     return queue.reduce<QueueGroup>((groups, entry) => {
@@ -98,11 +81,14 @@ export default function ReceptionQueue() {
     <div className="space-y-6">
       {isPlatformAuthoritative() ? (
         <PlatformConnectivityStrip
-          detail="Queue hydrated from GET /opd/visits/board · wait times from visit createdAt"
+          detail="Queue hydrated from GET /opd/board/visits · wait times from visit createdAt"
         />
       ) : null}
 
-      <InlinePlatformError message={platformError} onDismiss={() => setPlatformError(null)} />
+      <InlinePlatformError
+        message={errorDismissed ? null : platformError}
+        onDismiss={() => setErrorDismissed(true)}
+      />
 
       {calledPatient ? (
         <div className="rounded-lg border-2 border-primary/50 bg-primary/10 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
@@ -126,6 +112,12 @@ export default function ReceptionQueue() {
         <Button variant="outline" size="sm" onClick={() => setTvMode(true)} className="gap-2">
           <Monitor className="w-4 h-4" /> TV Display
         </Button>
+        {platformOn ? (
+          <Button variant="ghost" size="sm" onClick={() => void refresh()} disabled={loading} className="gap-2">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh board
+          </Button>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -187,9 +179,16 @@ export default function ReceptionQueue() {
       </div>
 
       <div className="space-y-6">
-        {departments.length === 0 && (
-          <div className="rounded-xl border bg-card p-12 text-center text-sm text-muted-foreground">
-            No patients in queue. Complete check-in from the previous step to issue tokens.
+        {departments.length === 0 && !loading && (
+          <div className="rounded-xl border bg-card p-12 text-center text-sm text-muted-foreground space-y-2">
+            {platformError ? (
+              <p>Queue board could not be loaded. Fix the error above and refresh.</p>
+            ) : (
+              <>
+                <p>No patients in queue.</p>
+                <p className="text-xs">Complete check-in from Check-In to issue tokens — they appear here automatically.</p>
+              </>
+            )}
           </div>
         )}
 

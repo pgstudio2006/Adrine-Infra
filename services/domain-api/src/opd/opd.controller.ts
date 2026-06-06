@@ -1,18 +1,28 @@
-import { Body, Controller, Get, Headers, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import { ApiHeader, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
+import { resolveRequestBranchId, resolveRequestTenantId } from '../tenant/branch.util';
+import type { RequestWithTenant } from '../tenant/tenant.middleware';
 import { OpdService, type MskTransitionBody, type OpdTransitionBody } from './opd.service';
 
 @ApiTags('opd')
 @Controller('opd')
 @ApiHeader({ name: 'x-tenant-id', required: true })
-@ApiHeader({ name: 'x-branch-id', required: false })
+@ApiHeader({ name: 'x-branch-id', required: true })
 export class OpdController {
   constructor(private readonly opd: OpdService) {}
 
+  private tenant(req: Request) {
+    return resolveRequestTenantId(req as RequestWithTenant);
+  }
+
+  private branch(req: Request, queryBranch?: string) {
+    return resolveRequestBranchId(req as RequestWithTenant, queryBranch);
+  }
+
   @Post('visits')
   create(
-    @Headers('x-tenant-id') tenantId: string,
-    @Headers('x-branch-id') branchId: string | undefined,
+    @Req() req: Request,
     @Body()
     body: {
       patientId?: string;
@@ -23,72 +33,55 @@ export class OpdController {
       actorId?: string;
     },
   ) {
-    return this.opd.createVisit(tenantId ?? 'tenant_dev', branchId ?? 'branch_main', body);
+    return this.opd.createVisit(this.tenant(req), this.branch(req), body);
   }
 
   /** Alias path — never shadowed by visits/:id (legacy bug treated id=board). */
   @Get('board/visits')
-  boardAlias(
-    @Headers('x-tenant-id') tenantId: string,
-    @Query('branchId') branchId: string | undefined,
-    @Headers('x-branch-id') headerBranch: string | undefined,
-  ) {
-    const bid = branchId ?? headerBranch ?? 'branch_main';
-    return this.opd.listBoardVisits(tenantId ?? 'tenant_dev', bid);
+  boardAlias(@Req() req: Request, @Query('branchId') branchId?: string) {
+    return this.opd.listBoardVisits(this.tenant(req), this.branch(req, branchId));
   }
 
   /** Queue / consultation board for a branch (Hospital OS hydration). Must be before visits/:id. */
   @Get('visits/board')
-  board(
-    @Headers('x-tenant-id') tenantId: string,
-    @Query('branchId') branchId: string | undefined,
-    @Headers('x-branch-id') headerBranch: string | undefined,
-  ) {
-    const bid = branchId ?? headerBranch ?? 'branch_main';
-    return this.opd.listBoardVisits(tenantId ?? 'tenant_dev', bid);
+  board(@Req() req: Request, @Query('branchId') branchId?: string) {
+    return this.opd.listBoardVisits(this.tenant(req), this.branch(req, branchId));
   }
 
   @Get('visits/patient/:patientId/active')
-  active(@Headers('x-tenant-id') tenantId: string, @Param('patientId') patientId: string) {
-    return this.opd.getActiveForPatient(tenantId ?? 'tenant_dev', patientId);
+  active(@Req() req: Request, @Param('patientId') patientId: string) {
+    return this.opd.getActiveForPatient(this.tenant(req), patientId);
   }
 
   /** Patient timeline — visits, MSK milestones, OPD transitions. */
   @Get('visits/patient/:patientId/timeline')
-  patientTimeline(
-    @Headers('x-tenant-id') tenantId: string,
-    @Param('patientId') patientId: string,
-  ) {
-    return this.opd.getPatientTimeline(tenantId ?? 'tenant_dev', patientId);
+  patientTimeline(@Req() req: Request, @Param('patientId') patientId: string) {
+    return this.opd.getPatientTimeline(this.tenant(req), patientId);
   }
 
   @Get('visits/:id')
-  get(@Headers('x-tenant-id') tenantId: string, @Param('id') id: string) {
-    return this.opd.getVisit(tenantId ?? 'tenant_dev', id);
+  get(@Req() req: Request, @Param('id') id: string) {
+    return this.opd.getVisit(this.tenant(req), id);
   }
 
   @Get('visits/:id/allowed-actions')
   allowed(
-    @Headers('x-tenant-id') tenantId: string,
+    @Req() req: Request,
     @Param('id') id: string,
     @Headers('x-actor-role') actorRole: string | undefined,
   ) {
-    return this.opd.listAllowedActions(tenantId ?? 'tenant_dev', id, actorRole ?? 'receptionist');
+    return this.opd.listAllowedActions(this.tenant(req), id, actorRole ?? 'receptionist');
   }
 
   @Post('visits/:id/transition')
-  transition(
-    @Headers('x-tenant-id') tenantId: string,
-    @Param('id') id: string,
-    @Body() body: OpdTransitionBody,
-  ) {
-    return this.opd.transition(tenantId ?? 'tenant_dev', id, body);
+  transition(@Req() req: Request, @Param('id') id: string, @Body() body: OpdTransitionBody) {
+    return this.opd.transition(this.tenant(req), id, body);
   }
 
   /** Navayu patient intake (tablet) — merges answers into visit metadata. */
   @Post('visits/:id/intake')
   intake(
-    @Headers('x-tenant-id') tenantId: string,
+    @Req() req: Request,
     @Param('id') id: string,
     @Body()
     body: {
@@ -97,22 +90,18 @@ export class OpdController {
       answers: Record<string, unknown>;
     },
   ) {
-    return this.opd.submitIntake(tenantId ?? 'tenant_dev', id, body);
+    return this.opd.submitIntake(this.tenant(req), id, body);
   }
 
   /** Merge Navayu / visit-specific metadata without a full OPD transition. */
   @Patch('visits/:id/metadata')
-  patchMetadata(
-    @Headers('x-tenant-id') tenantId: string,
-    @Param('id') id: string,
-    @Body() body: Record<string, unknown>,
-  ) {
-    return this.opd.patchVisitMetadata(tenantId ?? 'tenant_dev', id, body);
+  patchMetadata(@Req() req: Request, @Param('id') id: string, @Body() body: Record<string, unknown>) {
+    return this.opd.patchVisitMetadata(this.tenant(req), id, body);
   }
 
   @Post('visits/:id/investigations/upload')
   uploadInvestigation(
-    @Headers('x-tenant-id') tenantId: string,
+    @Req() req: Request,
     @Param('id') id: string,
     @Body()
     body: {
@@ -123,34 +112,41 @@ export class OpdController {
       dataBase64?: string;
     },
   ) {
-    return this.opd.uploadInvestigation(tenantId ?? 'tenant_dev', id, body);
+    return this.opd.uploadInvestigation(this.tenant(req), id, body);
   }
 
   @Post('visits/:id/ai-summary')
-  aiSummary(
-    @Headers('x-tenant-id') tenantId: string,
-    @Param('id') id: string,
-    @Body() body: Record<string, unknown>,
-  ) {
-    return this.opd.generateNavayuAiSummary(tenantId ?? 'tenant_dev', id, body);
+  aiSummary(@Req() req: Request, @Param('id') id: string, @Body() body: Record<string, unknown>) {
+    return this.opd.generateNavayuAiSummary(this.tenant(req), id, body);
   }
 
   /** Navayu MSK workflow — governed transitions (navayu_msk_visit lifecycle). */
   @Post('visits/:id/msk/transition')
-  mskTransition(
-    @Headers('x-tenant-id') tenantId: string,
-    @Param('id') id: string,
-    @Body() body: MskTransitionBody,
-  ) {
-    return this.opd.transitionMsk(tenantId ?? 'tenant_dev', id, body);
+  mskTransition(@Req() req: Request, @Param('id') id: string, @Body() body: MskTransitionBody) {
+    return this.opd.transitionMsk(this.tenant(req), id, body);
   }
 
   @Get('visits/:id/msk/allowed-actions')
   mskAllowed(
-    @Headers('x-tenant-id') tenantId: string,
+    @Req() req: Request,
     @Param('id') id: string,
     @Headers('x-actor-role') actorRole: string | undefined,
   ) {
-    return this.opd.listMskAllowedActions(tenantId ?? 'tenant_dev', id, actorRole ?? 'receptionist');
+    return this.opd.listMskAllowedActions(this.tenant(req), id, actorRole ?? 'receptionist');
+  }
+
+  /** Navayu counsellor billing — close encounter and advance OPD to billing_pending. */
+  @Post('visits/:id/navayu/billing-handoff')
+  navayuBillingHandoff(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() body: { actorRole?: string; actorId?: string },
+  ) {
+    return this.opd.ensureNavayuBillingHandoff(
+      this.tenant(req),
+      id,
+      body.actorRole ?? 'billing',
+      body.actorId,
+    );
   }
 }

@@ -68,6 +68,41 @@ export function isUnassignedDoctorName(name?: string | null): boolean {
   return normalized === 'unassigned' || normalized === 'doctor on call';
 }
 
+export type NavayuMskPoolViewer = {
+  name: string;
+  role?: string | null;
+  department?: string;
+};
+
+/** Navayu MSK pool — junior sees all branch MSK rows; senior sees junior-assigned pool visits too. */
+export function matchesNavayuMskPoolDoctorAssignment(
+  assignedDoctor: string | undefined | null,
+  viewer: NavayuMskPoolViewer,
+  entryDepartment?: string,
+): boolean {
+  if (assignedDoctor === viewer.name) {
+    return true;
+  }
+  if (!shouldUseNavayuMskPoolQueue()) {
+    return false;
+  }
+  if (
+    viewer.department &&
+    entryDepartment &&
+    !departmentMatchesClinicalScope(viewer.department, entryDepartment)
+  ) {
+    return false;
+  }
+  if (viewer.role === 'jr_doctor') {
+    return true;
+  }
+  if (isUnassignedDoctorName(assignedDoctor)) {
+    return true;
+  }
+  const poolDoctors = getClinicalDoctorsForDepartment(entryDepartment ?? '');
+  return poolDoctors.includes(assignedDoctor ?? '');
+}
+
 export function shouldUseNavayuMskPoolQueue(): boolean {
   return isNavayuTenant();
 }

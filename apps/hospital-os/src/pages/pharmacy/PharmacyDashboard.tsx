@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pill, ClipboardList, AlertTriangle, Package, TrendingUp, Clock, ShieldAlert, Activity } from "lucide-react";
 import { useHospital } from "@/stores/hospitalStore";
+import { useDepartmentWorklistSync } from "@/hooks/useDepartmentWorklistSync";
 
 type RecentRx = {
   id: string;
@@ -39,6 +40,7 @@ const severityIcon: Record<string, string> = {
 
 export default function PharmacyDashboard() {
   const { prescriptions, pharmacyInventory } = useHospital();
+  useDepartmentWorklistSync("pharmacy");
 
   const todayKey = new Date().toISOString().slice(0, 10);
   const pendingCount = prescriptions.filter(r => r.status === 'Pending' || r.status === 'Verified').length;

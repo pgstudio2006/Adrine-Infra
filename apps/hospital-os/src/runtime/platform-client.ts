@@ -41,6 +41,8 @@ export function formatPlatformErrorBody(body: unknown): string | undefined {
 export type PlatformFetchOptions = {
   /** Login / dev-login — do not require an existing platform session. */
   unauthenticated?: boolean;
+  /** Skip client backoff gate (queue board, active patient context). */
+  critical?: boolean;
 };
 
 // ── Request deduplication + backoff ──────────────────────────────────────────
@@ -111,8 +113,8 @@ export async function platformFetch<T>(
   const key = dedupKey(method, fullUrl);
 
   // ── Backoff gate (GET only): skip if URL is in cooldown after consecutive failures ─
-  const canDedup = method === 'GET';
-  if (canDedup) {
+  const canDedup = method === 'GET' && !options?.critical;
+  if (method === 'GET' && !options?.critical) {
     const cooldownExpiry = cooldowns.get(key);
     if (cooldownExpiry && Date.now() < cooldownExpiry) {
       // status 0 = client-side throttle, not a real HTTP error

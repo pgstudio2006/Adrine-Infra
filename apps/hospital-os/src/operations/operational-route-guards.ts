@@ -181,6 +181,7 @@ export function evaluateOperationalRouteAccess(
 
   if (pathname.startsWith('/doctor/consultation/') || pathname.startsWith('/jr-doctor/consultation/')) {
     const uhid = pathname.split('/').filter(Boolean).pop();
+    const queuePath = ctx.role === 'jr_doctor' ? '/jr-doctor/queue' : '/doctor/queue';
     const target = uhid ? ctx.patients.find((p) => p.uhid === uhid) : undefined;
     const queuedForPatient =
       !!uhid &&
@@ -201,7 +202,7 @@ export function evaluateOperationalRouteAccess(
       return {
         allowed: false,
         reason: 'Patient must be queued or in consultation before opening the consultation workspace.',
-        redirectTo: '/doctor/queue',
+        redirectTo: queuePath,
       };
     }
   }

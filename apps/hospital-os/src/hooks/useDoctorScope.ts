@@ -6,8 +6,8 @@ import { scopeQueueToBranch } from '@/lib/navayu/navayu-queue';
 import { isNavayuTenant } from '@/lib/navayu/navayu-forms';
 import {
   departmentMatchesClinicalScope,
-  getClinicalDoctorsForDepartment,
   isUnassignedDoctorName,
+  matchesNavayuMskPoolDoctorAssignment,
   shouldUseNavayuMskPoolQueue,
 } from '@/lib/opd/branch-clinical-roster';
 import {
@@ -62,26 +62,20 @@ export function useDoctorScope(): DoctorScope {
     return !value || value === department;
   }, [department]);
 
-  const matchesQueueDoctor = useCallback((entry: QueueEntry) => {
-    if (entry.doctor === doctorName) {
-      return true;
-    }
+  const poolViewer = useMemo(
+    () => ({ name: doctorName, role: user?.role, department }),
+    [department, doctorName, user?.role],
+  );
 
-    if (!navayuPoolQueue || !matchesDepartment(entry.department)) {
+  const matchesQueueDoctor = useCallback((entry: QueueEntry) => {
+    if (!matchesDepartment(entry.department)) {
       return false;
     }
-
-    if (user?.role === 'jr_doctor') {
-      return true;
+    if (!navayuPoolQueue) {
+      return entry.doctor === doctorName;
     }
-
-    if (isUnassignedDoctorName(entry.doctor)) {
-      return true;
-    }
-
-    const poolDoctors = getClinicalDoctorsForDepartment(entry.department);
-    return poolDoctors.includes(entry.doctor);
-  }, [doctorName, matchesDepartment, navayuPoolQueue, user?.role]);
+    return matchesNavayuMskPoolDoctorAssignment(entry.doctor, poolViewer, entry.department);
+  }, [doctorName, matchesDepartment, navayuPoolQueue, poolViewer]);
 
   const patients = useMemo(() => {
     if (!isDoctor) {
@@ -94,18 +88,24 @@ export function useDoctorScope(): DoctorScope {
           (entry) =>
             entry.uhid === patient.uhid &&
             matchesDepartment(entry.department) &&
-            (entry.doctor === doctorName ||
-              isUnassignedDoctorName(entry.doctor) ||
-              user?.role === 'jr_doctor'),
+            matchesNavayuMskPoolDoctorAssignment(entry.doctor, poolViewer, entry.department),
         );
         if (onBranchBoard) {
           return true;
         }
-        return patient.assignedDoctor === doctorName || isUnassignedDoctorName(patient.assignedDoctor);
+        return (
+          patient.assignedDoctor === doctorName ||
+          isUnassignedDoctorName(patient.assignedDoctor) ||
+          matchesNavayuMskPoolDoctorAssignment(
+            patient.assignedDoctor,
+            poolViewer,
+            patient.department,
+          )
+        );
       }
       return patient.assignedDoctor === doctorName && matchesDepartment(patient.department);
     });
-  }, [doctorName, isDoctor, matchesDepartment, navayuPoolQueue, store.patients, store.queue, user?.role]);
+  }, [doctorName, isDoctor, matchesDepartment, navayuPoolQueue, poolViewer, store.patients, store.queue]);
 
   const patientUhidSet = useMemo(() => {
     return new Set(patients.map((patient) => patient.uhid));
@@ -209,11 +209,19 @@ export function useDoctorScope(): DoctorScope {
     }
 
     if (navayuPoolQueue && matchesDepartment(patient.department)) {
-      return patient.assignedDoctor === doctorName || isUnassignedDoctorName(patient.assignedDoctor);
+      return (
+        patient.assignedDoctor === doctorName ||
+        isUnassignedDoctorName(patient.assignedDoctor) ||
+        matchesNavayuMskPoolDoctorAssignment(
+          patient.assignedDoctor,
+          poolViewer,
+          patient.department,
+        )
+      );
     }
 
     return patient.assignedDoctor === doctorName && matchesDepartment(patient.department);
-  }, [doctorName, matchesDepartment, navayuPoolQueue, patientByUhid, scopedUhids]);
+  }, [doctorName, matchesDepartment, navayuPoolQueue, patientByUhid, poolViewer, scopedUhids]);
 
   const labOrders = useMemo(() => {
     if (!isDoctor) {

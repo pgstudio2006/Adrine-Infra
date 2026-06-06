@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   useBillingDeptPlatform,
   useOpdLiveFinancial,
@@ -62,7 +63,9 @@ const payColor: Record<string, string> = {
 };
 
 export default function BillingInvoices() {
-  const { platformOn, storeInvoices, resolveOpdVisitId } = useBillingDeptPlatform();
+  const [searchParams] = useSearchParams();
+  const visitIdFromUrl = searchParams.get("visitId");
+  const { platformOn, storeInvoices, resolveOpdVisitId, patients } = useBillingDeptPlatform();
   const [search, setSearch] = useState("");
   const [wizardStep, setWizardStep] = useState(0);
   const INVOICE_WIZARD_STEPS: WizardStep[] = [
@@ -105,8 +108,42 @@ export default function BillingInvoices() {
     return pickPlatformRows(platformOn, platformInvoices, DEMO_INVOICES);
   }, [platformOn, storeInvoices]);
 
-  const selectedVisitId = selected ? resolveOpdVisitId(selected.uhid) : undefined;
-  const liveOpd = useOpdLiveFinancial(selectedVisitId);
+  const selectedVisitId =
+    visitIdFromUrl ??
+    (selected ? resolveOpdVisitId(selected.uhid) : undefined);
+  const liveOpd = useOpdLiveFinancial(selectedVisitId ?? undefined);
+
+  useEffect(() => {
+    if (!visitIdFromUrl || selected) return;
+    const match = storeInvoices.find(
+      (inv) => patients.find((p) => p.uhid === inv.uhid)?.platformOpdVisitId === visitIdFromUrl,
+    );
+    if (!match) return;
+    const { status, paymentStatus } = mapStoreInvoiceStatus(match);
+    const items: InvoiceItem[] = match.items.map((line) => ({
+      service: line.description,
+      dept: match.category,
+      qty: 1,
+      rate: line.amount,
+      tax: 0,
+      amount: line.amount,
+    }));
+    setSelected({
+      id: match.id,
+      billId: match.id,
+      uhid: match.uhid,
+      patient: match.patientName,
+      category: match.category,
+      date: match.date,
+      items,
+      subtotal: match.total,
+      taxTotal: 0,
+      discount: match.discountAmount ?? 0,
+      netAmount: match.total,
+      status,
+      paymentStatus,
+    });
+  }, [visitIdFromUrl, selected, storeInvoices, patients]);
   
   // New Invoice State
   const [showNewInvoice, setShowNewInvoice] = useState(false);

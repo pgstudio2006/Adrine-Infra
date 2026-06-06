@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { IndianRupee, Package, RefreshCw, User } from 'lucide-react';
+import { ExternalLink, IndianRupee, Package, RefreshCw, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { BillingDeptShell } from '@/components/billing/BillingDeptShell';
 import { NavayuFollowUpHandoff } from '@/components/navayu/NavayuFollowUpHandoff';
@@ -8,6 +8,7 @@ import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { useOpdLiveFinancial } from '@/hooks/useBillingDeptPlatform';
 import {
   hydrateNavayuProtocolCatalog,
   listNavayuPackageTiers,
@@ -18,25 +19,35 @@ import {
 import {
   MSK_STATE_LABELS,
   canUseNavayuRuntime,
+  platformEnsureNavayuBillingHandoff,
+  platformGetNavayuOpdVisitSummary,
   platformListNavayuCounsellorQueue,
   platformLoadNavayuVisitBundle,
   platformSaveNavayuCounselling,
   platformSaveNavayuFollowUp,
   platformSaveNavayuPackagePlanned,
   type NavayuCounsellorQueueRow,
+  type NavayuMskLifecycleState,
 } from '@/lib/navayu/navayu-runtime';
 import { platformEnsureOpdDraft, platformSyncCharge } from '@/runtime/billing-runtime';
 import { getPlatformSession } from '@/runtime/platform-session';
 import { useHospital } from '@/stores/hospitalStore';
 
+const COUNSELLOR_MSK_STATES: NavayuMskLifecycleState[] = [
+  'protocol_mapped',
+  'counselling',
+  'package_planned',
+];
+
 export default function NavayuCounsellorDesk() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const visitFromUrl = searchParams.get('visitId');
   const { patients, createEstimate } = useHospital();
   const [queue, setQueue] = useState<NavayuCounsellorQueueRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(visitFromUrl);
+  const [deepLinkRow, setDeepLinkRow] = useState<NavayuCounsellorQueueRow | null>(null);
   const [tierId, setTierId] = useState<NavayuPackageTierId>('advanced');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -45,21 +56,32 @@ export default function NavayuCounsellorDesk() {
   const [stageLabel, setStageLabel] = useState('');
 
   const tiers = useMemo(() => listNavayuPackageTiers(), []);
-  const selected = queue.find((row) => row.visitId === selectedId) ?? null;
+  const selected =
+    queue.find((row) => row.visitId === selectedId) ??
+    (deepLinkRow?.visitId === selectedId ? deepLinkRow : null);
   const platformOn = canUseNavayuRuntime();
+  const liveOpd = useOpdLiveFinancial(selected?.visitId);
+
+  const selectVisit = useCallback(
+    (visitId: string) => {
+      setSelectedId(visitId);
+      setSearchParams({ visitId }, { replace: true });
+    },
+    [setSearchParams],
+  );
 
   const refreshQueue = useCallback(async () => {
     setLoading(true);
     try {
       const rows = await platformListNavayuCounsellorQueue();
       setQueue(rows);
-      if (!selectedId && rows[0]) {
-        setSelectedId(rows[0].visitId);
+      if (!selectedId && !visitFromUrl && rows[0]) {
+        selectVisit(rows[0].visitId);
       }
     } finally {
       setLoading(false);
     }
-  }, [selectedId]);
+  }, [selectedId, visitFromUrl, selectVisit]);
 
   useEffect(() => {
     if (visitFromUrl) {
@@ -73,6 +95,49 @@ export default function NavayuCounsellorDesk() {
   }, [refreshQueue]);
 
   useEffect(() => {
+    if (!selectedId || !platformOn) {
+      setDeepLinkRow(null);
+      return;
+    }
+    if (queue.some((row) => row.visitId === selectedId)) {
+      setDeepLinkRow(null);
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      const [summary, bundle] = await Promise.all([
+        platformGetNavayuOpdVisitSummary(selectedId),
+        platformLoadNavayuVisitBundle(selectedId),
+      ]);
+      if (cancelled || !summary || !bundle?.mskLifecycleState) {
+        if (!cancelled) setDeepLinkRow(null);
+        return;
+      }
+      if (!COUNSELLOR_MSK_STATES.includes(bundle.mskLifecycleState)) {
+        setDeepLinkRow(null);
+        return;
+      }
+      const labels = bundle.protocolMap ? protocolMapLabels(bundle.protocolMap) : {};
+      setDeepLinkRow({
+        visitId: summary.visitId,
+        patientId: summary.patientId,
+        patientName: summary.patientName,
+        mrn: summary.mrn,
+        department: summary.department,
+        assignedDoctor: summary.assignedDoctor,
+        mskLifecycleState: bundle.mskLifecycleState,
+        protocolLabel: labels.protocolLabel,
+        createdAt: new Date().toISOString(),
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId, platformOn, queue]);
+
+  useEffect(() => {
     if (!selectedId || !platformOn) return;
     setBundleLoading(true);
     void platformLoadNavayuVisitBundle(selectedId).then((bundle) => {
@@ -82,6 +147,9 @@ export default function NavayuCounsellorDesk() {
         setStageLabel(labels.stageLabel);
         const recommended = bundle.protocolMap.packageTier as NavayuPackageTierId | undefined;
         if (recommended) setTierId(recommended);
+      } else {
+        setProtocolLabel('');
+        setStageLabel('');
       }
       if (bundle?.counselling?.tierId) {
         setTierId(bundle.counselling.tierId);
@@ -92,6 +160,39 @@ export default function NavayuCounsellorDesk() {
   }, [selectedId, platformOn]);
 
   const tier = tiers.find((t) => t.id === tierId) ?? tiers[0];
+
+  const syncBillingCharges = async (
+    visitId: string,
+    patientId: string,
+    counselling: ReturnType<typeof resolveCounsellingRecord>,
+  ) => {
+    const handoff = await platformEnsureNavayuBillingHandoff(visitId);
+    if (!handoff.billingReady) {
+      throw new Error(
+        `Visit not billing-ready (OPD state: ${handoff.visit.state}). Encounter closed: ${handoff.encounterClosed ? 'yes' : 'no'}.`,
+      );
+    }
+
+    const session = getPlatformSession();
+    if (!session) return;
+
+    await platformEnsureOpdDraft({
+      opdVisitId: visitId,
+      patientId,
+    });
+    await platformSyncCharge({
+      opdVisitId: visitId,
+      patientId,
+      idempotencyKey: `navayu-package:${visitId}:${counselling.packageCode}`,
+      description: counselling.packageName,
+      amountCents: counselling.proposedAmountInr * 100,
+      chargeCode: counselling.packageCode,
+      sourceModule: 'navayu_counselling',
+      sourceAction: 'plan_package',
+      sourceRefId: counselling.packageCode,
+    });
+    await liveOpd.refresh();
+  };
 
   const handleSaveCounselling = async () => {
     if (!selected || !platformOn) {
@@ -129,25 +230,7 @@ export default function NavayuCounsellorDesk() {
       }
       const counselling = resolveCounsellingRecord(bundle.protocolMap, tierId, notes);
       await platformSaveNavayuPackagePlanned(selected.visitId, counselling);
-
-      const session = getPlatformSession();
-      if (session) {
-        await platformEnsureOpdDraft({
-          opdVisitId: selected.visitId,
-          patientId: selected.patientId,
-        });
-        await platformSyncCharge({
-          opdVisitId: selected.visitId,
-          patientId: selected.patientId,
-          idempotencyKey: `navayu-package:${selected.visitId}:${counselling.packageCode}`,
-          description: counselling.packageName,
-          amountCents: counselling.proposedAmountInr * 100,
-          chargeCode: counselling.packageCode,
-          sourceModule: 'navayu_counselling',
-          sourceAction: 'plan_package',
-          sourceRefId: counselling.packageCode,
-        });
-      }
+      await syncBillingCharges(selected.visitId, selected.patientId, counselling);
 
       const localPatient = patients.find(
         (p) => p.platformPatientId === selected.patientId,
@@ -190,6 +273,7 @@ export default function NavayuCounsellorDesk() {
     await platformSaveNavayuFollowUp(selected.visitId, handoff);
     toast.success('MSK visit closed with follow-up');
     setSelectedId(null);
+    setSearchParams({}, { replace: true });
     await refreshQueue();
   };
 
@@ -198,6 +282,11 @@ export default function NavayuCounsellorDesk() {
       title="Counsellor desk"
       subtitle="Package tier mapping, financial proposal, billing handoff, and follow-up scheduling after senior consult"
       showPlatformStrip
+      gateFocus="GAP-006"
+      blockers={liveOpd.blockers}
+      warnings={liveOpd.state?.warnings}
+      platformError={liveOpd.error}
+      platformLabel={selected ? `OPD billing · ${selected.patientName}` : undefined}
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
@@ -213,6 +302,18 @@ export default function NavayuCounsellorDesk() {
           <Button variant="outline" size="sm" onClick={() => navigate('/billing-dept/packages')}>
             Package catalog
           </Button>
+          {selected ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                navigate(`/billing-dept/invoices?visitId=${encodeURIComponent(selected.visitId)}`)
+              }
+            >
+              <ExternalLink className="w-4 h-4 mr-1" />
+              Invoices
+            </Button>
+          ) : null}
           <Button variant="outline" size="sm" onClick={() => navigate('/reception/billing')}>
             Reception billing
           </Button>
@@ -224,7 +325,7 @@ export default function NavayuCounsellorDesk() {
           {loading && (
             <p className="p-4 text-sm text-muted-foreground">Loading queue…</p>
           )}
-          {!loading && queue.length === 0 && (
+          {!loading && queue.length === 0 && !deepLinkRow && (
             <p className="p-4 text-sm text-muted-foreground">
               No patients awaiting counselling. Senior doctor must map protocol first.
             </p>
@@ -233,7 +334,7 @@ export default function NavayuCounsellorDesk() {
             <button
               key={row.visitId}
               type="button"
-              onClick={() => setSelectedId(row.visitId)}
+              onClick={() => selectVisit(row.visitId)}
               className={`w-full text-left p-4 hover:bg-accent/50 transition-colors ${selectedId === row.visitId ? 'bg-accent/60' : ''}`}
             >
               <div className="flex items-start justify-between gap-2">
@@ -253,6 +354,29 @@ export default function NavayuCounsellorDesk() {
               </div>
             </button>
           ))}
+          {deepLinkRow && !queue.some((r) => r.visitId === deepLinkRow.visitId) ? (
+            <button
+              type="button"
+              onClick={() => selectVisit(deepLinkRow.visitId)}
+              className={`w-full text-left p-4 hover:bg-accent/50 transition-colors border-t border-dashed ${selectedId === deepLinkRow.visitId ? 'bg-accent/60' : ''}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5" />
+                    {deepLinkRow.patientName}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Handoff link · {deepLinkRow.mrn ?? deepLinkRow.patientId.slice(0, 8)}
+                    {deepLinkRow.protocolLabel ? ` · ${deepLinkRow.protocolLabel}` : ''}
+                  </p>
+                </div>
+                <Badge variant="outline" className="text-[10px] shrink-0">
+                  {MSK_STATE_LABELS[deepLinkRow.mskLifecycleState] ?? deepLinkRow.mskLifecycleState}
+                </Badge>
+              </div>
+            </button>
+          ) : null}
         </div>
 
         <div className="lg:col-span-2 space-y-4">
@@ -262,6 +386,9 @@ export default function NavayuCounsellorDesk() {
                 <h2 className="font-semibold">{selected.patientName}</h2>
                 <p className="text-xs text-muted-foreground">
                   {selected.department ?? 'MSK'} · {selected.assignedDoctor ?? 'Unassigned'}
+                  {liveOpd.state?.visit.state
+                    ? ` · OPD ${liveOpd.state.visit.state.replace(/_/g, ' ')}`
+                    : ''}
                 </p>
                 {bundleLoading ? (
                   <p className="text-xs text-muted-foreground">Loading protocol…</p>
@@ -332,6 +459,10 @@ export default function NavayuCounsellorDesk() {
                 />
               ) : null}
             </>
+          ) : visitFromUrl && !loading ? (
+            <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground text-sm">
+              Visit not found or not ready for counselling. Confirm senior protocol mapping completed.
+            </div>
           ) : (
             <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground text-sm">
               Select a patient from the counsellor queue.

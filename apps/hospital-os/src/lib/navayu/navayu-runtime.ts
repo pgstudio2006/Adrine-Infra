@@ -112,15 +112,41 @@ export function resolveMskStateAfterLumbarSave(
   return 'associate_eval';
 }
 
+const SENIOR_HANDOFF_STATES: NavayuMskLifecycleState[] = [
+  'ai_summary_ready',
+  'senior_consult',
+  'navayu_classified',
+  'protocol_mapped',
+  'counselling',
+  'package_planned',
+  'closed',
+];
+
 /** After junior completes MSK exam, advance to AI-summary-ready for senior handoff. */
 export async function platformHandoffJuniorToSenior(visitId: string): Promise<NavayuMskLifecycleState> {
   const bundle = await platformLoadNavayuVisitBundle(visitId);
-  const state = bundle?.mskLifecycleState;
-  if (state === 'associate_eval') {
-    await platformMskTransition(visitId, 'complete_msk_exam');
+  let state = bundle?.mskLifecycleState ?? 'associate_eval';
+
+  if (SENIOR_HANDOFF_STATES.includes(state)) {
+    return state;
   }
-  const result = await platformMskTransition(visitId, 'generate_ai_summary');
-  return result.nextState;
+
+  if (state === 'intake_complete') {
+    const started = await platformMskTransition(visitId, 'start_associate_eval');
+    state = started.nextState;
+  }
+
+  if (state === 'associate_eval') {
+    const completed = await platformMskTransition(visitId, 'complete_msk_exam');
+    state = completed.nextState;
+  }
+
+  if (state === 'msk_exam_complete') {
+    const result = await platformMskTransition(visitId, 'generate_ai_summary');
+    return result.nextState;
+  }
+
+  throw new Error(`Cannot hand off to senior from MSK state "${state}"`);
 }
 
 /** Start junior associate evaluation when intake is complete. */
@@ -360,6 +386,64 @@ export type NavayuCounsellorQueueRow = {
   tierLabel?: string;
   createdAt: string;
 };
+
+export type NavayuOpdVisitSummary = {
+  visitId: string;
+  patientId: string;
+  patientName: string;
+  mrn?: string | null;
+  department?: string | null;
+  assignedDoctor?: string | null;
+  opdState: string;
+};
+
+export async function platformGetNavayuOpdVisitSummary(
+  visitId: string,
+): Promise<NavayuOpdVisitSummary | null> {
+  const base = domainBase();
+  if (!base || !canUseNavayuRuntime()) return null;
+  try {
+    const visit = await platformFetch<{
+      id: string;
+      patientId: string;
+      state: string;
+      department?: string | null;
+      assignedDoctor?: string | null;
+      patient?: { fullName?: string; mrn?: string | null };
+    }>(base, `/opd/visits/${visitId}`);
+    return {
+      visitId: visit.id,
+      patientId: visit.patientId,
+      patientName: visit.patient?.fullName ?? 'Patient',
+      mrn: visit.patient?.mrn,
+      department: visit.department,
+      assignedDoctor: visit.assignedDoctor,
+      opdState: visit.state,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Close encounter and advance OPD visit to billing_pending before charge sync. */
+export async function platformEnsureNavayuBillingHandoff(visitId: string): Promise<{
+  visit: { id: string; state: string; encounterId?: string | null };
+  encounterClosed: boolean;
+  billingReady: boolean;
+}> {
+  const base = domainBase();
+  if (!base || !canUseNavayuRuntime()) {
+    throw new Error('Navayu platform runtime unavailable');
+  }
+  const session = getPlatformSession();
+  return platformFetch(base, `/opd/visits/${visitId}/navayu/billing-handoff`, {
+    method: 'POST',
+    body: JSON.stringify({
+      actorRole: session?.role ?? 'billing',
+      actorId: session?.userId,
+    }),
+  });
+}
 
 export async function platformListNavayuCounsellorQueue(): Promise<NavayuCounsellorQueueRow[]> {
   const base = domainBase();

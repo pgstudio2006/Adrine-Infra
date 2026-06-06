@@ -388,9 +388,13 @@ export default function DoctorConsultation() {
       setNavayuBundle((prev) => ({ ...prev, mskLifecycleState: state }));
       await refreshQueueFromPlatform();
       toast.success('Junior MSK exam submitted for senior review');
+      navigate(`${roleBasePath}/queue`);
       return true;
-    } catch {
-      toast.error('Could not submit MSK exam — check workflow state');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : undefined;
+      toast.error('Could not submit MSK exam — check workflow state', {
+        description: message,
+      });
       return false;
     } finally {
       setSubmittingJuniorExam(false);
@@ -464,8 +468,7 @@ export default function DoctorConsultation() {
     }
 
     if (navayuMode && navayuJunior) {
-      const submitted = await handleSubmitJuniorMskExam();
-      if (submitted) navigate(`${roleBasePath}/queue`);
+      await handleSubmitJuniorMskExam();
       return;
     }
 

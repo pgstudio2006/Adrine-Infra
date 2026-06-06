@@ -305,12 +305,33 @@ export function mapBranchLabRowToLabOrder(row: Record<string, unknown>): LabOrde
   };
 }
 
+/** Known demo-seed UHIDs — never retain when platform runtime is authoritative. */
+const DEMO_UHID_PREFIXES = ['UH-2024-', 'UHID-2400'] as const;
+
+function isDemoSeedUhid(uhid: string): boolean {
+  return DEMO_UHID_PREFIXES.some((prefix) => uhid.startsWith(prefix));
+}
+
+function retainLocalDepartmentRow<T extends { uhid: string }>(
+  row: T,
+  platformAuthoritative: boolean,
+  hasPlatformLink: boolean,
+): boolean {
+  if (hasPlatformLink) return false;
+  if (platformAuthoritative && isDemoSeedUhid(row.uhid)) return false;
+  return true;
+}
+
 /** Platform-backed rows replace prior platform-linked entries; local-only demo rows are retained when not superseded. */
-export function mergeLabDepartmentWorklist(previous: LabOrder[], incoming: LabOrder[]): LabOrder[] {
+export function mergeLabDepartmentWorklist(
+  previous: LabOrder[],
+  incoming: LabOrder[],
+  platformAuthoritative = false,
+): LabOrder[] {
   const incomingOrderIds = new Set(incoming.map((i) => i.orderId));
   const out: LabOrder[] = [...incoming];
   for (const p of previous) {
-    if (p.platformLabOrderId) continue;
+    if (!retainLocalDepartmentRow(p, platformAuthoritative, Boolean(p.platformLabOrderId))) continue;
     if (incomingOrderIds.has(p.orderId)) continue;
     out.push(p);
   }
@@ -354,11 +375,12 @@ export function mapBranchRadiologyRowToOrder(row: Record<string, unknown>): Radi
 export function mergeRadiologyDepartmentWorklist(
   previous: RadiologyOrder[],
   incoming: RadiologyOrder[],
+  platformAuthoritative = false,
 ): RadiologyOrder[] {
   const incomingOrderIds = new Set(incoming.map((i) => i.orderId));
   const out = [...incoming];
   for (const p of previous) {
-    if (p.platformRadiologyOrderId) continue;
+    if (!retainLocalDepartmentRow(p, platformAuthoritative, Boolean(p.platformRadiologyOrderId))) continue;
     if (incomingOrderIds.has(p.orderId)) continue;
     out.push(p);
   }
@@ -421,11 +443,12 @@ export function mapBranchPharmacyRowToPrescription(row: Record<string, unknown>)
 export function mergePharmacyDepartmentWorklist(
   previous: PrescriptionOrder[],
   incoming: PrescriptionOrder[],
+  platformAuthoritative = false,
 ): PrescriptionOrder[] {
   const incomingIds = new Set(incoming.map((i) => i.id));
   const out = [...incoming];
   for (const p of previous) {
-    if (p.platformFulfillmentId) continue;
+    if (!retainLocalDepartmentRow(p, platformAuthoritative, Boolean(p.platformFulfillmentId))) continue;
     if (incomingIds.has(p.id)) continue;
     out.push(p);
   }

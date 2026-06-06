@@ -13,7 +13,6 @@ const JUNIOR_HIDDEN_STATES: NavayuMskLifecycleState[] = [
 ];
 
 const SENIOR_VISIBLE_STATES: NavayuMskLifecycleState[] = [
-  'msk_exam_complete',
   'ai_summary_ready',
   'senior_consult',
   'navayu_classified',
@@ -44,11 +43,11 @@ export function filterNavayuDoctorQueue(
       if (state && SENIOR_VISIBLE_STATES.includes(state)) {
         return true;
       }
-      // Show handoff-ready rows even before metadata refresh lands.
-      return (
-        !state &&
-        (entry.status === 'in-consultation' || entry.status === 'completed')
-      );
+      // Active senior consult rows before metadata refresh lands.
+      if (!state && (entry.status === 'in-consultation' || entry.status === 'completed')) {
+        return true;
+      }
+      return false;
     }
     if (!state) {
       return true;

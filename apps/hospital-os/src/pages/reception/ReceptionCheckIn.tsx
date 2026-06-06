@@ -9,10 +9,8 @@ import {
 } from "lucide-react";
 import { useHospital } from "@/stores/hospitalStore";
 import { AppSelect } from "@/components/ui/app-select";
-import { useOperationalEventStream } from "@/runtime/realtime-runtime";
-import { getPlatformSession, isPlatformRuntimeEnabled } from "@/runtime/platform-session";
 import { InlinePlatformError } from "@/components/opd/InlinePlatformError";
-import { useClinicalPlatformListSync } from "@/hooks/useClinicalPlatformListSync";
+import { useReceptionPlatform } from "@/hooks/useReceptionPlatform";
 import { Button } from "@/components/ui/button";
 import { PlatformConnectivityStrip } from "@/components/PlatformConnectivityStrip";
 import { isPlatformAuthoritative } from "@/runtime/platform-store-bridge";
@@ -40,34 +38,16 @@ export default function ReceptionCheckIn() {
     updateQueueStatus,
     updateAppointmentStatus,
     startFrontDeskVisit,
-    refreshAppointmentsFromPlatform,
-    refreshQueueFromPlatform,
   } = useHospital();
-
-  const branchId = getPlatformSession()?.branchId;
-  const syncPlatformLists = async () => {
-    try {
-      await Promise.all([refreshAppointmentsFromPlatform(), refreshQueueFromPlatform()]);
-      setPlatformError(null);
-    } catch (e) {
-      setPlatformError(e instanceof Error ? e.message : "Check-in sync failed");
-    }
-  };
-
-  useOperationalEventStream(branchId, {
-    onSnapshot: () => {
-      void syncPlatformLists();
-    },
-    onDelta: () => {
-      void syncPlatformLists();
-    },
+  const { error: platformError, loading } = useReceptionPlatform({
+    queue: true,
+    appointments: true,
   });
+  const [errorDismissed, setErrorDismissed] = useState(false);
 
   useEffect(() => {
-    if (isPlatformRuntimeEnabled()) {
-      void syncPlatformLists();
-    }
-  }, [refreshAppointmentsFromPlatform, refreshQueueFromPlatform]);
+    setErrorDismissed(false);
+  }, [platformError]);
 
   const [search, setSearch] = useState("");
   const [selectedDate, setSelectedDate] = useState(toYmd(new Date()));
@@ -81,13 +61,6 @@ export default function ReceptionCheckIn() {
     department: DEPARTMENTS[0] ?? "General Medicine",
     doctor: getDefaultAssignedDoctor(DEPARTMENTS[0] ?? "General Medicine"),
     notes: "",
-  });
-  const [platformError, setPlatformError] = useState<string | null>(null);
-  useClinicalPlatformListSync({
-    queue: true,
-    appointments: true,
-    departmentWorklists: false,
-    ipd: false,
   });
 
   const queueByAppointment = useMemo(() => {
@@ -187,7 +160,10 @@ export default function ReceptionCheckIn() {
         <PlatformConnectivityStrip detail="Appointments and queue board hydrate on check-in and SSE deltas." />
       ) : null}
 
-      <InlinePlatformError message={platformError} onDismiss={() => setPlatformError(null)} />
+      <InlinePlatformError
+        message={errorDismissed ? null : platformError}
+        onDismiss={() => setErrorDismissed(true)}
+      />
 
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -379,9 +355,13 @@ export default function ReceptionCheckIn() {
           </div>
         ))}
 
-        {rows.length === 0 && (
-          <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
-            No appointments available for selected date and search.
+        {rows.length === 0 && !loading && (
+          <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground space-y-2">
+            {platformError && !errorDismissed ? (
+              <p>Appointments could not sync from the platform. Fix the error above and retry.</p>
+            ) : (
+              <p>No appointments available for selected date and search.</p>
+            )}
           </div>
         )}
       </div>

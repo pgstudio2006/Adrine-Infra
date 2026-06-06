@@ -12,6 +12,7 @@ export type PlatformOpdVisit = {
   appointmentId?: string | null;
   department?: string | null;
   assignedDoctor?: string | null;
+  complaint?: string | null;
   createdAt?: string;
   metadata?: Record<string, unknown> | null;
   patient?: { id: string; fullName: string; mrn?: string | null };
@@ -122,7 +123,7 @@ export async function platformListOpdBoard(branchId: string): Promise<PlatformOp
   let lastError: PlatformApiError | undefined;
   for (const path of paths) {
     try {
-      return await platformFetch<PlatformOpdVisit[]>(base, path);
+      return await platformFetch<PlatformOpdVisit[]>(base, path, undefined, { critical: true });
     } catch (err) {
       if (err instanceof PlatformApiError && err.status === 404) {
         lastError = err;

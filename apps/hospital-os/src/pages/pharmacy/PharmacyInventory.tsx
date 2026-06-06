@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Search, Plus, Package, AlertTriangle, Clock, Archive } from "lucide-react";
 import { useHospital, type PharmacyInventoryItem } from "@/stores/hospitalStore";
+import { pickPlatformRows } from "@/lib/platform/demo-fallback";
 
 function getStockStatus(item: PharmacyInventoryItem) {
   if (item.qty === 0) return { label: "Out of Stock", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400" };
@@ -69,7 +70,7 @@ export default function PharmacyInventory() {
   }, [loadPlatformStock]);
 
   const displayInventory = useMemo(
-    () => (platformOn && platformStock.length > 0 ? platformStock : pharmacyInventory),
+    () => pickPlatformRows(platformOn, platformStock, pharmacyInventory),
     [platformOn, platformStock, pharmacyInventory],
   );
 
