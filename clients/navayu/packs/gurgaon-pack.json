@@ -736,7 +736,7 @@
     }
   },
   "featureFlags": {
-    "whiteLabelMode": true,
+    "whiteLabelMode": false,
     "telemedicineEnabled": false,
     "patientRelationsEnabled": true,
     "formBuilderEnabled": true,

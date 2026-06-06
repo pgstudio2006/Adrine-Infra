@@ -204,7 +204,7 @@ export function buildGurgaonPack() {
       crm_manager: GURGAON_CRM_TABS,
     }),
     featureFlags: {
-      whiteLabelMode: true,
+      whiteLabelMode: false,
       telemedicineEnabled: false,
       patientRelationsEnabled: true,
       formBuilderEnabled: true,
@@ -270,7 +270,7 @@ export function buildPataudiPack() {
       billing: PATAUDI_BILLING_TABS,
     }),
     featureFlags: {
-      whiteLabelMode: true,
+      whiteLabelMode: false,
       telemedicineEnabled: false,
       patientRelationsEnabled: false,
       formBuilderEnabled: true,

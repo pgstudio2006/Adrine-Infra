@@ -1,7 +1,7 @@
 {
   "formId": "navayu.exam.cervical",
   "version": "v0",
-  "label": "Navayu Cervical MSK Exam",
+  "label": "Cervical MSK Exam",
   "workflowStep": "associate_eval",
   "sections": [
     {

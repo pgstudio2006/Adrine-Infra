@@ -1,7 +1,7 @@
 {
   "formId": "navayu.exam.knee",
   "version": "v0",
-  "label": "Navayu Knee MSK Exam",
+  "label": "Knee MSK Exam",
   "workflowStep": "associate_eval",
   "sections": [
     {

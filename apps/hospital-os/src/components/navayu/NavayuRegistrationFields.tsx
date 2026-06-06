@@ -7,6 +7,7 @@ import {
   type NavayuRegistrationMetadata,
 } from '@/lib/navayu/navayu-forms';
 import { AppSelect } from '@/components/ui/app-select';
+import { useTenantSettings } from '@/hooks/useTenantSettings';
 
 export type NavayuRegistrationFormState = {
   hearAboutNavayu: string;
@@ -38,6 +39,7 @@ interface Props {
 }
 
 export function NavayuRegistrationFields({ value, onChange, errors }: Props) {
+  const { settings } = useTenantSettings();
   const referralOptions = getNavayuReferralOptions();
   const lifestyleFields = getNavayuLifestyleFields();
   const painRegions = getNavayuPainRegionOptions();
@@ -59,11 +61,11 @@ export function NavayuRegistrationFields({ value, onChange, errors }: Props) {
   return (
     <div className="border-t pt-4 mt-4 space-y-5">
       <div>
-        <h3 className="text-sm font-semibold mb-1">Navayu MSK intake (Gurgaon)</h3>
+        <h3 className="text-sm font-semibold mb-1">{settings.branding.organizationShortName} MSK intake (Gurgaon)</h3>
         <p className="text-xs text-muted-foreground mb-3">
           Referral, lifestyle, and pain regions sync to the doctor consult and CRM when platform runtime is on.
         </p>
-        <label className="text-sm font-medium mb-1 block">How did you hear about Navayu? *</label>
+        <label className="text-sm font-medium mb-1 block">How did you hear about us? *</label>
         <AppSelect
           value={value.hearAboutNavayu}
           onValueChange={(hearAboutNavayu) => onChange({ ...value, hearAboutNavayu })}

@@ -63,7 +63,7 @@ export function NavayuIntakePanel({ uhid, visitMetadata, intake }: Props) {
           <ClipboardList className="w-3.5 h-3.5" /> Reception & patient intake
         </p>
         <p className="text-xs text-muted-foreground">
-          No Navayu data yet. Complete reception registration and send the patient intake link.
+          No intake data yet. Complete reception registration and send the patient intake link.
         </p>
       </div>
     );

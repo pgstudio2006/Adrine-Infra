@@ -1,7 +1,7 @@
 {
   "formId": "navayu.patient.intake",
   "version": "v0",
-  "label": "Navayu Patient Intake",
+  "label": "Patient Intake",
   "sections": [
     {
       "id": "complaint",

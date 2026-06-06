@@ -1,7 +1,7 @@
 {
   "formId": "navayu.reception.registration",
   "version": "v0",
-  "label": "Navayu Reception Registration",
+  "label": "Reception Registration",
   "sections": [
     {
       "id": "referral",
@@ -10,7 +10,7 @@
         {
           "id": "hearAboutNavayu",
           "type": "select",
-          "label": "How did you hear about Navayu?",
+          "label": "How did you hear about us?",
           "required": true,
           "options": [
             { "value": "google", "label": "Google" },

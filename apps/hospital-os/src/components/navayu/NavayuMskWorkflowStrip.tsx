@@ -44,7 +44,7 @@ export function NavayuMskWorkflowStrip({ state, seniorView, className }: Props) 
   return (
     <div
       className={cn('flex flex-wrap items-center gap-1 text-xs', className)}
-      aria-label="Navayu MSK workflow"
+      aria-label="MSK workflow"
     >
       {steps.map((step, index) => {
         const globalIndex = MSK_STEPS.findIndex((item) => item.id === step.id);

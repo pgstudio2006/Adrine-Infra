@@ -1,18 +1,18 @@
 {
   "branding": {
-    "platformName": "Navayu Flow",
-    "platformMark": "NAVAYU",
-    "productDescriptor": "Spine & Joint Care Platform",
+    "platformName": "Adrine Hospital Operating System",
+    "platformMark": "ADRINE.",
+    "productDescriptor": "Hospital Operating System",
     "organizationName": "Navayu Spine & Joint Care",
     "organizationShortName": "Navayu",
     "supportEmail": "care@navayuhealth.in",
     "supportPhone": "+91 124 000 0000",
     "address": "Gurgaon Center & Pataudi Hospital, Haryana, India",
-    "loginHeadline": "Welcome to Navayu",
-    "loginSubheadline": "AI-assisted MSK care — select your center after sign-in"
+    "loginHeadline": "Welcome to Adrine",
+    "loginSubheadline": "Navayu Spine & Joint Care — select your center after sign-in"
   },
   "featureFlags": {
-    "whiteLabelMode": true,
+    "whiteLabelMode": false,
     "telemedicineEnabled": false,
     "patientRelationsEnabled": true,
     "formBuilderEnabled": true,
@@ -51,7 +51,7 @@
   },
   "forms": {
     "admissionForm": {
-      "label": "Navayu Admission",
+      "label": "Admission Form",
       "fields": ["UHID", "Branch", "MSK Region", "Referral Source"]
     },
     "doctorOrderSheet": {

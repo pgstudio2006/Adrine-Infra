@@ -1,7 +1,7 @@
 {
   "formId": "navayu.protocol.map",
   "version": "v0",
-  "label": "Navayu Protocol Mapping",
+  "label": "Protocol Mapping",
   "workflowStep": "protocol_mapped",
   "sections": [
     {

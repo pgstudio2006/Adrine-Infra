@@ -1,7 +1,7 @@
 {
   "formId": "navayu.investigations",
   "version": "v0",
-  "label": "Navayu Investigations Upload",
+  "label": "Investigations Upload",
   "workflowStep": "msk_exam_complete",
   "sections": [
     {

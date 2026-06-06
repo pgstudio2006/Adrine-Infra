@@ -1,7 +1,7 @@
 {
   "formId": "navayu.senior.review",
   "version": "v0",
-  "label": "Navayu Senior Review",
+  "label": "Senior Review",
   "sections": [
     {
       "id": "pathway",

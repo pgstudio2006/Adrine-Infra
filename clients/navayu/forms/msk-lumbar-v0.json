@@ -1,7 +1,7 @@
 {
   "formId": "navayu.exam.lumbar",
   "version": "v0",
-  "label": "Navayu Lumbar MSK Exam",
+  "label": "Lumbar MSK Exam",
   "workflowStep": "associate_eval",
   "sections": [
     {

@@ -229,7 +229,7 @@ export default function ReceptionRegistration() {
     if (stepIdx === 3) {
       if (!formData.department.trim()) errors.department = 'Select department to route the patient';
       if (navayuMode && !navayuFields.hearAboutNavayu) {
-        errors.hearAboutNavayu = 'Select how the patient heard about Navayu';
+        errors.hearAboutNavayu = 'Select how the patient heard about us';
       }
     }
     if (stepIdx === 4) {
@@ -702,7 +702,7 @@ export default function ReceptionRegistration() {
         return;
       }
       if (navayuMode && !navayuFields.hearAboutNavayu) {
-        setValidationErrors({ hearAboutNavayu: 'Select how the patient heard about Navayu' });
+        setValidationErrors({ hearAboutNavayu: 'Select how the patient heard about us' });
         return;
       }
       setPlatformError(null);
@@ -1456,7 +1456,7 @@ export default function ReceptionRegistration() {
               const journeyPatientType = selectedJourneyType;
 
               if (navayuMode && !navayuFields.hearAboutNavayu) {
-                setValidationErrors({ hearAboutNavayu: 'Select how the patient heard about Navayu' });
+                setValidationErrors({ hearAboutNavayu: 'Select how the patient heard about us' });
                 setStep(3);
                 return;
               }

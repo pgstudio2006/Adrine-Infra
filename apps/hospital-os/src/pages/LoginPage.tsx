@@ -606,8 +606,8 @@ export default function LoginPage() {
               <p className="text-xs font-bold uppercase tracking-wider text-foreground">Platform authentication</p>
             </div>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Staff sign-in uses kernel <code className="font-mono text-[10px]">/auth/login</code> with provisioned
-              Navayu emails. Your branch is assigned from your account — Gurgaon and Pataudi sessions stay isolated.
+              Staff sign-in uses kernel <code className="font-mono text-[10px]">/auth/login</code> with
+              your provisioned staff emails. Your branch is assigned from your account — Gurgaon and Pataudi sessions stay isolated.
             </p>
             <div className="mt-2 flex flex-wrap gap-2 text-[10px]">
               <span className={`rounded px-2 py-0.5 border ${kernelUrl ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300' : 'border-amber-500/40 text-amber-700'}`}>

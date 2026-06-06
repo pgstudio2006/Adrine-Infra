@@ -1,7 +1,7 @@
 {
   "formId": "navayu.exam.hip",
   "version": "v0",
-  "label": "Navayu Hip MSK Exam",
+  "label": "Hip MSK Exam",
   "workflowStep": "associate_eval",
   "sections": [
     {

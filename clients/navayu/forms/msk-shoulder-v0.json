@@ -1,7 +1,7 @@
 {
   "formId": "navayu.exam.shoulder",
   "version": "v0",
-  "label": "Navayu Shoulder MSK Exam",
+  "label": "Shoulder MSK Exam",
   "workflowStep": "associate_eval",
   "sections": [
     {
