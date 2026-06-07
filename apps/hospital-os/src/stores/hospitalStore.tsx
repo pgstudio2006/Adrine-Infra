@@ -27,6 +27,7 @@ import {
   patchQueueEntries,
   type QueueEntryLookup,
 } from '@/lib/opd/queue-presenters';
+import { allocateNextUhid, syncUhidCounterFromMrns } from '@/lib/opd/uhid-allocation';
 import {
   isNavayuMskClinicalDepartment,
   shouldUseNavayuMskPoolQueue,
@@ -414,6 +415,8 @@ export interface QueueEntry {
   waitMinutes?: number;
   /** Branch scope from domain-api OPD visit */
   branchId?: string;
+  /** Authoritative platform patient id — use for lookups, not MRN alone */
+  platformPatientId?: string;
   /** Navayu MSK lifecycle state from visit metadata */
   mskLifecycleState?: string;
 }
@@ -935,7 +938,6 @@ const DISCHARGE_SUMMARY_TEMPLATES: Record<'general' | 'post-op' | 'maternity' | 
 };
 
 // ── Counter helpers ──
-let patientCounter = 240009;
 let appointmentCounter = 10007;
 let tokenCounter = 103;
 let labOrderCounter = 4522;
@@ -1046,6 +1048,10 @@ interface HospitalStore {
   notificationLogs: NotificationLog[];
   billingTransactions: BillingTransaction[];
   workflowEvents: WorkflowEvent[];
+  /** True while domain-api OPD board fetch is in flight */
+  queueBoardSyncing: boolean;
+  /** True after first board sync attempt completes (success or failure) */
+  queueBoardHydrated: boolean;
 
   // Actions
   registerPatient: (data: Omit<HospitalPatient, 'uhid' | 'registeredOn'>) => string;
@@ -1363,6 +1369,8 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
   );
   const [billingTransactions, setBillingTransactions] = useState<BillingTransaction[]>(() => (USE_PLATFORM_EMPTY_SEED ? [] : SEED_BILLING_TRANSACTIONS));
   const [workflowEvents, setWorkflowEvents] = useState<WorkflowEvent[]>([]);
+  const [queueBoardSyncing, setQueueBoardSyncing] = useState(false);
+  const [queueBoardHydrated, setQueueBoardHydrated] = useState(false);
 
   const admissionsRef = useRef(admissions);
   const patientsRef = useRef(patients);
@@ -1411,6 +1419,45 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
       hour: '2-digit',
       minute: '2-digit',
     });
+  }, []);
+
+  const reconcileAuthoritativeMrn = useCallback((oldUhid: string, newUhid: string) => {
+    if (!newUhid || oldUhid === newUhid) return;
+    syncUhidCounterFromMrns([newUhid]);
+    setPatients((prev) =>
+      prev.map((patient) => (patient.uhid === oldUhid ? { ...patient, uhid: newUhid } : patient)),
+    );
+    setAppointments((prev) =>
+      prev.map((appointment) =>
+        appointment.uhid === oldUhid ? { ...appointment, uhid: newUhid } : appointment,
+      ),
+    );
+    setQueue((prev) =>
+      prev.map((entry) => (entry.uhid === oldUhid ? { ...entry, uhid: newUhid } : entry)),
+    );
+    setInvoices((prev) =>
+      prev.map((invoice) => (invoice.uhid === oldUhid ? { ...invoice, uhid: newUhid } : invoice)),
+    );
+    setEstimates((prev) =>
+      prev.map((estimate) => (estimate.uhid === oldUhid ? { ...estimate, uhid: newUhid } : estimate)),
+    );
+    setLabOrders((prev) =>
+      prev.map((order) => (order.uhid === oldUhid ? { ...order, uhid: newUhid } : order)),
+    );
+    setPrescriptions((prev) =>
+      prev.map((rx) => (rx.uhid === oldUhid ? { ...rx, uhid: newUhid } : rx)),
+    );
+    setRadiologyOrders((prev) =>
+      prev.map((order) => (order.uhid === oldUhid ? { ...order, uhid: newUhid } : order)),
+    );
+    setEmergencyCases((prev) =>
+      prev.map((item) => (item.uhid === oldUhid ? { ...item, uhid: newUhid } : item)),
+    );
+    setAdmissions((prev) =>
+      prev.map((admission) =>
+        admission.uhid === oldUhid ? { ...admission, uhid: newUhid } : admission,
+      ),
+    );
   }, []);
 
   const sendSmsNotification = useCallback((data: {
@@ -1633,7 +1680,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
   }, [admissions, patients, pushWorkflowEvent]);
 
   const registerPatient = useCallback((data: Omit<HospitalPatient, 'uhid' | 'registeredOn'>) => {
-    const uhid = `UHID-${patientCounter++}`;
+    const uhid = allocateNextUhid(patientsRef.current.map((patient) => patient.uhid));
     const patient: HospitalPatient = {
       ...data,
       uhid,
@@ -1660,11 +1707,17 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
             assignedDoctor: patient.assignedDoctor,
             actorRole: 'receptionist',
           });
+          const serverMrn = visit.patient?.mrn;
+          if (serverMrn && serverMrn !== uhid) {
+            reconcileAuthoritativeMrn(uhid, serverMrn);
+          }
+          const resolvedUhid = serverMrn ?? uhid;
           setPatients(prev =>
             prev.map(p =>
-              p.uhid === uhid
+              p.uhid === resolvedUhid || p.uhid === uhid
                 ? {
                     ...p,
+                    uhid: resolvedUhid,
                     platformPatientId: patientId,
                     platformOpdVisitId: visit.id,
                     opdState: visit.state,
@@ -1683,7 +1736,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     }
 
     return uhid;
-  }, [pushWorkflowEvent]);
+  }, [pushWorkflowEvent, reconcileAuthoritativeMrn]);
 
   const updatePatient = useCallback((uhid: string, patch: Partial<HospitalPatient>) => {
     setPatients(prev => prev.map(patient => patient.uhid === uhid ? { ...patient, ...patch, uhid } : patient));
@@ -1704,6 +1757,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     try {
       const mapped = await fetchMappedPatientsFromPlatform(query);
       if (mapped === null) return;
+      syncUhidCounterFromMrns(mapped.map((row) => row.uhid));
       setPatients(prev => mergePatientsFromPlatform(prev, mapped));
     } catch {
       /* keep last merged snapshot */
@@ -1755,7 +1809,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
       hour12: false,
     });
 
-    const uhid = `UHID-${patientCounter++}`;
+    const uhid = allocateNextUhid(patientsRef.current.map((patient) => patient.uhid));
     const appointmentId = data.patient.department && data.patient.assignedDoctor ? `APT-${appointmentCounter++}` : null;
     const tokenNo = appointmentId ? tokenCounter++ : null;
     const invoiceId = data.initialBillingItems && data.initialBillingItems.length > 0 ? `INV-${invoiceCounter++}` : null;
@@ -1933,11 +1987,17 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
             assignedDoctor: patient.assignedDoctor,
             actorRole: 'receptionist',
           });
+          const serverMrn = visit.patient?.mrn;
+          if (serverMrn && serverMrn !== uhid) {
+            reconcileAuthoritativeMrn(uhid, serverMrn);
+          }
+          const resolvedUhid = serverMrn ?? uhid;
           setPatients((prev) =>
             prev.map((p) =>
-              p.uhid === uhid
+              p.uhid === resolvedUhid || p.uhid === uhid
                 ? {
                     ...p,
+                    uhid: resolvedUhid,
                     platformPatientId: patientId,
                     platformOpdVisitId: visit.id,
                     opdState: visit.state,
@@ -1973,8 +2033,8 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
 
             setPatients((prev) =>
               prev.map((p) =>
-                p.uhid === uhid
-                  ? { ...p, opdState: activeVisit.state, platformOpdVisitId: activeVisit.id }
+                p.uhid === resolvedUhid || p.uhid === uhid
+                  ? { ...p, uhid: resolvedUhid, opdState: activeVisit.state, platformOpdVisitId: activeVisit.id }
                   : p,
               ),
             );
@@ -2050,7 +2110,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
       invoiceId,
       admissionId,
     };
-  }, [pushWorkflowEvent, sendSmsNotification]);
+  }, [pushWorkflowEvent, sendSmsNotification, reconcileAuthoritativeMrn]);
 
   const admitPatient = useCallback((data: {
     uhid: string;
@@ -2759,17 +2819,15 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
         lastQueueSyncErrorAtRef.current = now;
         toast.error('Queue sync failed', { description: message });
       }
+      setQueueBoardHydrated(true);
       throw new Error(message);
     }
+    setQueueBoardSyncing(true);
     try {
       const visits = await platformListOpdBoard(sessionBranchId);
       const currentPatients = patientsRef.current;
-      const resolvePatientForVisit = (patientId: string, mrn?: string | null) =>
-        currentPatients.find(
-          (p) =>
-            p.platformPatientId === patientId
-            || (mrn && p.uhid === mrn),
-        );
+      const resolvePatientForVisit = (patientId: string) =>
+        currentPatients.find((patient) => patient.platformPatientId === patientId);
       setPatients((prev) =>
         prev.map((patient) => {
           if (!patient.platformPatientId) return patient;
@@ -2778,8 +2836,10 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
           const visit = patientVisits.sort(
             (a, b) => Date.parse(b.createdAt ?? '') - Date.parse(a.createdAt ?? ''),
           )[0];
+          const serverMrn = visit.patient?.mrn;
           return {
             ...patient,
+            uhid: serverMrn ?? patient.uhid,
             opdState: visit.state,
             platformOpdVisitId: visit.id,
             department: visit.department ?? patient.department,
@@ -2792,8 +2852,8 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
           prev.filter(q => q.platformOpdVisitId).map(q => [q.platformOpdVisitId!, q]),
         );
         const boardEntries: QueueEntry[] = visits.map(v => {
-          const pt = resolvePatientForVisit(v.patientId, v.patient?.mrn);
-          const uhid = pt?.uhid ?? v.patient?.mrn ?? v.patientId;
+          const pt = resolvePatientForVisit(v.patientId);
+          const uhid = v.patient?.mrn ?? pt?.uhid ?? v.patientId;
           const prior = prevByVisit.get(v.id);
           const st = v.state;
           const platformWaiting = st === 'checked_in' || st === 'routed' || st === 'queued';
@@ -2825,7 +2885,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
           return {
             tokenNo: v.tokenNumber ?? prior?.tokenNo ?? 0,
             uhid,
-            patientName: pt?.name ?? v.patient?.fullName ?? 'Unknown',
+            patientName: v.patient?.fullName ?? pt?.name ?? 'Unknown',
             doctor: v.assignedDoctor ?? prior?.doctor ?? 'Unassigned',
             department: v.department ?? prior?.department ?? 'General Medicine',
             status: localStatus,
@@ -2834,6 +2894,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
               new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
             complaint: v.complaint ?? prior?.complaint,
             platformOpdVisitId: v.id,
+            platformPatientId: v.patientId,
             appointmentId: prior?.appointmentId ?? v.appointmentId ?? undefined,
             boardSinceAt,
             waitMinutes,
@@ -2860,6 +2921,9 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
         });
       }
       throw err;
+    } finally {
+      setQueueBoardSyncing(false);
+      setQueueBoardHydrated(true);
     }
   }, []);
 
@@ -5860,6 +5924,8 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
       emergencyCases, admissions, nursingRounds, doctorProgressNotes, admissionTasks, inpatientCareOrders,
       wardMedicineIssues, otRecords, roomShiftHistory, departmentTransfers, notificationLogs, billingTransactions,
       workflowEvents,
+      queueBoardSyncing,
+      queueBoardHydrated,
       registerPatient, updatePatient, refreshPatientsFromPlatform, backfillPlatformPatientId, startFrontDeskVisit, admitPatient, transferOpdToIPD, convertOpdToIPDByUHID, bookAppointment, updateAppointmentStatus, checkInPatient,
       updateQueueStatus, refreshQueueFromPlatform, refreshAppointmentsFromPlatform, refreshPlatformIpdSnapshots, refreshDepartmentWorklistsFromPlatform, nextQueuePatient, saveConsultation, updateLabStage, updateLabOrder,
       updatePrescriptionStatus, updateMedicationLineStatus, dispensePrescription, updateRadiologyOrder,

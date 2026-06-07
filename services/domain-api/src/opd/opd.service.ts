@@ -80,6 +80,13 @@ export class OpdService {
       throw new BadRequestException('patientId or register payload required');
     }
 
+    if (!body.register) {
+      const active = await this.getActiveForPatient(tenantId, patientId);
+      if (active) {
+        return active;
+      }
+    }
+
     const visit = await this.prisma.opdVisit.create({
       data: {
         tenantId,
@@ -343,17 +350,37 @@ export class OpdService {
       include: { patient: true },
       orderBy,
     });
-    if (primary.length > 0 || branchId === 'branch_main') {
-      return primary;
+    let rows = primary;
+    if (primary.length === 0 && branchId !== 'branch_main') {
+      // Legacy visits created before branch-scoped auth used branch_main.
+      const legacy = await this.prisma.opdVisit.findMany({
+        where: { ...baseQuery, branchId: 'branch_main' },
+        include: { patient: true },
+        orderBy,
+      });
+      const seen = new Set(primary.map((v) => v.id));
+      rows = [...primary, ...legacy.filter((v) => !seen.has(v.id))];
     }
-    // Legacy visits created before branch-scoped auth used branch_main.
-    const legacy = await this.prisma.opdVisit.findMany({
-      where: { ...baseQuery, branchId: 'branch_main' },
-      include: { patient: true },
-      orderBy,
+    return this.dedupeBoardVisitsByPatient(rows);
+  }
+
+  /** One active board row per patient — keeps the newest visit when duplicates exist. */
+  private dedupeBoardVisitsByPatient<T extends { id: string; patientId: string; createdAt: Date; tokenNumber?: number | null }>(
+    visits: T[],
+  ): T[] {
+    const byPatient = new Map<string, T>();
+    for (const visit of visits) {
+      const existing = byPatient.get(visit.patientId);
+      if (!existing || visit.createdAt > existing.createdAt) {
+        byPatient.set(visit.patientId, visit);
+      }
+    }
+    return Array.from(byPatient.values()).sort((a, b) => {
+      const tokenA = a.tokenNumber ?? Number.MAX_SAFE_INTEGER;
+      const tokenB = b.tokenNumber ?? Number.MAX_SAFE_INTEGER;
+      if (tokenA !== tokenB) return tokenA - tokenB;
+      return a.createdAt.getTime() - b.createdAt.getTime();
     });
-    const seen = new Set(primary.map((v) => v.id));
-    return [...primary, ...legacy.filter((v) => !seen.has(v.id))];
   }
 
   /** Deep-merge visit metadata (Navayu MSK registration, exams, lifecycle state). */

@@ -46,7 +46,7 @@ const statusStyle: Record<string, string> = {
 };
 
 export default function DoctorQueue() {
-  const { updateQueueStatus, nextQueuePatient } = useHospital();
+  const { updateQueueStatus, nextQueuePatient, queueBoardSyncing, queueBoardHydrated } = useHospital();
   const { isDoctor, doctorName, department, queue, patients } = useDoctorScope();
   const { user } = useAuth();
   const roleBasePath = useClinicalBasePath();
@@ -75,15 +75,18 @@ export default function DoctorQueue() {
   const current = myQueue.find((q) => q.status === 'in-consultation');
   const called = myQueue.find((q) => q.status === 'called');
 
-  const activePatient = useMemo(
-    () =>
-      current
-        ? patients.find((p) => p.uhid === current.uhid)
-        : called
-          ? patients.find((p) => p.uhid === called.uhid)
-          : undefined,
-    [called, current, patients],
-  );
+  const queueLoading =
+    isPlatformAuthoritative() && (!queueBoardHydrated || queueBoardSyncing);
+
+  const activePatient = useMemo(() => {
+    const entry = current ?? called;
+    if (!entry) return undefined;
+    return patients.find(
+      (patient) =>
+        patient.uhid === entry.uhid
+        || (entry.platformPatientId && patient.platformPatientId === entry.platformPatientId),
+    );
+  }, [called, current, patients]);
 
   const [navayuBundle, setNavayuBundle] = useState<NavayuVisitBundle>({});
 
@@ -221,10 +224,17 @@ export default function DoctorQueue() {
           <h1 className="text-2xl font-bold tracking-tight">OPD Queue</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {doctorName} · {department || 'All Departments'}
-            {navayuMode ? (navayuSenior ? ' · Senior MSK queue' : ' · Junior MSK queue') : ''} ·{' '}
-            <span className="font-semibold text-foreground">{waiting}</span> waiting ·{' '}
-            <span className="font-semibold text-foreground">{completed}</span> completed · Token{' '}
-            {current?.tokenNo ?? '—'}
+            {navayuMode ? (navayuSenior ? ' · Senior MSK queue' : ' · Junior MSK queue') : ''}
+            {queueLoading ? (
+              <> · <span className="text-muted-foreground">Syncing live queue…</span></>
+            ) : (
+              <>
+                {' '}
+                · <span className="font-semibold text-foreground">{waiting}</span> waiting ·{' '}
+                <span className="font-semibold text-foreground">{completed}</span> completed · Token{' '}
+                {current?.tokenNo ?? '—'}
+              </>
+            )}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={handleNext} className="gap-1.5">
@@ -233,21 +243,31 @@ export default function DoctorQueue() {
       </motion.div>
 
       <motion.div {...fadeIn(1)} className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: 'Total', value: myQueue.length, color: '' },
-          { label: 'Waiting', value: waiting, color: 'text-amber-600' },
-          {
-            label: 'In Consult',
-            value: myQueue.filter((q) => q.status === 'in-consultation').length,
-            color: 'text-emerald-600',
-          },
-          { label: 'Completed', value: completed, color: 'text-muted-foreground' },
-        ].map((s) => (
-          <div key={s.label} className="border rounded-xl p-4 bg-card text-center">
-            <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">{s.label}</p>
-          </div>
-        ))}
+        {queueLoading
+          ? Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={`queue-stat-skeleton-${index}`}
+                className="border rounded-xl p-4 bg-card text-center animate-pulse"
+              >
+                <div className="mx-auto h-8 w-10 rounded bg-muted" />
+                <div className="mx-auto mt-2 h-3 w-16 rounded bg-muted" />
+              </div>
+            ))
+          : [
+              { label: 'Total', value: myQueue.length, color: '' },
+              { label: 'Waiting', value: waiting, color: 'text-amber-600' },
+              {
+                label: 'In Consult',
+                value: myQueue.filter((q) => q.status === 'in-consultation').length,
+                color: 'text-emerald-600',
+              },
+              { label: 'Completed', value: completed, color: 'text-muted-foreground' },
+            ].map((s) => (
+              <div key={s.label} className="border rounded-xl p-4 bg-card text-center">
+                <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{s.label}</p>
+              </div>
+            ))}
       </motion.div>
 
       <motion.div {...fadeIn(2)} className="relative">
@@ -262,7 +282,13 @@ export default function DoctorQueue() {
 
       <motion.div {...fadeIn(3)} className="border rounded-xl bg-card overflow-hidden">
         <div className="divide-y">
-          {filtered.map((p, index) => {
+          {queueLoading ? (
+            <div className="px-4 py-10 text-center text-sm text-muted-foreground animate-pulse">
+              Loading branch OPD queue from domain-api…
+            </div>
+          ) : null}
+          {!queueLoading
+            ? filtered.map((p, index) => {
             const isCalled = p.status === 'called';
             const isActive = p.status === 'waiting' || isCalled || p.status === 'in-consultation';
             const queueRank = myQueue.indexOf(p) + 1;
@@ -329,8 +355,9 @@ export default function DoctorQueue() {
                 </div>
               </div>
             );
-          })}
-          {filtered.length === 0 && (
+          })
+            : null}
+          {!queueLoading && filtered.length === 0 && (
             <div className="py-12 text-center text-sm text-muted-foreground">
               No patients in your queue. Patients appear after reception check-in.
             </div>

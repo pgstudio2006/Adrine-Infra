@@ -83,13 +83,15 @@ export function mergePatientsFromPlatform(
   const byPlatform = new Map(
     previous.filter((p) => p.platformPatientId).map((p) => [p.platformPatientId!, p]),
   );
-  const byUhid = new Map(previous.map((p) => [p.uhid, p]));
   const out = [...previous];
 
   for (const row of incoming) {
     if (!row.platformPatientId || !row.name) continue;
     const byId = byPlatform.get(row.platformPatientId);
-    const byMrn = row.uhid ? byUhid.get(row.uhid) : undefined;
+    const byMrn =
+      row.uhid && !byId
+        ? out.find((patient) => patient.uhid === row.uhid && !patient.platformPatientId)
+        : undefined;
     const existing = byId ?? byMrn;
 
     if (existing) {
@@ -157,6 +159,7 @@ export async function syncQueueFromPlatform(
       )
       .map((v) => ({
         platformOpdVisitId: v.id,
+        platformPatientId: v.patientId,
         tokenNo: v.tokenNumber ?? 0,
         uhid: v.patient?.mrn ?? v.patientId,
         patientName: v.patient?.fullName ?? '',
