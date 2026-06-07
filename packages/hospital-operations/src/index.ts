@@ -43,6 +43,7 @@ export * from './analysis/gaps.js';
 export * from './command/operational-snapshot.js';
 export * from './governance/policy-types.js';
 export * from './governance/domain-rbac.js';
+export * from './governance/production-security.js';
 export * from './workflow-config/workflow-definition.js';
 export * from './workflow-config/merge-overrides.js';
 export * from './escalation/escalation-rules.js';

@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { DomainRbacGuard } from './common/rbac.guard';
+import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { AuthModule } from './auth/auth.module';
 import { BillingModule } from './billing/billing.module';
 import { EmrModule } from './emr/emr.module';
 import { EncounterModule } from './encounter/encounter.module';
@@ -45,6 +47,7 @@ import { NavayuModule } from './navayu/navayu.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    AuthModule,
     ProvidersModule,
     PrismaModule,
     TenantModule,
@@ -88,6 +91,10 @@ import { NavayuModule } from './navayu/navayu.module';
     {
       provide: APP_INTERCEPTOR,
       useClass: RlsInterceptor,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
     },
     {
       provide: APP_GUARD,

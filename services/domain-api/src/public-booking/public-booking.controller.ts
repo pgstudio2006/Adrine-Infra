@@ -1,6 +1,7 @@
 import { BadRequestException, Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
+import { Public } from '../common/public.decorator';
 import { PublicBookingService } from './public-booking.service';
 
 function clientKey(req: Request): string {
@@ -10,6 +11,7 @@ function clientKey(req: Request): string {
 }
 
 @ApiTags('public-booking')
+@Public()
 @Controller('public/booking')
 export class PublicBookingController {
   constructor(private readonly booking: PublicBookingService) {}

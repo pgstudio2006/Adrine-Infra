@@ -4,20 +4,24 @@ Use before external penetration testing or production go-live. Items map to Prog
 
 ## Authentication & sessions
 
-- [ ] Production JWT secret ≥ 256 bits; not committed to git
+- [x] Production JWT secret ≥ 256 bits; not committed to git (`assertProductionSecurityEnv`)
 - [ ] `AUTH_MODE` not `disabled` in production
 - [ ] JWT includes `sessionId`; revoked sessions rejected (`UserSession.revokedAt`)
-- [ ] Hospital OS calls `GET /auth/me` on load; expired tokens cleared
+- [x] Hospital OS calls `GET /auth/me` on load; expired tokens cleared
 - [ ] MFA enrollment API tested (`POST /auth/mfa/enroll`) if required for admin roles
 - [ ] Session revoke tested (`POST /auth/sessions/revoke`)
 - [ ] Plan documented for enterprise OIDC / ABHA (replacing dev-login)
+- [x] Global JWT guard on kernel-api and domain-api (production default)
+- [x] Mock role-picker login disabled in production hospital-os build
+- [x] OpenRouter / LLM keys server-side only (domain-api `OPENROUTER_API_KEY`)
 
 ## Authorization (RBAC)
 
-- [ ] `DOMAIN_RBAC_ENFORCE=true` on domain-api in production
-- [ ] Mutating requests without `x-actor-role` return 403
-- [ ] Role matrix reviewed (`packages/hospital-operations/src/governance/domain-rbac.ts`)
-- [ ] Hospital OS `ProtectedRoute` + module entitlements aligned with subscription
+- [x] `DOMAIN_RBAC_ENFORCE=true` on domain-api in production (default when `NODE_ENV=production`)
+- [x] Mutating requests without valid JWT actor role return 403
+- [x] PHI GET paths require role matrix match (not open by default)
+- [x] Role matrix expanded (`packages/hospital-operations/src/governance/domain-rbac.ts`)
+- [ ] Hospital OS `ProtectedRoute` wired on all routes (session gate added in `App.tsx`)
 - [ ] Admin-only routes (`/migration`, platform admin) limited to `admin` role
 
 ## Multi-tenancy & data isolation
@@ -59,14 +63,17 @@ Use before external penetration testing or production go-live. Items map to Prog
 - [ ] TLS 1.2+ only on public endpoints
 - [ ] Postgres not publicly reachable; security group least privilege
 - [ ] Secrets in KMS/secret manager; not in `.env` in CI logs
-- [ ] CORS allowlist matches hospital-os origin only
+- [x] CORS allowlist required in production (`CORS_ORIGINS`)
+- [x] Helmet on kernel-api and domain-api
+- [x] nginx security headers on hospital-os static host
+- [x] Swagger disabled in production unless `ENABLE_SWAGGER=true`
 - [ ] Dependency scan (npm/pnpm audit) on release branch
 
 ## Known open items (document for testers)
 
 | Area | Risk | Mitigation timeline |
 |------|------|---------------------|
-| Dev role picker on hospital login | Medium in prod if left enabled | Disable UI; OIDC only |
+| Dev role picker on hospital login | **Mitigated** — disabled in prod build | OIDC only |
 | In-memory rate limit | Low at single replica | Redis limiter |
 | Simulated webhook delivery | Low | HTTP worker + DLQ |
 | Patient app | Out of scope this program | Separate hardening track |

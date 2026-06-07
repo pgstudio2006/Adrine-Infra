@@ -21,6 +21,7 @@ import { IntegrationModule } from './integration/integration.module';
 import { ScaleModule } from './scale/scale.module';
 import { OperationalTemplateModule } from './templates/operational-template.module';
 import { TenantRateLimitGuard } from './common/tenant-rate-limit.guard';
+import { GlobalJwtAuthGuard } from './auth/global-jwt-auth.guard';
 import { InternalModule } from './internal/internal.module';
 import { HrModule } from './hr/hr.module';
 
@@ -56,6 +57,10 @@ import { HrModule } from './hr/hr.module';
     {
       provide: APP_GUARD,
       useClass: TenantRateLimitGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: GlobalJwtAuthGuard,
     },
   ],
 })

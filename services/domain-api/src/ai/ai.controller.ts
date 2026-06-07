@@ -30,4 +30,16 @@ export class AIController {
       payload: body.payload,
     });
   }
+
+  @Post('scribe')
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  scribe(
+    @Body()
+    body: {
+      patientName: string;
+      transcript: string;
+    },
+  ) {
+    return this.ai.scribeConsultation(body);
+  }
 }

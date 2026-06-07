@@ -194,6 +194,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(
     (role: UserRole, name: string, options?: { department?: string }) => {
       const run = async () => {
+        if (isProductionHospitalOs()) {
+          toast.error('Use email and password to sign in', {
+            description: 'Role picker login is disabled in production builds.',
+          });
+          return;
+        }
+
         const newUser: User = {
           id: crypto.randomUUID(),
           name,
@@ -203,14 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (isPlatformRuntimeEnabled()) {
           const kernel = import.meta.env.VITE_KERNEL_API_URL as string | undefined;
-          if (isProductionHospitalOs() && !kernel) {
-            toast.error('Platform auth not configured', {
-              description:
-                'Set VITE_KERNEL_API_URL (and OIDC when available). Mock-only login is disabled in production builds.',
-            });
-            return;
-          }
-          if (kernel && !isProductionHospitalOs()) {
+          if (kernel) {
             try {
               const email = `${role}@adrine.local`;
               const auth = await platformFetch<{
@@ -238,6 +238,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               toast.error('Platform login failed', {
                 description: err instanceof Error ? err.message : 'Check kernel-api and CORS.',
               });
+              return;
             }
           } else if (!kernelApiConfigured()) {
             toast.warning('Running without kernel session', {

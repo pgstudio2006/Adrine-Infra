@@ -15,6 +15,7 @@ import type { Complaint } from './ConsultationComplaints';
 import type { Diagnosis } from './ConsultationDiagnosis';
 import type { Medication } from './ConsultationMedications';
 import type { LabTest, RadiologyOrder } from './ConsultationOrders';
+import { canUseAIRuntime, platformScribeConsultation } from '@/runtime/ai-runtime';
 
 // Indian languages supported by Web Speech API
 const LANGUAGES = [
@@ -182,103 +183,18 @@ export default function ConsultationAIScribe({ open, onClose, onApply, patientNa
     setStep('processing');
     setIsProcessing(true);
 
-    const openRouterKey = import.meta.env.VITE_OPENROUTER_API_KEY as string | undefined;
-    if (!openRouterKey?.trim()) {
-      toast.error('AI scribe is not configured. Set VITE_OPENROUTER_API_KEY for this environment.');
-      setStep('review');
+    if (!canUseAIRuntime()) {
+      toast.error('AI scribe requires a signed-in platform session and domain-api.');
+      setStep('record');
       setIsProcessing(false);
       return;
     }
 
     try {
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${openRouterKey.trim()}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': window.location.origin,
-        },
-        body: JSON.stringify({
-          model: 'google/gemma-4-26b-a4b-it:free',
-          messages: [
-            {
-              role: 'system',
-              content: `You are a medical AI scribe. Extract structured clinical data from a doctor-patient conversation transcript. The conversation may be in any Indian language - understand it and respond in English.
-
-Return ONLY valid JSON with this exact structure (no markdown, no explanation):
-{
-  "complaints": [{"text": "complaint description", "duration": "duration", "severity": "mild|moderate|severe"}],
-  "diagnoses": [{"code": "ICD-10 code", "text": "diagnosis name", "type": "primary|secondary", "certainty": "confirmed|provisional|differential"}],
-  "medications": [{"name": "drug name", "dosage": "dosage", "frequency": "OD|BD|TDS|QID|SOS", "duration": "e.g. 5 days", "route": "Oral|IV|IM|Topical", "instructions": "special instructions"}],
-  "labTests": [{"text": "test name", "priority": "routine|urgent|stat"}],
-  "radiologyOrders": [{"type": "X-Ray|CT|MRI|USG", "bodyPart": "body part", "priority": "routine|urgent", "notes": "clinical notes"}],
-  "advice": "patient advice and instructions",
-  "followUpDays": "number of days",
-  "vitals": {"bp": "", "spo2": "", "temp": "", "pulse": "", "weight": "", "sugar": "", "height": "", "rr": ""}
-}
-
-Rules:
-- Extract ONLY what is mentioned in the conversation
-- Use standard medical terminology in English
-- For medications, use generic names when possible
-- If vitals are mentioned, fill them in; leave empty string if not mentioned
-- followUpDays should be just a number as string
-- Be conservative - only add diagnoses the doctor explicitly states or implies`
-            },
-            {
-              role: 'user',
-              content: `Patient: ${patientName}\n\nDoctor-Patient Conversation Transcript:\n${text}`
-            }
-          ],
-          temperature: 0.1,
-        }),
+      const { result: parsed } = await platformScribeConsultation({
+        patientName,
+        transcript: text,
       });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || '';
-
-      // Parse JSON from response with better error handling
-      let jsonStr = content.trim();
-      
-      // Handle different response formats
-      if (jsonStr.startsWith('```')) {
-        jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```$/g, '').trim();
-      }
-      
-      // Remove any leading/trailing text that's not JSON
-      const jsonStart = jsonStr.indexOf('{');
-      const jsonEnd = jsonStr.lastIndexOf('}');
-      
-      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-        jsonStr = jsonStr.substring(jsonStart, jsonEnd + 1);
-      }
-
-      let parsed;
-      try {
-        parsed = JSON.parse(jsonStr);
-      } catch (parseError) {
-        console.error('JSON Parse Error:', parseError, 'Raw content:', content);
-        
-        // Try to fix common JSON issues
-        try {
-          const fixedJson = jsonStr
-            .replace(/,\s*}/g, '}')  // Remove trailing commas
-            .replace(/,\s*]/g, ']')  // Remove trailing commas in arrays
-            .replace(/\n/g, '')      // Remove newlines
-            .replace(/\\"/g, '"');   // Fix escaped quotes
-          
-          parsed = JSON.parse(fixedJson);
-          console.log('Successfully parsed after fixing JSON');
-        } catch (secondError) {
-          throw new Error('AI response format invalid. Please try recording again.');
-        }
-      }
-
-      // Normalize into our types with IDs
       const scribeResult: ScribeResult = {
         complaints: (parsed.complaints || []).map((c: any, i: number) => ({
           id: `ai-${Date.now()}-${i}`,

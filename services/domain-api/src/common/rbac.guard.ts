@@ -7,10 +7,14 @@ import {
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import {
+  actorRolePermitted,
+  isDomainPhiReadPath,
+  isJwtEnforced,
   normalizeActorRole,
   resolveAllowedRoles,
 } from '@adrine/hospital-operations';
 import { RBAC_ROLES_KEY } from './rbac.decorator';
+import type { JwtPayload } from '../auth/jwt.strategy';
 
 @Injectable()
 export class DomainRbacGuard implements CanActivate {
@@ -22,16 +26,20 @@ export class DomainRbacGuard implements CanActivate {
       process.env.NODE_ENV === 'production';
     if (!enforce) return true;
 
-    const req = context.switchToHttp().getRequest<Request>();
+    const req = context.switchToHttp().getRequest<Request & { user?: JwtPayload }>();
     const method = req.method.toUpperCase();
-    if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
-      return true;
-    }
+    if (method === 'OPTIONS') return true;
 
-    const actorRole = normalizeActorRole(
+    const jwtRole = normalizeActorRole(req.user?.role);
+    const headerRole = normalizeActorRole(
       (req.headers['x-actor-role'] as string | undefined) ??
         (req.body as { actorRole?: string } | undefined)?.actorRole,
     );
+    const actorRole = jwtRole ?? headerRole;
+
+    if (isJwtEnforced() && !jwtRole) {
+      throw new ForbiddenException('Authenticated actor role required for RBAC');
+    }
 
     const handlerRoles = this.reflector.getAllAndOverride<string[] | undefined>(
       RBAC_ROLES_KEY,
@@ -43,22 +51,29 @@ export class DomainRbacGuard implements CanActivate {
       resolveAllowedRoles(req.path)?.map((r) => r.toLowerCase()) ??
       null;
 
-    if (!allowed || allowed.length === 0) return true;
+    const requiresRoleCheck =
+      method !== 'GET' && method !== 'HEAD'
+        ? true
+        : isDomainPhiReadPath(req.path, method);
+
+    if (!requiresRoleCheck) {
+      return true;
+    }
+
+    if (!allowed || allowed.length === 0) {
+      throw new ForbiddenException(`Route not authorized: ${req.method} ${req.path}`);
+    }
 
     if (!actorRole) {
-      throw new ForbiddenException('Missing x-actor-role for RBAC enforcement');
+      throw new ForbiddenException('Missing actor role for RBAC enforcement');
     }
 
-    if (allowed.includes('*') || allowed.includes(actorRole)) {
-      return true;
+    if (!actorRolePermitted(actorRole, allowed as never)) {
+      throw new ForbiddenException(
+        `Role "${actorRole}" is not permitted for ${req.method} ${req.path}`,
+      );
     }
 
-    if (actorRole === 'admin' && allowed.includes('admin')) {
-      return true;
-    }
-
-    throw new ForbiddenException(
-      `Role "${actorRole}" is not permitted for ${req.method} ${req.path}`,
-    );
+    return true;
   }
 }

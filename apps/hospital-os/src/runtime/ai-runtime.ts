@@ -44,3 +44,18 @@ export async function platformExecuteAI(input: {
     }),
   });
 }
+
+export type AIScribeResult = {
+  result: Record<string, unknown>;
+  model?: string;
+};
+
+export async function platformScribeConsultation(input: {
+  patientName: string;
+  transcript: string;
+}): Promise<AIScribeResult> {
+  return platformFetch<AIScribeResult>(domainBase()!, '/ai/scribe', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}

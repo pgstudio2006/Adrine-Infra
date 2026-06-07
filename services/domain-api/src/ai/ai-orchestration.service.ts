@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { getAIAction, HospitalPlatformEvents } from '@adrine/hospital-operations';
 import { PrismaService } from '../prisma/prisma.service';
 import { OperationalAnalyticsService } from '../analytics/operational-analytics.service';
@@ -235,5 +235,95 @@ export class AIOrchestrationService {
     });
 
     return { logId: log.id, output, tokensUsed: def.estimatedTokens };
+  }
+
+  /** Server-side consultation scribe — OpenRouter key never exposed to browser. */
+  async scribeConsultation(input: { patientName: string; transcript: string }) {
+    const transcript = input.transcript?.trim();
+    if (!transcript) {
+      throw new ForbiddenException('Transcript is required');
+    }
+
+    const openRouterKey = process.env.OPENROUTER_API_KEY?.trim();
+    const model =
+      process.env.OPENROUTER_SCRIBE_MODEL?.trim() ||
+      process.env.OPENROUTER_MODEL?.trim() ||
+      'deepseek/deepseek-v4-flash';
+
+    if (!openRouterKey) {
+      throw new ServiceUnavailableException(
+        'AI scribe is not configured. Set OPENROUTER_API_KEY on domain-api.',
+      );
+    }
+
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${openRouterKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': process.env.OPENROUTER_HTTP_REFERER ?? 'https://hms.adrine.in',
+        'X-Title': process.env.OPENROUTER_APP_TITLE ?? 'Navayu Hospital OS',
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: 'system',
+            content: `You are a medical AI scribe. Extract structured clinical data from a doctor-patient conversation transcript. The conversation may be in any Indian language - understand it and respond in English.
+
+Return ONLY valid JSON with this exact structure (no markdown, no explanation):
+{
+  "complaints": [{"text": "complaint description", "duration": "duration", "severity": "mild|moderate|severe"}],
+  "diagnoses": [{"code": "ICD-10 code", "text": "diagnosis name", "type": "primary|secondary", "certainty": "confirmed|provisional|differential"}],
+  "medications": [{"name": "drug name", "dosage": "dosage", "frequency": "OD|BD|TDS|QID|SOS", "duration": "e.g. 5 days", "route": "Oral|IV|IM|Topical", "instructions": "special instructions"}],
+  "labTests": [{"text": "test name", "priority": "routine|urgent|stat"}],
+  "radiologyOrders": [{"type": "X-Ray|CT|MRI|USG", "bodyPart": "body part", "priority": "routine|urgent", "notes": "clinical notes"}],
+  "advice": "patient advice and instructions",
+  "followUpDays": "number of days",
+  "vitals": {"bp": "", "spo2": "", "temp": "", "pulse": "", "weight": "", "sugar": "", "height": "", "rr": ""}
+}
+
+Rules:
+- Extract ONLY what is mentioned in the conversation
+- Use standard medical terminology in English
+- For medications, use generic names when possible
+- If vitals are mentioned, fill them in; leave empty string if not mentioned
+- followUpDays should be just a number as string
+- Be conservative - only add diagnoses the doctor explicitly states or implies`,
+          },
+          {
+            role: 'user',
+            content: `Patient: ${input.patientName}\n\nDoctor-Patient Conversation Transcript:\n${transcript}`,
+          },
+        ],
+        temperature: 0.1,
+      }),
+    });
+
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      throw new ServiceUnavailableException(
+        `AI scribe provider error (${res.status})${detail ? `: ${detail.slice(0, 200)}` : ''}`,
+      );
+    }
+
+    const json = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    const content = json.choices?.[0]?.message?.content?.trim() ?? '';
+    if (!content) {
+      throw new ServiceUnavailableException('AI scribe returned empty response');
+    }
+
+    let jsonStr = content;
+    if (jsonStr.startsWith('```')) {
+      jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```$/g, '').trim();
+    }
+
+    try {
+      return { result: JSON.parse(jsonStr) as Record<string, unknown>, model };
+    } catch {
+      throw new ServiceUnavailableException('AI scribe returned invalid JSON');
+    }
   }
 }
