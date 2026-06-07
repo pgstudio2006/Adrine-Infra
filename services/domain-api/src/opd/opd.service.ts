@@ -542,6 +542,26 @@ export class OpdService {
 
     const updated = await this.patchVisitMetadata(tenantId, visitId, metadataPatch);
 
+    if (body.action === 'generate_ai_summary') {
+      const latest = await this.getVisit(tenantId, visitId);
+      if (latest.state === 'in_consultation') {
+        try {
+          await this.transition(tenantId, visitId, {
+            action: 'release_for_senior_handoff',
+            actorRole: body.actorRole,
+            actorId: body.actorId,
+            payload: { assignedDoctor: 'Dr. Senior MSK Consultant' },
+          });
+        } catch (err) {
+          this.logger.warn(
+            `Navayu senior handoff release failed for visit ${visitId}: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        }
+      }
+    }
+
     await this.platformEvents.record({
       tenantId,
       branchId: visit.branchId,
@@ -575,7 +595,10 @@ export class OpdService {
     }
 
     return {
-      visit: updated,
+      visit:
+        body.action === 'generate_ai_summary'
+          ? await this.getVisit(tenantId, visitId)
+          : updated,
       previousState: currentState,
       nextState: result.nextState,
     };

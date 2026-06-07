@@ -96,6 +96,12 @@ export function matchesNavayuMskPoolDoctorAssignment(
   if (viewer.role === 'jr_doctor') {
     return true;
   }
+  if (
+    viewer.role === 'doctor' &&
+    (viewer.name.includes('Junior') || viewer.name.toLowerCase().includes('associate'))
+  ) {
+    return true;
+  }
   if (isUnassignedDoctorName(assignedDoctor)) {
     return true;
   }

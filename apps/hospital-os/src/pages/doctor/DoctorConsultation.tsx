@@ -30,7 +30,7 @@ import { NavayuProtocolMapPanel } from '@/components/navayu/NavayuProtocolMapPan
 import {
   isNavayuTenant,
   isNavayuSeniorDoctor,
-  isJrDoctorRole,
+  isNavayuJuniorDoctor,
   loadNavayuLumbarExam,
   loadNavayuSeniorReview,
   loadNavayuVisitMetadata,
@@ -53,6 +53,7 @@ import {
   platformSaveNavayuSeniorReview,
   platformStartAssociateEval,
   platformHandoffJuniorToSenior,
+  platformSaveNavayuLumbarExam,
   mapStoredNavayuAiSummary,
   type NavayuIntakeData,
   type NavayuVisitBundle,
@@ -262,7 +263,11 @@ export default function DoctorConsultation() {
     user?.role,
     user?.name,
   );
-  const navayuJunior = isJrDoctorRole(user?.role);
+  const navayuJunior = isNavayuJuniorDoctor(
+    getPlatformSession()?.email ?? user?.email,
+    user?.role,
+    user?.name,
+  );
   const [submittingJuniorExam, setSubmittingJuniorExam] = useState(false);
   const [navayuLumbarExam, setNavayuLumbarExam] = useState<NavayuLumbarExamData>(() =>
     patientId ? loadNavayuLumbarExam(patientId) : {},
@@ -393,6 +398,12 @@ export default function DoctorConsultation() {
     if (!opdVisitId || !canUseNavayuRuntime()) return false;
     setSubmittingJuniorExam(true);
     try {
+      const lumbar =
+        (navayuMskExams['navayu.exam.lumbar'] as NavayuLumbarExamData | undefined) ??
+        navayuLumbarExam;
+      if (Object.keys(lumbar).length > 0) {
+        await platformSaveNavayuLumbarExam(opdVisitId, lumbar);
+      }
       const state = await platformHandoffJuniorToSenior(opdVisitId);
       setNavayuBundle((prev) => ({ ...prev, mskLifecycleState: state }));
       await refreshQueueFromPlatform();

@@ -699,8 +699,35 @@ export function isNavayuSeniorDoctor(
   );
 }
 
-export function isJrDoctorRole(role?: string | null): boolean {
-  return role === 'jr_doctor';
+/** Navayu junior associate — mirrors senior detection for users provisioned with role `doctor`. */
+export function isNavayuJuniorDoctor(
+  email?: string | null,
+  role?: string | null,
+  name?: string | null,
+): boolean {
+  if (role === 'jr_doctor') return true;
+  if (isNavayuSeniorDoctor(email, role, name)) return false;
+
+  const emailNorm = email?.trim().toLowerCase() ?? '';
+  const nameNorm = name?.trim().toLowerCase() ?? '';
+
+  if (/junior@navayuhealth\.in$/i.test(emailNorm) || emailNorm.includes('junior@')) {
+    return true;
+  }
+
+  return nameNorm.includes('junior') && nameNorm.includes('associate');
+}
+
+export function isJrDoctorRole(
+  role?: string | null,
+  email?: string | null,
+  name?: string | null,
+): boolean {
+  if (role === 'jr_doctor') return true;
+  if (isNavayuTenant()) {
+    return isNavayuJuniorDoctor(email, role, name);
+  }
+  return false;
 }
 
 export function buildNavayuRegistrationNotes(metadata: NavayuRegistrationMetadata): string {

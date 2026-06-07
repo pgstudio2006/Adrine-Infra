@@ -140,6 +140,15 @@ export const opdVisitLifecycle: LifecycleDefinition<OpdVisitState> = {
     },
     {
       from: 'in_consultation',
+      to: 'queued',
+      action: 'release_for_senior_handoff',
+      roles: ['doctor', 'jr_doctor', 'admin'],
+      emits: [HospitalPlatformEvents.queue.tokenIssued],
+      metering: ['opd.senior_handoff_released'],
+      auditLevel: 'standard',
+    },
+    {
+      from: 'in_consultation',
       to: 'orders_pending',
       action: 'complete_consultation',
       roles: ['doctor'],

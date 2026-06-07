@@ -1,6 +1,7 @@
 import { platformFetch } from '@/runtime/platform-client';
 import { getPlatformSession } from '@/runtime/platform-session';
-import { canUseOpdRuntime } from '@/runtime/opd-runtime';
+import { canUseOpdRuntime, platformOpdTransition } from '@/runtime/opd-runtime';
+import { NAVAYU_MSK_SENIOR } from '@/lib/opd/branch-clinical-roster';
 import {
   isNavayuLumbarExamComplete,
   type NavayuFormValues,
@@ -181,11 +182,25 @@ async function platformBootstrapMskJuniorPipeline(
   return state;
 }
 
+async function platformReleaseVisitForSeniorHandoff(visitId: string): Promise<void> {
+  if (!canUseNavayuRuntime()) return;
+  try {
+    const visit = await platformFetch<{ state: string }>(domainBase()!, `/opd/visits/${visitId}`);
+    if (visit.state !== 'in_consultation') return;
+    await platformOpdTransition(visitId, 'release_for_senior_handoff', undefined, {
+      assignedDoctor: NAVAYU_MSK_SENIOR,
+    });
+  } catch {
+    /* server may release on generate_ai_summary */
+  }
+}
+
 /** After junior completes MSK exam, advance to AI-summary-ready for senior handoff. */
 export async function platformHandoffJuniorToSenior(visitId: string): Promise<NavayuMskLifecycleState> {
   let state = await platformBootstrapMskJuniorPipeline(visitId);
 
   if (SENIOR_HANDOFF_STATES.includes(state)) {
+    await platformReleaseVisitForSeniorHandoff(visitId);
     return state;
   }
 
@@ -204,6 +219,7 @@ export async function platformHandoffJuniorToSenior(visitId: string): Promise<Na
       { aiSummaryReady: true },
       { 'msk.ai_summary_before_senior': true },
     );
+    await platformReleaseVisitForSeniorHandoff(visitId);
     return result.nextState;
   }
 

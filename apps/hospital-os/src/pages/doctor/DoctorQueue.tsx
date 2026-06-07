@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { filterNavayuDoctorQueue } from '@/lib/navayu/navayu-queue';
+import { filterNavayuDoctorQueue, effectiveNavayuQueueStatus } from '@/lib/navayu/navayu-queue';
 import { NavayuMskWorkflowStrip } from '@/components/navayu/NavayuMskWorkflowStrip';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -71,10 +71,20 @@ export default function DoctorQueue() {
     if (!navayuMode) return sorted;
     return filterNavayuDoctorQueue(sorted, navayuSenior);
   }, [queue, navayuMode, navayuSenior]);
-  const waiting = myQueue.filter((q) => q.status === 'waiting').length;
-  const completed = myQueue.filter((q) => q.status === 'completed').length;
-  const current = myQueue.find((q) => q.status === 'in-consultation');
-  const called = myQueue.find((q) => q.status === 'called');
+  const displayQueue = useMemo(
+    () =>
+      navayuMode
+        ? myQueue.map((entry) => ({
+            ...entry,
+            status: effectiveNavayuQueueStatus(entry, navayuSenior),
+          }))
+        : myQueue,
+    [myQueue, navayuMode, navayuSenior],
+  );
+  const waiting = displayQueue.filter((q) => q.status === 'waiting').length;
+  const completed = displayQueue.filter((q) => q.status === 'completed').length;
+  const current = displayQueue.find((q) => q.status === 'in-consultation');
+  const called = displayQueue.find((q) => q.status === 'called');
 
   const queueLoading =
     isPlatformAuthoritative() && (!queueBoardHydrated || queueBoardSyncing);
@@ -124,7 +134,7 @@ export default function DoctorQueue() {
   }, [activePatient?.uhid, activePatient?.platformOpdVisitId, activePatient?.visitMetadata, queue]);
 
   const handleNext = () => {
-    const next = myQueue.find((q) => q.status === 'waiting');
+    const next = displayQueue.find((q) => q.status === 'waiting');
     if (next) {
       handleStart(next);
       return;
@@ -132,8 +142,8 @@ export default function DoctorQueue() {
     if (doctorName) nextQueuePatient(doctorName);
   };
 
-  const handleStart = (entry: (typeof myQueue)[number]) => {
-    const currentEntry = myQueue.find((q) => q.status === 'in-consultation');
+  const handleStart = (entry: (typeof displayQueue)[number]) => {
+    const currentEntry = displayQueue.find((q) => q.status === 'in-consultation');
     if (currentEntry && currentEntry.platformOpdVisitId !== entry.platformOpdVisitId) {
       updateQueueStatus(
         {
@@ -155,7 +165,7 @@ export default function DoctorQueue() {
     navigate(`${roleBasePath}/consultation/${entry.uhid}`);
   };
 
-  const filtered = myQueue.filter(
+  const filtered = displayQueue.filter(
     (p) =>
       p.patientName.toLowerCase().includes(search.toLowerCase()) ||
       String(p.tokenNo).includes(search),
@@ -257,11 +267,11 @@ export default function DoctorQueue() {
               </div>
             ))
           : [
-              { label: 'Total', value: myQueue.length, color: '' },
+              { label: 'Total', value: displayQueue.length, color: '' },
               { label: 'Waiting', value: waiting, color: 'text-amber-600' },
               {
                 label: 'In Consult',
-                value: myQueue.filter((q) => q.status === 'in-consultation').length,
+                value: displayQueue.filter((q) => q.status === 'in-consultation').length,
                 color: 'text-emerald-600',
               },
               { label: 'Completed', value: completed, color: 'text-muted-foreground' },
@@ -294,7 +304,7 @@ export default function DoctorQueue() {
             ? filtered.map((p, index) => {
             const isCalled = p.status === 'called';
             const isActive = p.status === 'waiting' || isCalled || p.status === 'in-consultation';
-            const queueRank = myQueue.indexOf(p) + 1;
+            const queueRank = displayQueue.indexOf(p) + 1;
             const displayToken = p.tokenNo > 0 ? p.tokenNo : queueRank;
 
             return (

@@ -62,3 +62,19 @@ export function scopeQueueToBranch(entries: QueueEntry[]): QueueEntry[] {
   if (!branchId) return entries;
   return entries.filter((entry) => matchesDoctorBranch(entry, branchId));
 }
+
+/** Senior queue: MSK handoff rows should count as waiting even if OPD is still in_consultation. */
+export function effectiveNavayuQueueStatus(
+  entry: QueueEntry,
+  seniorDoctor: boolean,
+): QueueEntry['status'] {
+  if (
+    seniorDoctor &&
+    entry.status === 'in-consultation' &&
+    entry.mskLifecycleState &&
+    SENIOR_VISIBLE_STATES.includes(entry.mskLifecycleState as NavayuMskLifecycleState)
+  ) {
+    return 'waiting';
+  }
+  return entry.status;
+}
