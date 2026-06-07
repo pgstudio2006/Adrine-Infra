@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Sparkles, Monitor, Tablet, Mic, Camera, ZoomIn, ZoomOut, X as XIcon, Circle, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Sparkles, Monitor, Tablet, Mic, Camera, ZoomIn, ZoomOut, X as XIcon, Circle, RotateCcw, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ConsultationVitals from './consultation/ConsultationVitals';
 import ConsultationComplaints, { type Complaint } from './consultation/ConsultationComplaints';
@@ -407,7 +407,9 @@ export default function DoctorConsultation() {
       const state = await platformHandoffJuniorToSenior(opdVisitId);
       setNavayuBundle((prev) => ({ ...prev, mskLifecycleState: state }));
       await refreshQueueFromPlatform();
-      toast.success('Junior MSK exam submitted for senior review');
+      toast.success('Patient sent to senior doctor queue', {
+        description: 'AI summary will be ready for senior review.',
+      });
       navigate(`${roleBasePath}/queue`);
       return true;
     } catch (err) {
@@ -426,6 +428,12 @@ export default function DoctorConsultation() {
     (patient?.visitMetadata?.navayu as NavayuRegistrationMetadata | undefined) ??
     (patientId ? loadNavayuVisitMetadata(patientId) : null);
   const navayuIntake: NavayuIntakeData | null = navayuBundle.intake ?? null;
+  const juniorHandoffDone =
+    navayuJunior &&
+    navayuBundle.mskLifecycleState &&
+    ['ai_summary_ready', 'senior_consult', 'navayu_classified', 'protocol_mapped', 'counselling', 'package_planned', 'closed'].includes(
+      navayuBundle.mskLifecycleState,
+    );
 
   // ── Operational route guard: patient must be queued or in_consultation ──
   const { currentAccess } = useOperationalRouteGuard();
@@ -488,7 +496,6 @@ export default function DoctorConsultation() {
     }
 
     if (navayuMode && navayuJunior) {
-      await handleSubmitJuniorMskExam();
       return;
     }
 
@@ -537,6 +544,104 @@ export default function DoctorConsultation() {
 
     navigate(`/doctor/ipd/${result.admissionId}`);
   };
+
+  if (navayuMode && navayuJunior) {
+    return (
+      <div className="space-y-4 pb-24">
+        <PatientContextBar
+          patientName={patientName}
+          uhid={patientId ?? ''}
+          department={patient?.department || queueEntry?.department}
+          doctor={queueEntry?.doctor || user?.name}
+          tokenNo={queueEntry?.tokenNo}
+          opdState={patient?.opdState}
+          waitLabel={
+            queueEntry?.waitMinutes != null
+              ? formatWaitMinutes(queueEntry.waitMinutes)
+              : undefined
+          }
+          extra={
+            navayuBundle.mskLifecycleState ? (
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-700">
+                MSK: {MSK_STATE_LABELS[navayuBundle.mskLifecycleState] ?? navayuBundle.mskLifecycleState}
+              </span>
+            ) : undefined
+          }
+        />
+
+        <motion.div {...fadeIn(0)} className="flex items-center gap-4">
+          <button
+            onClick={() => navigate(`${roleBasePath}/queue`)}
+            className="p-2 rounded-lg hover:bg-accent transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">{patientName}</h1>
+            <p className="text-sm text-muted-foreground">{patientInfo}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Junior MSK associate — capture clinical data and send to senior doctor queue.
+            </p>
+          </div>
+        </motion.div>
+
+        {navayuBundle.mskLifecycleState ? (
+          <NavayuMskWorkflowStrip state={navayuBundle.mskLifecycleState} seniorView={false} />
+        ) : null}
+
+        <div className="space-y-3 max-w-3xl">
+          {patientId ? (
+            <NavayuIntakePanel
+              uhid={patientId}
+              visitMetadata={navayuRegistration ?? undefined}
+              intake={navayuIntake}
+            />
+          ) : null}
+          <ConsultationVitals vitals={vitals} onChange={setVitals} />
+          <ConsultationComplaints
+            complaints={complaints}
+            onChange={setComplaints}
+            hpiNotes={hpiNotes}
+            onHPIChange={setHpiNotes}
+          />
+          <NavayuMskExamPanel
+            bodyRegions={navayuRegistration?.bodyRegions ?? ['back']}
+            examsByFormId={navayuMskExams}
+            onExamChange={handleNavayuMskExamChange}
+          />
+          <NavayuInvestigationsPanel
+            visitId={opdVisitId}
+            value={navayuInvestigations}
+            onChange={handleNavayuInvestigationsChange}
+          />
+        </div>
+
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-4 py-3">
+          <div className="mx-auto flex max-w-3xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">
+              {juniorHandoffDone
+                ? 'This patient is already on the senior doctor queue.'
+                : 'No prescriptions or billing here — complete the exam and send to senior.'}
+            </p>
+            <Button
+              type="button"
+              size="lg"
+              className="gap-2 shrink-0"
+              disabled={submittingJuniorExam || juniorHandoffDone}
+              onClick={() => void handleSubmitJuniorMskExam()}
+            >
+              <ArrowRight className="w-4 h-4" />
+              {submittingJuniorExam
+                ? 'Sending to senior queue…'
+                : juniorHandoffDone
+                  ? 'Sent to senior queue'
+                  : 'Send to senior doctor queue'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -657,7 +762,7 @@ export default function DoctorConsultation() {
                   ) : null}
                 </>
               )}
-              {navayuMode ? (
+              {navayuMode && navayuSenior ? (
                 <ConsultationDiagnosis diagnoses={diagnoses} onChange={setDiagnoses} />
               ) : null}
             </div>
@@ -666,18 +771,9 @@ export default function DoctorConsultation() {
           )}
         </motion.div>
 
-        {/* Center — Medications */}
+        {/* Center — Medications (senior / general OPD only) */}
         <motion.div {...fadeIn(2)}>
-          {navayuMode && navayuJunior ? (
-            <div className="rounded-xl border border-dashed bg-card p-6 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">Orders removed for junior MSK workflow</p>
-              <p className="mt-1 text-xs">
-                Junior doctor handoff captures intake, complaints, vitals, regional MSK exam, and investigations only.
-              </p>
-            </div>
-          ) : (
-            <ConsultationMedications medications={medications} onChange={setMedications} allergies={patientAllergies} />
-          )}
+          <ConsultationMedications medications={medications} onChange={setMedications} allergies={patientAllergies} />
         </motion.div>
 
         {/* Right Column */}
@@ -693,17 +789,6 @@ export default function DoctorConsultation() {
                   lumbarExam={navayuLumbarExam}
                   storedSummary={mapStoredNavayuAiSummary(navayuBundle.aiSummary)}
                 />
-              ) : null}
-              {navayuJunior ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="w-full"
-                  disabled={submittingJuniorExam}
-                  onClick={() => void handleSubmitJuniorMskExam()}
-                >
-                  {submittingJuniorExam ? 'Submitting…' : 'Submit junior MSK exam'}
-                </Button>
               ) : null}
               {navayuSenior ? (
                 <>
