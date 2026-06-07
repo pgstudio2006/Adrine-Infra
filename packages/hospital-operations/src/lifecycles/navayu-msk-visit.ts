@@ -45,7 +45,7 @@ export const navayuMskVisitLifecycle: LifecycleDefinition<NavayuMskVisitState> =
       from: 'intake_pending',
       to: 'intake_complete',
       action: 'complete_intake',
-      roles: ['receptionist', 'admin', 'doctor'],
+      roles: ['receptionist', 'admin', 'doctor', 'jr_doctor'],
       auditLevel: 'phi',
     },
     {

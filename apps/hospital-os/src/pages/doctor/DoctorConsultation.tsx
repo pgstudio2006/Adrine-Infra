@@ -326,9 +326,17 @@ export default function DoctorConsultation() {
 
   useEffect(() => {
     if (!navayuJunior || !opdVisitId || !canUseNavayuRuntime()) return;
-    if (navayuBundle.mskLifecycleState !== 'intake_complete') return;
-    void platformStartAssociateEval(opdVisitId).then((state) => {
-      setNavayuBundle((prev) => ({ ...prev, mskLifecycleState: state }));
+    const state = navayuBundle.mskLifecycleState;
+    if (
+      state &&
+      state !== 'registered' &&
+      state !== 'intake_pending' &&
+      state !== 'intake_complete'
+    ) {
+      return;
+    }
+    void platformStartAssociateEval(opdVisitId).then((nextState) => {
+      setNavayuBundle((prev) => ({ ...prev, mskLifecycleState: nextState }));
     });
   }, [navayuJunior, opdVisitId, navayuBundle.mskLifecycleState]);
 

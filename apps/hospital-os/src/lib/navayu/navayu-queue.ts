@@ -13,6 +13,7 @@ const JUNIOR_HIDDEN_STATES: NavayuMskLifecycleState[] = [
 ];
 
 const SENIOR_VISIBLE_STATES: NavayuMskLifecycleState[] = [
+  'msk_exam_complete',
   'ai_summary_ready',
   'senior_consult',
   'navayu_classified',

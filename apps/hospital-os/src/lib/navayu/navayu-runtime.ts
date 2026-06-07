@@ -132,18 +132,61 @@ const SENIOR_HANDOFF_STATES: NavayuMskLifecycleState[] = [
   'closed',
 ];
 
-/** After junior completes MSK exam, advance to AI-summary-ready for senior handoff. */
-export async function platformHandoffJuniorToSenior(visitId: string): Promise<NavayuMskLifecycleState> {
+/** Walk-in visits often stop at intake_pending — advance MSK state for junior handoff. */
+async function platformBootstrapMskJuniorPipeline(
+  visitId: string,
+): Promise<NavayuMskLifecycleState> {
   const bundle = await platformLoadNavayuVisitBundle(visitId);
-  let state = bundle?.mskLifecycleState ?? 'associate_eval';
+  let state = bundle?.mskLifecycleState ?? 'registered';
 
-  if (SENIOR_HANDOFF_STATES.includes(state)) {
-    return state;
+  if (state === 'registered') {
+    try {
+      const pending = await platformMskTransition(visitId, 'send_intake_link');
+      state = pending.nextState;
+    } catch {
+      /* already past registration */
+    }
+  }
+
+  if (state === 'intake_pending') {
+    const base = domainBase();
+    if (base && canUseNavayuRuntime()) {
+      await platformFetch(base, `/opd/visits/${visitId}/metadata`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          navayu: {
+            intake: {
+              formId: 'desk_intake_v0',
+              version: '1',
+              answers: { complaintText: 'Captured during junior MSK consult' },
+              submittedAt: new Date().toISOString(),
+            },
+          },
+        }),
+      });
+    }
+    const completed = await platformMskTransition(visitId, 'complete_intake', undefined, {
+      intakeSubmitted: true,
+    });
+    state = completed.nextState;
   }
 
   if (state === 'intake_complete') {
-    const started = await platformMskTransition(visitId, 'start_associate_eval');
+    const started = await platformMskTransition(visitId, 'start_associate_eval', undefined, {
+      intakeSubmitted: true,
+    });
     state = started.nextState;
+  }
+
+  return state;
+}
+
+/** After junior completes MSK exam, advance to AI-summary-ready for senior handoff. */
+export async function platformHandoffJuniorToSenior(visitId: string): Promise<NavayuMskLifecycleState> {
+  let state = await platformBootstrapMskJuniorPipeline(visitId);
+
+  if (SENIOR_HANDOFF_STATES.includes(state)) {
+    return state;
   }
 
   if (state === 'associate_eval') {
@@ -169,11 +212,9 @@ export async function platformHandoffJuniorToSenior(visitId: string): Promise<Na
 
 /** Start junior associate evaluation when intake is complete. */
 export async function platformStartAssociateEval(visitId: string): Promise<NavayuMskLifecycleState> {
-  const bundle = await platformLoadNavayuVisitBundle(visitId);
-  const state = bundle?.mskLifecycleState ?? 'registered';
-  if (state === 'intake_complete') {
-    const result = await platformMskTransition(visitId, 'start_associate_eval');
-    return result.nextState;
+  const state = await platformBootstrapMskJuniorPipeline(visitId);
+  if (state === 'associate_eval' || SENIOR_HANDOFF_STATES.includes(state)) {
+    return state;
   }
   return state;
 }

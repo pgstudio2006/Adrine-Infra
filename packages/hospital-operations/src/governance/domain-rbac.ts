@@ -34,7 +34,7 @@ export const DOMAIN_ROUTE_ROLE_MATRIX: Record<string, readonly DomainRbacRole[]>
   '/ipd': ['admin', 'doctor', 'jr_doctor', 'nurse', 'receptionist', 'reception', 'emergency'],
   '/beds': ['admin', 'nurse', 'receptionist', 'reception'],
   '/nursing': ['admin', 'nurse'],
-  '/billing': ['admin', 'billing', 'receptionist', 'reception'],
+  '/billing': ['admin', 'billing', 'receptionist', 'reception', 'doctor', 'jr_doctor'],
   '/migration': ['admin'],
   '/command': ['admin', 'doctor', 'jr_doctor', 'nurse', 'receptionist', 'reception'],
 };
