@@ -533,30 +533,10 @@ export class OpdService {
         meta.navayu && typeof meta.navayu === 'object' && !Array.isArray(meta.navayu)
           ? (meta.navayu as Record<string, unknown>)
           : {};
-      const lumbar =
-        navayu.lumbarExam && typeof navayu.lumbarExam === 'object' && !Array.isArray(navayu.lumbarExam)
-          ? (navayu.lumbarExam as Record<string, unknown>)
-          : {};
+      const aiSummary = await this.produceNavayuAiSummary(buildNavayuAiSummaryPayload(navayu));
       metadataPatch.navayu = {
         ...navayu,
-        aiSummary: {
-          mode: 'rule_based',
-          generatedAt: new Date().toISOString(),
-          sections: [
-            {
-              label: 'MSK Exam Snapshot',
-              lines: [
-                `ODI: ${String(lumbar.odi ?? '—')}`,
-                `VAS: ${String(lumbar.vas ?? '—')}`,
-                `SLRT: ${String(lumbar.slrt ?? '—')}`,
-              ],
-            },
-            {
-              label: 'Senior handoff',
-              lines: ['Junior MSK exam complete — ready for senior consult review.'],
-            },
-          ],
-        },
+        aiSummary,
       };
     }
 
@@ -988,78 +968,151 @@ export class OpdService {
     return { ok: true, upload };
   }
 
-  /** Navayu MSK AI summary — LLM when OPENROUTER_API_KEY or AI_GATEWAY_URL is set; else rule-based. */
+  /** Navayu MSK AI summary — OpenRouter LLM when configured; rule-based fallback always available. */
   async generateNavayuAiSummary(
     _tenantId: string,
     _visitId: string,
     body: Record<string, unknown>,
   ) {
-    const openRouterKey = process.env.OPENROUTER_API_KEY?.trim();
-    const aiGatewayUrl = process.env.AI_GATEWAY_URL?.trim();
-
-    if (!openRouterKey && !aiGatewayUrl) {
+    const summary = await this.produceNavayuAiSummary(body);
+    if (summary.mode === 'llm' || summary.mode === 'rule_based') {
       return {
-        mode: 'blocked' as const,
-        requiredEnv: 'OPENROUTER_API_KEY or AI_GATEWAY_URL',
-        blockedReason:
-          'LLM clinical summary requires OPENROUTER_API_KEY or AI_GATEWAY_URL on domain-api. UAT uses rule-based v1 in Hospital OS.',
+        mode: summary.mode === 'llm' ? ('llm' as const) : ('rule' as const),
+        sections: summary.sections,
+      };
+    }
+    return {
+      mode: 'blocked' as const,
+      requiredEnv: 'OPENROUTER_API_KEY',
+      blockedReason: summary.blockedReason,
+      sections: summary.sections,
+    };
+  }
+
+  /** Generate and persist-ready Navayu AI summary for MSK senior handoff. */
+  private async produceNavayuAiSummary(body: Record<string, unknown>): Promise<{
+    mode: 'llm' | 'rule_based' | 'blocked';
+    generatedAt: string;
+    model?: string;
+    sections: Array<{ label: string; lines: string[]; urgent?: boolean }>;
+    blockedReason?: string;
+  }> {
+    const generatedAt = new Date().toISOString();
+    const fallback = buildRuleBasedNavayuAiSummary(body);
+    const openRouterKey = process.env.OPENROUTER_API_KEY?.trim();
+    const model = process.env.OPENROUTER_MODEL?.trim() || 'deepseek/deepseek-v4-flash';
+
+    if (!openRouterKey) {
+      return {
+        mode: 'rule_based',
+        generatedAt,
+        sections: fallback,
       };
     }
 
     const prompt = JSON.stringify(body).slice(0, 6000);
     try {
-      if (openRouterKey) {
-        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${openRouterKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: process.env.OPENROUTER_MODEL ?? 'openai/gpt-4o-mini',
-            messages: [
-              {
-                role: 'system',
-                content:
-                  'You are a clinical documentation assistant for MSK spine/joint visits. Output 3-5 bullet sections: Registration, Intake, Exam scores, Investigations, Suggested next steps. Be concise; flag urgent red flags.',
-              },
-              { role: 'user', content: prompt },
-            ],
-            max_tokens: 800,
-          }),
-        });
-        if (!res.ok) {
-          throw new Error(`OpenRouter ${res.status}`);
-        }
-        const json = (await res.json()) as {
-          choices?: Array<{ message?: { content?: string } }>;
-        };
-        const text = json.choices?.[0]?.message?.content ?? '';
-        const lines = text.split('\n').filter((l) => l.trim());
-        return {
-          mode: 'llm' as const,
-          sections: [
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${openRouterKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': process.env.OPENROUTER_HTTP_REFERER ?? 'https://hms.adrine.in',
+          'X-Title': process.env.OPENROUTER_APP_TITLE ?? 'Navayu Hospital OS',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
             {
-              label: 'AI Clinical Summary (LLM)',
-              lines: lines.length ? lines : [text],
+              role: 'system',
+              content:
+                'You are a clinical documentation assistant for MSK spine/joint visits. Output concise sections with bullet lines: Registration, Intake, Exam scores, Investigations, Suggested next steps. Flag urgent red flags clearly.',
             },
+            { role: 'user', content: prompt },
           ],
-        };
+          max_tokens: 800,
+        }),
+      });
+      if (!res.ok) {
+        const detail = await res.text().catch(() => '');
+        throw new Error(`OpenRouter ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`);
       }
-
+      const json = (await res.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
+      const text = json.choices?.[0]?.message?.content?.trim() ?? '';
+      if (!text) {
+        throw new Error('OpenRouter returned empty summary');
+      }
+      const lines = text.split('\n').filter((line) => line.trim());
       return {
-        mode: 'blocked' as const,
-        requiredEnv: 'OPENROUTER_API_KEY',
-        blockedReason: 'AI_GATEWAY_URL is set but Navayu MSK summary routing is not implemented in ai-gateway v0.1 stub.',
+        mode: 'llm',
+        generatedAt,
+        model,
+        sections: [
+          {
+            label: 'AI Clinical Summary',
+            lines: lines.length ? lines : [text],
+          },
+        ],
       };
     } catch (err) {
+      this.logger.warn(
+        `Navayu LLM summary fallback to rule-based: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
       return {
-        mode: 'blocked' as const,
-        requiredEnv: 'OPENROUTER_API_KEY',
+        mode: 'rule_based',
+        generatedAt,
+        model,
+        sections: fallback,
         blockedReason: err instanceof Error ? err.message : 'LLM request failed',
       };
     }
   }
+}
+
+function buildNavayuAiSummaryPayload(navayu: Record<string, unknown>): Record<string, unknown> {
+  return {
+    registration: navayu.hearAboutNavayu ? navayu : navayu.registration,
+    intake: navayu.intake,
+    lumbarExam: navayu.lumbarExam,
+    investigations: navayu.investigations,
+    seniorQueue: true,
+  };
+}
+
+function buildRuleBasedNavayuAiSummary(
+  body: Record<string, unknown>,
+): Array<{ label: string; lines: string[]; urgent?: boolean }> {
+  const lumbar =
+    body.lumbarExam && typeof body.lumbarExam === 'object' && !Array.isArray(body.lumbarExam)
+      ? (body.lumbarExam as Record<string, unknown>)
+      : {};
+  const intake =
+    body.intake && typeof body.intake === 'object' && !Array.isArray(body.intake)
+      ? (body.intake as Record<string, unknown>)
+      : {};
+  const answers =
+    intake.answers && typeof intake.answers === 'object' && !Array.isArray(intake.answers)
+      ? (intake.answers as Record<string, unknown>)
+      : {};
+
+  return [
+    {
+      label: 'MSK Exam Snapshot',
+      lines: [
+        `ODI: ${String(lumbar.odi ?? '—')}`,
+        `VAS: ${String(lumbar.vas ?? answers.vas ?? '—')}`,
+        `SLRT: ${String(lumbar.slrt ?? '—')}`,
+      ],
+    },
+    {
+      label: 'Senior handoff',
+      lines: ['Junior MSK exam complete — ready for senior consult review.'],
+    },
+  ];
 }
 
 function buildMskValidationContextFromMetadata(meta: Record<string, unknown>): MskValidationContext {

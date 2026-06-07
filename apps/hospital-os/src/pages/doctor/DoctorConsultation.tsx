@@ -53,6 +53,7 @@ import {
   platformSaveNavayuSeniorReview,
   platformStartAssociateEval,
   platformHandoffJuniorToSenior,
+  mapStoredNavayuAiSummary,
   type NavayuIntakeData,
   type NavayuVisitBundle,
 } from '@/lib/navayu/navayu-runtime';
@@ -671,6 +672,7 @@ export default function DoctorConsultation() {
                   registration={navayuRegistration}
                   intake={navayuIntake}
                   lumbarExam={navayuLumbarExam}
+                  storedSummary={mapStoredNavayuAiSummary(navayuBundle.aiSummary)}
                 />
               ) : null}
               {navayuJunior ? (

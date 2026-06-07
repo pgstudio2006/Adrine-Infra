@@ -26,6 +26,7 @@ import {
 import {
   canUseNavayuRuntime,
   platformLoadNavayuVisitBundle,
+  mapStoredNavayuAiSummary,
   type NavayuVisitBundle,
 } from '@/lib/navayu/navayu-runtime';
 import type { NavayuRegistrationMetadata } from '@/lib/navayu/navayu-forms';
@@ -202,10 +203,12 @@ export default function DoctorQueue() {
 
       {navayuMode && navayuSenior && activePatient ? (
         <NavayuAiSummaryPanel
+          visitId={activePatient.platformOpdVisitId}
           seniorQueue
           registration={navayuBundle.registration}
           intake={navayuBundle.intake}
           lumbarExam={navayuBundle.lumbarExam}
+          storedSummary={mapStoredNavayuAiSummary(navayuBundle.aiSummary)}
         />
       ) : null}
 

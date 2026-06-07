@@ -14,6 +14,7 @@ interface Props {
   registration?: NavayuRegistrationMetadata | null;
   intake?: NavayuIntakeData | null;
   lumbarExam?: NavayuLumbarExamData | null;
+  storedSummary?: NavayuLlmSummaryResult | null;
 }
 
 export function NavayuAiSummaryPanel({
@@ -22,6 +23,7 @@ export function NavayuAiSummaryPanel({
   registration,
   intake,
   lumbarExam,
+  storedSummary,
 }: Props) {
   const ruleSections = buildNavayuRuleBasedSummary({
     registration,
@@ -30,9 +32,17 @@ export function NavayuAiSummaryPanel({
     seniorQueue,
   });
 
-  const [llm, setLlm] = useState<NavayuLlmSummaryResult | null>(null);
+  const [llm, setLlm] = useState<NavayuLlmSummaryResult | null>(storedSummary ?? null);
 
   useEffect(() => {
+    if (storedSummary?.sections?.length) {
+      setLlm(
+        storedSummary.mode === 'llm' || storedSummary.mode === 'rule'
+          ? storedSummary
+          : { mode: 'rule', sections: storedSummary.sections },
+      );
+      return;
+    }
     if (!visitId || !seniorQueue) return;
     void platformFetchNavayuAiSummary(visitId, {
       registration,
@@ -40,7 +50,7 @@ export function NavayuAiSummaryPanel({
       lumbarExam,
       seniorQueue,
     }).then(setLlm);
-  }, [visitId, seniorQueue, registration, intake, lumbarExam]);
+  }, [visitId, seniorQueue, registration, intake, lumbarExam, storedSummary]);
 
   const sections =
     llm?.mode === 'llm' && llm.sections?.length ? llm.sections : ruleSections;

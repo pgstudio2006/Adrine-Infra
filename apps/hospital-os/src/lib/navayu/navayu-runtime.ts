@@ -44,6 +44,14 @@ export type NavayuIntakeData = {
   urgent?: boolean;
 };
 
+export type NavayuAiSummaryRecord = {
+  mode?: 'llm' | 'rule_based' | 'blocked';
+  generatedAt?: string;
+  model?: string;
+  sections?: Array<{ label: string; lines: string[]; urgent?: boolean }>;
+  blockedReason?: string;
+};
+
 export type NavayuVisitBundle = {
   registration?: NavayuRegistrationMetadata;
   intake?: NavayuIntakeData;
@@ -54,6 +62,7 @@ export type NavayuVisitBundle = {
   seniorReview?: NavayuSeniorReviewData;
   counselling?: NavayuCounsellingRecord;
   followUp?: NavayuFollowUpHandoff;
+  aiSummary?: NavayuAiSummaryRecord;
   mskLifecycleState?: NavayuMskLifecycleState;
 };
 
@@ -95,6 +104,7 @@ function parseVisitMetadata(raw: unknown): NavayuVisitBundle {
     protocolMap: navayu.protocolMap as NavayuProtocolMapData | undefined,
     counselling: navayu.counselling as NavayuCounsellingRecord | undefined,
     followUp: navayu.followUp as NavayuFollowUpHandoff | undefined,
+    aiSummary: navayu.aiSummary as NavayuAiSummaryRecord | undefined,
     mskLifecycleState: meta.mskLifecycleState as NavayuMskLifecycleState | undefined,
   };
 }
@@ -645,6 +655,16 @@ export type NavayuLlmSummaryResult = {
   blockedReason?: string;
   requiredEnv?: string;
 };
+
+export function mapStoredNavayuAiSummary(
+  stored?: NavayuAiSummaryRecord,
+): NavayuLlmSummaryResult | null {
+  if (!stored?.sections?.length) return null;
+  if (stored.mode === 'llm') {
+    return { mode: 'llm', sections: stored.sections };
+  }
+  return { mode: 'rule', sections: stored.sections };
+}
 
 export async function platformFetchNavayuAiSummary(
   visitId: string,
