@@ -110,6 +110,7 @@ import {
   mergeAppointmentsFromPlatform,
   mergeLabDepartmentWorklist,
   mergePatientsFromPlatform,
+  mapBoardVisitsToPatientRows,
   mergePharmacyDepartmentWorklist,
   mergeRadiologyDepartmentWorklist,
 } from '@/runtime/platform-store-bridge';
@@ -1052,6 +1053,8 @@ interface HospitalStore {
   queueBoardSyncing: boolean;
   /** True after first board sync attempt completes (success or failure) */
   queueBoardHydrated: boolean;
+  /** Mark board snapshot stale before a cold refresh (avoids "0 waiting" flash). */
+  markQueueBoardStale: () => void;
 
   // Actions
   registerPatient: (data: Omit<HospitalPatient, 'uhid' | 'registeredOn'>) => string;
@@ -2825,28 +2828,12 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     setQueueBoardSyncing(true);
     try {
       const visits = await platformListOpdBoard(sessionBranchId);
-      const currentPatients = patientsRef.current;
+      syncUhidCounterFromMrns(visits.map((visit) => visit.patient?.mrn));
+      const boardPatientRows = mapBoardVisitsToPatientRows(visits);
+      const mergedPatients = mergePatientsFromPlatform(patientsRef.current, boardPatientRows);
+      setPatients(mergedPatients);
       const resolvePatientForVisit = (patientId: string) =>
-        currentPatients.find((patient) => patient.platformPatientId === patientId);
-      setPatients((prev) =>
-        prev.map((patient) => {
-          if (!patient.platformPatientId) return patient;
-          const patientVisits = visits.filter((v) => v.patientId === patient.platformPatientId);
-          if (patientVisits.length === 0) return patient;
-          const visit = patientVisits.sort(
-            (a, b) => Date.parse(b.createdAt ?? '') - Date.parse(a.createdAt ?? ''),
-          )[0];
-          const serverMrn = visit.patient?.mrn;
-          return {
-            ...patient,
-            uhid: serverMrn ?? patient.uhid,
-            opdState: visit.state,
-            platformOpdVisitId: visit.id,
-            department: visit.department ?? patient.department,
-            assignedDoctor: visit.assignedDoctor ?? patient.assignedDoctor,
-          };
-        }),
-      );
+        mergedPatients.find((patient) => patient.platformPatientId === patientId);
       setQueue(prev => {
         const prevByVisit = new Map(
           prev.filter(q => q.platformOpdVisitId).map(q => [q.platformOpdVisitId!, q]),
@@ -2930,6 +2917,11 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     refreshQueueFromPlatformRef.current = refreshQueueFromPlatform;
   }, [refreshQueueFromPlatform]);
+
+  const markQueueBoardStale = useCallback(() => {
+    if (!canUseOpdRuntime()) return;
+    setQueueBoardHydrated(false);
+  }, []);
 
   const updateQueueStatus = useCallback((key: number | QueueEntryLookup, status: QueueEntry['status']) => {
     const lookup = normalizeQueueLookup(key);
@@ -3108,6 +3100,8 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!platformConnected || !user || !isPlatformAuthoritative()) return;
     purgeDemoDepartmentRows();
+    setQueueBoardHydrated(false);
+    setQueueBoardSyncing(true);
     void refreshPatientsFromPlatform();
     void refreshAppointmentsFromPlatform();
     void refreshDepartmentWorklistsFromPlatform();
@@ -5926,6 +5920,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
       workflowEvents,
       queueBoardSyncing,
       queueBoardHydrated,
+      markQueueBoardStale,
       registerPatient, updatePatient, refreshPatientsFromPlatform, backfillPlatformPatientId, startFrontDeskVisit, admitPatient, transferOpdToIPD, convertOpdToIPDByUHID, bookAppointment, updateAppointmentStatus, checkInPatient,
       updateQueueStatus, refreshQueueFromPlatform, refreshAppointmentsFromPlatform, refreshPlatformIpdSnapshots, refreshDepartmentWorklistsFromPlatform, nextQueuePatient, saveConsultation, updateLabStage, updateLabOrder,
       updatePrescriptionStatus, updateMedicationLineStatus, dispensePrescription, updateRadiologyOrder,

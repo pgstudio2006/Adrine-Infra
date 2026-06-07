@@ -73,7 +73,10 @@ export class OpdService {
   ) {
     let patientId = body.patientId;
     if (!patientId && body.register) {
-      const p = await this.patients.create(tenantId, body.register);
+      const p = await this.patients.create(tenantId, {
+        fullName: body.register.fullName,
+        dob: body.register.dob,
+      });
       patientId = p.id;
     }
     if (!patientId) {
@@ -361,13 +364,28 @@ export class OpdService {
       const seen = new Set(primary.map((v) => v.id));
       rows = [...primary, ...legacy.filter((v) => !seen.has(v.id))];
     }
-    return this.dedupeBoardVisitsByPatient(rows);
+    const fresh = rows.filter((visit) => !this.isStaleBoardVisit(visit));
+    return this.dedupeBoardVisits(fresh);
   }
 
-  /** One active board row per patient — keeps the newest visit when duplicates exist. */
-  private dedupeBoardVisitsByPatient<T extends { id: string; patientId: string; createdAt: Date; tokenNumber?: number | null }>(
-    visits: T[],
-  ): T[] {
+  /** Drop queue rows stuck in waiting states for more than 12 hours. */
+  private isStaleBoardVisit(visit: { state: string; createdAt: Date }): boolean {
+    const staleStates = new Set(['checked_in', 'routed', 'queued']);
+    if (!staleStates.has(visit.state)) return false;
+    const ageMs = Date.now() - visit.createdAt.getTime();
+    return ageMs > 12 * 60 * 60 * 1000;
+  }
+
+  /** One active board row per patient and per MRN — keeps the newest visit when duplicates exist. */
+  private dedupeBoardVisits<
+    T extends {
+      id: string;
+      patientId: string;
+      createdAt: Date;
+      tokenNumber?: number | null;
+      patient?: { mrn?: string | null } | null;
+    },
+  >(visits: T[]): T[] {
     const byPatient = new Map<string, T>();
     for (const visit of visits) {
       const existing = byPatient.get(visit.patientId);
@@ -375,7 +393,30 @@ export class OpdService {
         byPatient.set(visit.patientId, visit);
       }
     }
-    return Array.from(byPatient.values()).sort((a, b) => {
+
+    const byMrn = new Map<string, T>();
+    const withoutMrn: T[] = [];
+    for (const visit of byPatient.values()) {
+      const mrn = visit.patient?.mrn?.trim();
+      if (!mrn) {
+        withoutMrn.push(visit);
+        continue;
+      }
+      const existing = byMrn.get(mrn);
+      if (!existing || visit.createdAt > existing.createdAt) {
+        byMrn.set(mrn, visit);
+      }
+    }
+
+    const merged = [...withoutMrn, ...byMrn.values()];
+    const seen = new Set<string>();
+    const unique = merged.filter((visit) => {
+      if (seen.has(visit.id)) return false;
+      seen.add(visit.id);
+      return true;
+    });
+
+    return unique.sort((a, b) => {
       const tokenA = a.tokenNumber ?? Number.MAX_SAFE_INTEGER;
       const tokenB = b.tokenNumber ?? Number.MAX_SAFE_INTEGER;
       if (tokenA !== tokenB) return tokenA - tokenB;
@@ -486,6 +527,38 @@ export class OpdService {
       mskLifecycleState: result.nextState,
       ...(body.payload ?? {}),
     };
+
+    if (body.action === 'generate_ai_summary') {
+      const navayu =
+        meta.navayu && typeof meta.navayu === 'object' && !Array.isArray(meta.navayu)
+          ? (meta.navayu as Record<string, unknown>)
+          : {};
+      const lumbar =
+        navayu.lumbarExam && typeof navayu.lumbarExam === 'object' && !Array.isArray(navayu.lumbarExam)
+          ? (navayu.lumbarExam as Record<string, unknown>)
+          : {};
+      metadataPatch.navayu = {
+        ...navayu,
+        aiSummary: {
+          mode: 'rule_based',
+          generatedAt: new Date().toISOString(),
+          sections: [
+            {
+              label: 'MSK Exam Snapshot',
+              lines: [
+                `ODI: ${String(lumbar.odi ?? '—')}`,
+                `VAS: ${String(lumbar.vas ?? '—')}`,
+                `SLRT: ${String(lumbar.slrt ?? '—')}`,
+              ],
+            },
+            {
+              label: 'Senior handoff',
+              lines: ['Junior MSK exam complete — ready for senior consult review.'],
+            },
+          ],
+        },
+      };
+    }
 
     const updated = await this.patchVisitMetadata(tenantId, visitId, metadataPatch);
 

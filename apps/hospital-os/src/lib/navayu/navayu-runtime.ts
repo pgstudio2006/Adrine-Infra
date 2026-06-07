@@ -137,12 +137,20 @@ export async function platformHandoffJuniorToSenior(visitId: string): Promise<Na
   }
 
   if (state === 'associate_eval') {
-    const completed = await platformMskTransition(visitId, 'complete_msk_exam');
+    const completed = await platformMskTransition(visitId, 'complete_msk_exam', undefined, {
+      mskExamFormComplete: true,
+    });
     state = completed.nextState;
   }
 
   if (state === 'msk_exam_complete') {
-    const result = await platformMskTransition(visitId, 'generate_ai_summary');
+    const result = await platformMskTransition(
+      visitId,
+      'generate_ai_summary',
+      undefined,
+      { aiSummaryReady: true },
+      { 'msk.ai_summary_before_senior': true },
+    );
     return result.nextState;
   }
 
@@ -201,6 +209,7 @@ export async function platformMskTransition(
   action: string,
   payload?: Record<string, unknown>,
   validationContext?: Record<string, unknown>,
+  branchOverrides?: Record<string, boolean>,
 ): Promise<MskTransitionResult> {
   const base = domainBase();
   if (!base || !canUseNavayuRuntime()) {
@@ -215,6 +224,7 @@ export async function platformMskTransition(
       actorId: session?.userId,
       context: validationContext,
       payload,
+      branchOverrides,
     }),
   });
 }
@@ -248,7 +258,30 @@ export async function platformSaveNavayuLumbarExam(
   });
 
   const bundle = await platformLoadNavayuVisitBundle(visitId);
-  return (bundle?.mskLifecycleState ?? fallbackState) as NavayuMskLifecycleState;
+  let state = (bundle?.mskLifecycleState ?? fallbackState) as NavayuMskLifecycleState;
+
+  if (
+    !seniorDoctor &&
+    isNavayuLumbarExamComplete(exam) &&
+    (state === 'associate_eval' || state === 'intake_complete')
+  ) {
+    try {
+      if (state === 'intake_complete') {
+        const started = await platformMskTransition(visitId, 'start_associate_eval');
+        state = started.nextState;
+      }
+      if (state === 'associate_eval') {
+        const completed = await platformMskTransition(visitId, 'complete_msk_exam', undefined, {
+          mskExamFormComplete: true,
+        });
+        state = completed.nextState;
+      }
+    } catch {
+      /* handoff button still available */
+    }
+  }
+
+  return state;
 }
 
 export async function platformSaveNavayuSeniorReview(

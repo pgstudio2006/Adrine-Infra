@@ -6,6 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Pill, ClipboardList, AlertTriangle, Package, TrendingUp, Clock, ShieldAlert, Activity } from "lucide-react";
 import { useHospital } from "@/stores/hospitalStore";
 import { useDepartmentWorklistSync } from "@/hooks/useDepartmentWorklistSync";
+import { PlatformConnectivityStrip } from "@/components/PlatformConnectivityStrip";
+import { isPlatformAuthoritative } from "@/runtime/platform-store-bridge";
 
 type RecentRx = {
   id: string;
@@ -103,6 +105,10 @@ export default function PharmacyDashboard() {
         <h1 className="text-2xl font-bold text-foreground">Pharmacy Dashboard</h1>
         <p className="text-muted-foreground text-sm">Real-time overview of pharmacy operations</p>
       </div>
+
+      {isPlatformAuthoritative() ? (
+        <PlatformConnectivityStrip detail="Pharmacy worklist and inventory sync from domain-api when platform runtime is enabled." />
+      ) : null}
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

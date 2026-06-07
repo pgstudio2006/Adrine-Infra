@@ -13,17 +13,8 @@ export class PatientService {
     tenantId: string,
     body: { fullName: string; mrn?: string; dob?: string },
   ) {
-    let mrn = body.mrn?.trim() || undefined;
-    if (mrn) {
-      const duplicate = await this.prisma.patient.findFirst({
-        where: { tenantId, mrn },
-        select: { id: true },
-      });
-      if (duplicate) mrn = undefined;
-    }
-    if (!mrn) {
-      mrn = await this.allocateMrn(tenantId);
-    }
+    // Server-authoritative MRN — ignore client preview UHIDs to prevent collisions.
+    const mrn = await this.allocateMrn(tenantId);
 
     const patient = await this.prisma.patient.create({
       data: {
@@ -37,23 +28,27 @@ export class PatientService {
     return patient;
   }
 
-  /** Server-authoritative UHID sequence — avoids client reload collisions. */
+  /** Server-authoritative UHID sequence — scans all tenant MRNs and retries on collision. */
   private async allocateMrn(tenantId: string): Promise<string> {
     const floor = 240_008;
-    const recent = await this.prisma.patient.findMany({
+    const rows = await this.prisma.patient.findMany({
       where: { tenantId, mrn: { startsWith: 'UHID-' } },
       select: { mrn: true },
-      orderBy: { createdAt: 'desc' },
-      take: 250,
     });
     let max = floor;
-    for (const row of recent) {
+    for (const row of rows) {
       const match = /^UHID-(\d+)$/.exec(row.mrn ?? '');
       if (match) max = Math.max(max, Number.parseInt(match[1], 10));
     }
-    const total = await this.prisma.patient.count({ where: { tenantId } });
-    max = Math.max(max, floor + total);
-    return `UHID-${max + 1}`;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const candidate = `UHID-${max + 1 + attempt}`;
+      const duplicate = await this.prisma.patient.findFirst({
+        where: { tenantId, mrn: candidate },
+        select: { id: true },
+      });
+      if (!duplicate) return candidate;
+    }
+    throw new Error('Could not allocate a unique MRN for tenant');
   }
 
   list(tenantId: string) {

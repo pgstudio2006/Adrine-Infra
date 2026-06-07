@@ -48,7 +48,6 @@ export async function platformRegisterOpdPatient(input: {
       body: JSON.stringify({
         register: {
           fullName: input.fullName,
-          mrn: input.mrn,
         },
         department: input.department,
         assignedDoctor: input.assignedDoctor,

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect } from 'react';
 import { isPlatformAuthoritative } from '@/runtime/platform-store-bridge';
 import { useHospital } from '@/stores/hospitalStore';
 
@@ -26,7 +26,16 @@ export function useClinicalPlatformListSync(options: ClinicalListSyncOptions = {
     refreshQueueFromPlatform,
     refreshPatientsFromPlatform,
     refreshAppointmentsFromPlatform,
+    markQueueBoardStale,
   } = useHospital();
+
+  useLayoutEffect(() => {
+    if (!isPlatformAuthoritative() || !options.queue) return;
+    markQueueBoardStale();
+  }, [
+    options.queue,
+    markQueueBoardStale,
+  ]);
 
   useEffect(() => {
     if (!isPlatformAuthoritative()) return;

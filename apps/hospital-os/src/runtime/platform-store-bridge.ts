@@ -17,6 +17,7 @@ import {
   platformListRadiologyOrders,
 } from './radiology-runtime';
 import { platformListOpdBoard } from './opd-runtime';
+import type { PlatformOpdVisit } from './opd-runtime';
 import type { LabOrderState } from '@adrine/hospital-operations';
 import type { HospitalPatient, QueueEntry, RadiologyOrder, LabOrder, PrescriptionOrder, HospitalAppointment } from '@/stores/hospitalStore';
 import {
@@ -100,6 +101,7 @@ export function mergePatientsFromPlatform(
         out[idx] = {
           ...out[idx],
           platformPatientId: row.platformPatientId,
+          uhid: row.uhid ?? out[idx].uhid,
           name: row.name ?? out[idx].name,
           department: row.department ?? out[idx].department,
           assignedDoctor: row.assignedDoctor ?? out[idx].assignedDoctor,
@@ -131,6 +133,30 @@ export function mergePatientsFromPlatform(
   }
 
   return out;
+}
+
+/** Hydrate local patient rows from authoritative OPD board visits (names + MRNs from server). */
+export function mapBoardVisitsToPatientRows(
+  visits: Array<
+    Pick<
+      PlatformOpdVisit,
+      'id' | 'patientId' | 'state' | 'department' | 'assignedDoctor' | 'patient'
+    >
+  >,
+): Partial<HospitalPatient>[] {
+  return visits
+    .filter((visit) => visit.patient?.fullName)
+    .map((visit) => ({
+      ...mapPlatformPatientRow({
+        id: visit.patientId,
+        fullName: visit.patient!.fullName,
+        mrn: visit.patient?.mrn ?? undefined,
+      }),
+      opdState: visit.state,
+      platformOpdVisitId: visit.id,
+      department: visit.department ?? undefined,
+      assignedDoctor: visit.assignedDoctor ?? undefined,
+    }));
 }
 
 export async function fetchMappedPatientsFromPlatform(
