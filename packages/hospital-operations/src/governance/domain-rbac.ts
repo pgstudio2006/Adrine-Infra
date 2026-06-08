@@ -27,7 +27,7 @@ export type DomainRbacRole = (typeof DOMAIN_RBAC_ROLES)[number];
 
 /** Route prefix → roles allowed to read and mutate. */
 export const DOMAIN_ROUTE_ROLE_MATRIX: Record<string, readonly DomainRbacRole[]> = {
-  '/opd': ['admin', 'doctor', 'jr_doctor', 'receptionist', 'reception', 'emergency', 'nurse'],
+  '/opd': ['admin', 'doctor', 'jr_doctor', 'receptionist', 'reception', 'emergency', 'nurse', 'billing'],
   '/patients': ['admin', 'doctor', 'jr_doctor', 'nurse', 'receptionist', 'reception', 'emergency'],
   '/encounters': ['admin', 'doctor', 'jr_doctor', 'nurse', 'emergency'],
   '/emr': ['admin', 'doctor', 'jr_doctor', 'nurse'],

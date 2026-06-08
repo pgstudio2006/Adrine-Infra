@@ -268,6 +268,21 @@ const DEFAULT_DYNAMIC_FORMS: TenantDynamicForms = {
         ],
       },
       {
+        id: 'lifestyle',
+        label: 'Lifestyle snapshot',
+        fields: [
+          { id: 'smoker', type: 'boolean', label: 'Smoker' },
+          { id: 'alcohol', type: 'boolean', label: 'Alcohol use' },
+          { id: 'diabetes', type: 'boolean', label: 'Diabetes' },
+          { id: 'htn', type: 'boolean', label: 'Hypertension' },
+          { id: 'thyroid', type: 'boolean', label: 'Thyroid disorder' },
+          { id: 'obesity', type: 'boolean', label: 'Obesity' },
+          { id: 'prevSurgery', type: 'boolean', label: 'Previous surgery' },
+          { id: 'steroidUse', type: 'boolean', label: 'Steroid use' },
+          { id: 'sportsInjury', type: 'boolean', label: 'Sports injury history' },
+        ],
+      },
+      {
         id: 'pain_regions',
         label: 'Pain regions',
         fields: [

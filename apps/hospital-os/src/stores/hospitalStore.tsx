@@ -36,7 +36,11 @@ import { platformEnqueueOpdVisitToBoard } from '@/lib/opd/platform-opd-enqueue';
 import { useAuth } from '@/contexts/AuthContext';
 import { platformSaveNavayuRegistration } from '@/lib/navayu/navayu-runtime';
 import { maybeCreateNavayuCrmLead } from '@/lib/navayu/navayu-crm';
-import type { NavayuRegistrationMetadata } from '@/lib/navayu/navayu-forms';
+import {
+  migratePatientPhone,
+  savePatientPhone,
+  type NavayuRegistrationMetadata,
+} from '@/lib/navayu/navayu-forms';
 import {
   canUseSchedulingRuntime,
   platformBookAppointment,
@@ -1426,6 +1430,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
 
   const reconcileAuthoritativeMrn = useCallback((oldUhid: string, newUhid: string) => {
     if (!newUhid || oldUhid === newUhid) return;
+    migratePatientPhone(oldUhid, newUhid);
     syncUhidCounterFromMrns([newUhid]);
     setPatients((prev) =>
       prev.map((patient) => (patient.uhid === oldUhid ? { ...patient, uhid: newUhid } : patient)),
@@ -1690,6 +1695,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
       registeredOn: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
     };
     setPatients(prev => [patient, ...prev]);
+    savePatientPhone(uhid, patient.phone);
     pushWorkflowEvent({
       module: 'reception',
       action: 'patient_registered',
@@ -1825,6 +1831,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     };
 
     setPatients(prev => [patient, ...prev]);
+    savePatientPhone(uhid, patient.phone);
     pushWorkflowEvent({
       module: 'reception',
       action: 'front_desk_visit_started',

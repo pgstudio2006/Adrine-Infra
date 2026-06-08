@@ -20,6 +20,7 @@ import { platformListOpdBoard } from './opd-runtime';
 import type { PlatformOpdVisit } from './opd-runtime';
 import type { LabOrderState } from '@adrine/hospital-operations';
 import type { HospitalPatient, QueueEntry, RadiologyOrder, LabOrder, PrescriptionOrder, HospitalAppointment } from '@/stores/hospitalStore';
+import { loadPatientPhone } from '@/lib/navayu/navayu-forms';
 import {
   platformListAppointmentsInRange,
   platformSearchPatients,
@@ -62,13 +63,14 @@ export function mapPlatformPatientRow(row: PlatformPatientRow): Partial<Hospital
         month: 'short',
         year: 'numeric',
       });
+  const uhid = row.mrn ?? `UHID-${row.id.slice(-6).toUpperCase()}`;
   return {
     platformPatientId: row.id,
     name: row.fullName,
-    uhid: row.mrn ?? `UHID-${row.id.slice(-6).toUpperCase()}`,
+    uhid,
     age: 0,
     gender: '',
-    phone: '',
+    phone: loadPatientPhone(uhid),
     category: 'general',
     patientType: 'OPD',
     registeredOn,
@@ -108,7 +110,11 @@ export function mergePatientsFromPlatform(
           opdState: row.opdState ?? out[idx].opdState,
           platformOpdVisitId: row.platformOpdVisitId ?? out[idx].platformOpdVisitId,
           visitMetadata: row.visitMetadata ?? out[idx].visitMetadata,
-          phone: row.phone || out[idx].phone,
+          phone:
+            row.phone?.trim() ||
+            out[idx].phone?.trim() ||
+            loadPatientPhone(out[idx].uhid) ||
+            '',
         };
       }
       continue;
@@ -120,7 +126,7 @@ export function mergePatientsFromPlatform(
       name: row.name,
       age: row.age ?? 0,
       gender: row.gender ?? '',
-      phone: row.phone ?? '',
+      phone: row.phone?.trim() || loadPatientPhone(row.uhid ?? '') || '',
       category: row.category ?? 'general',
       patientType: row.patientType ?? 'OPD',
       registeredOn: row.registeredOn ?? new Date().toLocaleDateString('en-IN', {
@@ -132,7 +138,41 @@ export function mergePatientsFromPlatform(
     });
   }
 
-  return out;
+  return dedupePatientsByUhid(out);
+}
+
+function patientRecordScore(patient: HospitalPatient): number {
+  return (
+    (patient.phone?.trim() ? 8 : 0) +
+    (patient.platformPatientId ? 4 : 0) +
+    (patient.platformOpdVisitId ? 2 : 0) +
+    (patient.name?.length ?? 0)
+  );
+}
+
+function dedupePatientsByUhid(patients: HospitalPatient[]): HospitalPatient[] {
+  const byUhid = new Map<string, HospitalPatient>();
+  for (const patient of patients) {
+    if (!patient.uhid) continue;
+    const existing = byUhid.get(patient.uhid);
+    if (!existing) {
+      byUhid.set(patient.uhid, patient);
+      continue;
+    }
+    const preferred =
+      patientRecordScore(patient) >= patientRecordScore(existing) ? patient : existing;
+    const other = preferred === patient ? existing : patient;
+    byUhid.set(patient.uhid, {
+      ...other,
+      ...preferred,
+      phone: preferred.phone?.trim() || other.phone?.trim() || '',
+      name: preferred.name || other.name,
+      platformPatientId: preferred.platformPatientId ?? other.platformPatientId,
+      platformOpdVisitId: preferred.platformOpdVisitId ?? other.platformOpdVisitId,
+      visitMetadata: preferred.visitMetadata ?? other.visitMetadata,
+    });
+  }
+  return Array.from(byUhid.values());
 }
 
 /** Hydrate local patient rows from authoritative OPD board visits (names + MRNs from server). */

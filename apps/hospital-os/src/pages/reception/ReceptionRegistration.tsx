@@ -29,6 +29,7 @@ import {
   isNavayuTenant,
   NAVAYU_CLINICAL_DEPARTMENTS,
   saveNavayuVisitMetadata,
+  savePatientPhone,
 } from '@/lib/navayu/navayu-forms';
 import {
   getClinicalDoctorsForDepartment,
@@ -154,6 +155,17 @@ export default function ReceptionRegistration() {
     documents: [] as { name: string; type: string; size: number; dataUrl: string }[],
   });
   const [navayuFields, setNavayuFields] = useState<NavayuRegistrationFormState>(createDefaultNavayuRegistrationState);
+  const handleNavayuFieldsChange = useCallback((next: NavayuRegistrationFormState) => {
+    setNavayuFields(next);
+    if (next.hearAboutNavayu) {
+      setValidationErrors((prev) => {
+        if (!prev.hearAboutNavayu) return prev;
+        const updated = { ...prev };
+        delete updated.hearAboutNavayu;
+        return updated;
+      });
+    }
+  }, []);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -406,10 +418,11 @@ export default function ReceptionRegistration() {
 
   const afterNavayuRegistration = async (
     uhid: string,
-    patientName: string,
-    _phone: string,
+    _patientName: string,
+    phone: string,
     _platformPatientId?: string,
   ) => {
+    savePatientPhone(uhid, phone);
     if (!navayuMode || !navayuFields.hearAboutNavayu) return;
     const metadata = toNavayuRegistrationMetadata(navayuFields);
     saveNavayuVisitMetadata(uhid, metadata);
@@ -970,7 +983,7 @@ export default function ReceptionRegistration() {
               {navayuMode && (
                 <NavayuRegistrationFields
                   value={navayuFields}
-                  onChange={setNavayuFields}
+                  onChange={handleNavayuFieldsChange}
                   errors={{ hearAboutNavayu: validationErrors.hearAboutNavayu }}
                 />
               )}
@@ -1466,7 +1479,7 @@ export default function ReceptionRegistration() {
               {navayuMode && (
                 <NavayuRegistrationFields
                   value={navayuFields}
-                  onChange={setNavayuFields}
+                  onChange={handleNavayuFieldsChange}
                   errors={{ hearAboutNavayu: validationErrors.hearAboutNavayu }}
                 />
               )}

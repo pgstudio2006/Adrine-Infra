@@ -3,6 +3,7 @@ import {
   getNavayuLifestyleFields,
   getNavayuPainRegionOptions,
   getNavayuReferralOptions,
+  normalizeNavayuReferralValue,
   type NavayuLifestyleFlags,
   type NavayuRegistrationMetadata,
 } from '@/lib/navayu/navayu-forms';
@@ -66,7 +67,9 @@ export function NavayuRegistrationFields({ value, onChange, errors }: Props) {
         <label className="text-sm font-medium mb-1 block">How did you hear about us? *</label>
         <AppSelect
           value={value.hearAboutNavayu}
-          onValueChange={(hearAboutNavayu) => onChange({ ...value, hearAboutNavayu })}
+          onValueChange={(next) =>
+            onChange({ ...value, hearAboutNavayu: normalizeNavayuReferralValue(next) })
+          }
           options={[
             { value: '', label: 'Select referral source' },
             ...referralOptions.map((option) => ({ value: option.value, label: option.label })),

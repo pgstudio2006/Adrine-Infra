@@ -110,6 +110,43 @@ export const REGION_TO_EXAM_FORM_KEY: Record<string, string> = {
 };
 
 const VISIT_META_PREFIX = 'adrine_navayu_visit_meta:';
+const PATIENT_PHONE_PREFIX = 'adrine_patient_phone:';
+
+export function savePatientPhone(uhid: string, phone: string): void {
+  const normalized = phone?.trim();
+  if (!uhid || !normalized) return;
+  try {
+    localStorage.setItem(`${PATIENT_PHONE_PREFIX}${uhid}`, normalized);
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
+export function loadPatientPhone(uhid: string): string {
+  if (!uhid) return '';
+  try {
+    return localStorage.getItem(`${PATIENT_PHONE_PREFIX}${uhid}`) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+export function migratePatientPhone(oldUhid: string, newUhid: string): void {
+  if (!oldUhid || !newUhid || oldUhid === newUhid) return;
+  const phone = loadPatientPhone(oldUhid);
+  if (phone) savePatientPhone(newUhid, phone);
+}
+
+export function normalizeNavayuReferralValue(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  const options = getNavayuReferralOptions();
+  if (options.some((option) => option.value === trimmed)) return trimmed;
+  const byLabel = options.find(
+    (option) => option.label.toLowerCase() === trimmed.toLowerCase(),
+  );
+  return byLabel?.value ?? trimmed;
+}
 
 function navayuLocalStorageEnabled(): boolean {
   return !isPlatformAuthoritative();
@@ -378,16 +415,30 @@ function getAdminDynamicForms(): Record<string, unknown> | null {
   }
 }
 
+function mergeFormSections(
+  loaded: NavayuFormDefinition,
+  fallback: NavayuFormDefinition,
+): NavayuFormDefinition {
+  const seen = new Set(loaded.sections.map((section) => section.id));
+  const merged = [...loaded.sections];
+  for (const section of fallback.sections) {
+    if (!seen.has(section.id)) {
+      merged.push(section);
+    }
+  }
+  return { ...loaded, sections: merged };
+}
+
 function loadFormFromBranch(key: string, fallback: NavayuFormDefinition): NavayuFormDefinition {
   const adminForms = getAdminDynamicForms();
   if (adminForms?.[key]) {
-    return coerceFormDefinition(adminForms[key], fallback);
+    return mergeFormSections(coerceFormDefinition(adminForms[key], fallback), fallback);
   }
   const forms = getServerTenantForms();
   if (!forms?.[key]) {
     return fallback;
   }
-  return coerceFormDefinition(forms[key], fallback);
+  return mergeFormSections(coerceFormDefinition(forms[key], fallback), fallback);
 }
 
 export function isNavayuTenant(): boolean {
@@ -587,7 +638,11 @@ export function getNavayuReferralOptions(): NavayuFormOption[] {
 
 export function getNavayuLifestyleFields(): NavayuFormField[] {
   const form = getNavayuRegistrationForm();
-  return form.sections.find((section) => section.id === 'lifestyle')?.fields ?? [];
+  return (
+    form.sections.find((section) => section.id === 'lifestyle')?.fields ??
+    DEFAULT_REGISTRATION_FORM.sections.find((section) => section.id === 'lifestyle')?.fields ??
+    []
+  );
 }
 
 export function getNavayuPainRegionOptions(): NavayuFormOption[] {

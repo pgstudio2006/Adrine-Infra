@@ -20,7 +20,12 @@ import {
 import { InlinePlatformError } from "@/components/shared/InlinePlatformError";
 import { PlatformConnectivityStrip } from "@/components/PlatformConnectivityStrip";
 import { isPlatformAuthoritative } from "@/runtime/platform-store-bridge";
-import { isNavayuTenant, NAVAYU_CLINICAL_DEPARTMENTS } from "@/lib/navayu/navayu-forms";
+import {
+  isNavayuTenant,
+  loadPatientPhone,
+  NAVAYU_CLINICAL_DEPARTMENTS,
+} from "@/lib/navayu/navayu-forms";
+import { toast } from "sonner";
 import {
   getClinicalDepartments,
   getClinicalDoctorsForDepartment,
@@ -218,6 +223,37 @@ export default function ReceptionAppointments() {
     });
   }, [selectedDate]);
 
+  const bookingPatients = useMemo(() => {
+    const byUhid = new Map<string, (typeof patients)[number]>();
+    for (const patient of patients) {
+      if (!patient.uhid) continue;
+      const existing = byUhid.get(patient.uhid);
+      if (!existing) {
+        byUhid.set(patient.uhid, patient);
+        continue;
+      }
+      const score = (entry: (typeof patients)[number]) =>
+        (entry.phone?.trim() ? 4 : 0) +
+        (entry.platformPatientId ? 2 : 0) +
+        (entry.name?.length ?? 0);
+      const preferred = score(patient) >= score(existing) ? patient : existing;
+      const other = preferred === patient ? existing : patient;
+      byUhid.set(patient.uhid, {
+        ...other,
+        ...preferred,
+        phone:
+          preferred.phone?.trim() ||
+          other.phone?.trim() ||
+          loadPatientPhone(patient.uhid) ||
+          "",
+        name: preferred.name || other.name,
+      });
+    }
+    return Array.from(byUhid.values()).sort((left, right) =>
+      left.name.localeCompare(right.name),
+    );
+  }, [patients]);
+
   const slotConflict = useMemo(() => {
     if (!bookingForm.doctor || !bookingForm.date || !bookingForm.time) {
       return false;
@@ -234,26 +270,34 @@ export default function ReceptionAppointments() {
   }, [appointments, bookingForm.date, bookingForm.doctor, bookingForm.time]);
 
   const handlePickPatient = (uhid: string) => {
-    const patient = patients.find((item) => item.uhid === uhid);
+    const patient = bookingPatients.find((item) => item.uhid === uhid);
+    const phone =
+      patient?.phone?.trim() || loadPatientPhone(uhid) || "";
     setBookingForm((prev) => ({
       ...prev,
       patientUhid: uhid,
       patientName: patient?.name || "",
-      phone: patient?.phone || "",
+      phone,
       department: patient?.department || prev.department,
       doctor: patient?.assignedDoctor || prev.doctor,
     }));
   };
 
   const handleBookAppointment = () => {
-    if (
-      !bookingForm.patientUhid ||
-      !bookingForm.patientName ||
-      !bookingForm.phone ||
-      !bookingForm.department ||
-      !bookingForm.doctor ||
-      slotConflict
-    ) {
+    if (slotConflict) {
+      toast.error("Selected doctor already has an appointment at this slot.");
+      return;
+    }
+    if (!bookingForm.patientUhid || !bookingForm.patientName) {
+      toast.error("Select a patient to book the appointment.");
+      return;
+    }
+    if (!bookingForm.phone?.trim()) {
+      toast.error("Enter the patient phone number to continue.");
+      return;
+    }
+    if (!bookingForm.department || !bookingForm.doctor) {
+      toast.error("Select department and doctor before booking.");
       return;
     }
 
@@ -648,7 +692,7 @@ export default function ReceptionAppointments() {
                     value={bookingForm.patientUhid || undefined}
                     onValueChange={handlePickPatient}
                     placeholder="Select patient"
-                    options={patients.map((patient) => ({
+                    options={bookingPatients.map((patient) => ({
                       value: patient.uhid,
                       label: `${patient.name} (${patient.uhid})`,
                     }))}
