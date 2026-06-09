@@ -1,32 +1,150 @@
 {
   "formId": "navayu.reception.registration",
   "version": "v0",
-  "label": "Reception Registration",
+  "label": "Front Desk Registration",
   "sections": [
     {
-      "id": "referral",
-      "label": "Referral source",
+      "id": "front_desk_info",
+      "label": "Front Desk First Step Information Required",
       "fields": [
+        {
+          "id": "fullName",
+          "type": "text",
+          "label": "Full Name *",
+          "required": true
+        },
+        {
+          "id": "altNumber",
+          "type": "text",
+          "label": "Alternate Number"
+        },
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email"
+        },
+        {
+          "id": "gender",
+          "type": "select",
+          "label": "Gender *",
+          "required": true,
+          "options": [
+            { "value": "male", "label": "Male" },
+            { "value": "female", "label": "Female" },
+            { "value": "other", "label": "Other" }
+          ]
+        },
+        {
+          "id": "dob",
+          "type": "date",
+          "label": "Date of Birth"
+        },
+        {
+          "id": "serviceCategory",
+          "type": "select",
+          "label": "Service Category *",
+          "required": true,
+          "options": [
+            { "value": "spine_and_joint_care", "label": "Spine and Joint Care" },
+            { "value": "wellness_and_metabolic_reset", "label": "Wellness and Metabolic Reset" }
+          ]
+        },
+        {
+          "id": "appointmentCentre",
+          "type": "select",
+          "label": "Appointment Centre *",
+          "required": true,
+          "options": [
+            { "value": "navayu_gurgaon", "label": "Navayu Gurgaon" },
+            { "value": "ghtc_pataudi", "label": "GHTC Pataudi" },
+            { "value": "ayush_hospital_pune", "label": "Ayush Hospital Pune" }
+          ]
+        },
+        {
+          "id": "appointmentDate",
+          "type": "date",
+          "label": "Appointment Date"
+        },
+        {
+          "id": "appointmentTime",
+          "type": "time",
+          "label": "Appointment Time"
+        },
+        {
+          "id": "address",
+          "type": "text",
+          "label": "Address"
+        },
+        {
+          "id": "city",
+          "type": "text",
+          "label": "City *",
+          "required": true
+        },
+        {
+          "id": "district",
+          "type": "text",
+          "label": "District *",
+          "required": true
+        },
+        {
+          "id": "state",
+          "type": "text",
+          "label": "State *",
+          "required": true
+        },
+        {
+          "id": "country",
+          "type": "select",
+          "label": "Country *",
+          "required": true,
+          "options": [
+            { "value": "India", "label": "India" },
+            { "value": "Nepal", "label": "Nepal" },
+            { "value": "Sri Lanka", "label": "Sri Lanka" },
+            { "value": "Bangladesh", "label": "Bangladesh" },
+            { "value": "Bhutan", "label": "Bhutan" },
+            { "value": "Other", "label": "Other" }
+          ]
+        },
+        {
+          "id": "patientType",
+          "type": "select",
+          "label": "Patient Type *",
+          "required": true,
+          "options": [
+            { "value": "OPD", "label": "OPD" },
+            { "value": "IPD", "label": "IPD" },
+            { "value": "Emergency", "label": "Emergency" },
+            { "value": "Maternity", "label": "Maternity" },
+            { "value": "Newborn", "label": "Newborn" },
+            { "value": "ICU", "label": "ICU" },
+            { "value": "Surgery", "label": "Surgery" },
+            { "value": "Dialysis", "label": "Dialysis" },
+            { "value": "Trauma", "label": "Trauma" }
+          ]
+        },
         {
           "id": "hearAboutNavayu",
           "type": "select",
-          "label": "How did you hear about us?",
+          "label": "How did you hear about us? *",
           "required": true,
           "options": [
-            { "value": "google", "label": "Google" },
-            { "value": "instagram", "label": "Instagram" },
-            { "value": "facebook", "label": "Facebook" },
-            { "value": "youtube", "label": "YouTube" },
-            { "value": "existing_patient", "label": "Existing Patient" },
-            { "value": "doctor_referral", "label": "Doctor Referral" },
-            { "value": "gp_referral", "label": "GP Referral" },
-            { "value": "corporate_camp", "label": "Corporate Camp" },
-            { "value": "walk_in", "label": "Walk-in" },
-            { "value": "newspaper", "label": "Newspaper" },
-            { "value": "village_camp", "label": "Village Camp" },
+            { "value": "google_search", "label": "Google Search" },
             { "value": "website", "label": "Website" },
+            { "value": "instagram_facebook", "label": "Instagram & Facebook" },
+            { "value": "hoardings", "label": "Hoardings" },
+            { "value": "whatsapp_campaign", "label": "Whatsapp Campaign" },
+            { "value": "patient_referral", "label": "Patient Referral" },
+            { "value": "youtube", "label": "YouTube" },
+            { "value": "doctor_referral", "label": "Doctor Referral" },
             { "value": "other", "label": "Other" }
           ]
+        },
+        {
+          "id": "referringDoctor",
+          "type": "text",
+          "label": "Doctor name (if doctor referral)"
         }
       ]
     },

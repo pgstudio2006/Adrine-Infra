@@ -6,7 +6,7 @@ import { RegistrationJourneyType } from '@/config/tenantSettings';
 import {
   Search, UserPlus, Phone, CreditCard, Shield, ChevronRight, X, Check, User, FileText,
   AlertTriangle, Upload, Heart, MapPin, Camera, Scale, Merge, GitMerge,
-  Building2, BadgeCheck, Globe, Eye, History, Clock, Copy, Link2
+  Building2, BadgeCheck, Globe, Eye, History, Hash, Copy, Link2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -14,8 +14,19 @@ import { AppSelect } from '@/components/ui/app-select';
 import { useTenantSettings } from '@/hooks/useTenantSettings';
 import { useClinicalPlatformListSync } from '@/hooks/useClinicalPlatformListSync';
 import { InlinePlatformError } from '@/components/opd/InlinePlatformError';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { OpdTokenDialog } from '@/components/reception/OpdTokenDialog';
+import {
+  NavayuRegistrationPageOne,
+  type NavayuPageOneForm,
+} from '@/components/reception/NavayuRegistrationPageOne';
+import {
+  NAVAYU_REGISTRATION_BRANCHES,
+  counsellorNameById,
+  defaultAppointmentDateTimeLocal,
+  pickAutoCounsellorId,
+  splitFullName,
+} from '@/lib/navayu/navayu-registration-intake';
 import {
   NavayuRegistrationFields,
   createDefaultNavayuRegistrationState,
@@ -74,7 +85,7 @@ const STEPS = [
   { label: 'Review & Confirm', icon: FileText },
 ];
 
-const BRANCHES = ['Main Hospital', 'City Branch', 'North Wing', 'South Campus'];
+const LEGACY_BRANCHES = ['Main Hospital', 'City Branch', 'North Wing', 'South Campus'];
 
 const categoryConfig: Record<string, { label: string; color: string }> = {
   general: { label: 'General', color: 'bg-muted text-muted-foreground' },
@@ -102,13 +113,13 @@ export default function ReceptionRegistration() {
   const navayuMode = isNavayuTenant();
   const defaultPatientType = settings.registration.patientTypes[0]?.label ?? 'OPD';
   const [mode, setMode] = useState<'list' | 'new' | 'emergency' | 'merge' | 'abha-lookup'>('list');
-  const [registrationTab, setRegistrationTab] = useState<'full' | 'walkin'>('full');
+  const [showOpdToken, setShowOpdToken] = useState(false);
   const [platformError, setPlatformError] = useState<string | null>(null);
   useClinicalPlatformListSync({ patients: true, queue: true, appointments: false, departmentWorklists: false, ipd: false });
   const [search, setSearch] = useState('');
   const [step, setStep] = useState(0);
   const [searchBy, setSearchBy] = useState<'all' | 'uhid' | 'phone' | 'name' | 'aadhaar' | 'abha'>('all');
-  const [selectedBranch, setSelectedBranch] = useState('Main Hospital');
+  const [selectedBranch, setSelectedBranch] = useState(navayuMode ? 'Navayu' : 'Main Hospital');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [allowDuplicateRegistration, setAllowDuplicateRegistration] = useState(false);
   const [editingUhid, setEditingUhid] = useState<string | null>(null);
@@ -125,7 +136,7 @@ export default function ReceptionRegistration() {
 
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', dob: '', gender: 'male', nationality: 'Indian',
-    phone: '', altPhone: '', email: '', address: '', city: '', state: '', pin: '',
+    phone: '', altPhone: '', email: '', address: '', city: '', state: navayuMode ? 'Haryana' : '', pin: '',
     emergencyContact: '', emergencyPhone: '', emergencyRelation: '',
     guardianName: '', guardianPhone: '', guardianRelation: '',
     bloodGroup: '', allergies: '', chronicDiseases: '', disabilityStatus: 'none',
@@ -149,7 +160,17 @@ export default function ReceptionRegistration() {
     hasPhoto: false,
     photoDataUrl: '',
     // Branch
-    branch: 'Main Hospital',
+    branch: navayuMode ? 'Navayu' : 'Main Hospital',
+    // Navayu page-one intake
+    fullName: '',
+    ageYears: '',
+    serviceCategory: '',
+    appointmentCentre: 'navayu_gurgaon',
+    appointmentDateTime: defaultAppointmentDateTimeLocal(),
+    country: 'India',
+    district: 'Gurugram',
+    counsellorId: '',
+    autoAssignCounsellor: true,
     documents: [] as { name: string; type: string; size: number; dataUrl: string }[],
   });
   const [navayuFields, setNavayuFields] = useState<NavayuRegistrationFormState>(createDefaultNavayuRegistrationState);
@@ -176,10 +197,99 @@ export default function ReceptionRegistration() {
     [routingDepartments],
   );
 
-  const walkInDoctorOptions = useMemo(
-    () => clinicalDoctorsForDepartment(formData.department),
-    [clinicalDoctorsForDepartment, formData.department],
+  const branchOptions = useMemo(
+    () => (navayuMode ? [...NAVAYU_REGISTRATION_BRANCHES] : [...LEGACY_BRANCHES]),
+    [navayuMode],
   );
+
+  const pageOneForm = useMemo((): NavayuPageOneForm => ({
+    fullName: formData.fullName || `${formData.firstName} ${formData.lastName}`.trim(),
+    phone: formData.phone,
+    altPhone: formData.altPhone,
+    email: formData.email,
+    gender: formData.gender,
+    dob: formData.dob,
+    age: formData.ageYears,
+    serviceCategory: formData.serviceCategory,
+    appointmentCentre: formData.appointmentCentre,
+    appointmentDateTime: formData.appointmentDateTime,
+    country: formData.country,
+    state: formData.state,
+    district: formData.district,
+    city: formData.city,
+    address: formData.address,
+    pin: formData.pin,
+    patientType: formData.patientType,
+    branch: formData.branch,
+    hearAboutNavayu: navayuFields.hearAboutNavayu,
+    referringDoctor: formData.referringDoctor,
+    counsellorId: formData.counsellorId,
+    autoAssignCounsellor: formData.autoAssignCounsellor,
+  }), [formData, navayuFields.hearAboutNavayu]);
+
+  const handlePageOneChange = useCallback((patch: Partial<NavayuPageOneForm>) => {
+    const formPatch: Partial<typeof formData> = {};
+    if (patch.fullName !== undefined) {
+      formPatch.fullName = patch.fullName;
+      const { firstName, lastName } = splitFullName(patch.fullName);
+      formPatch.firstName = firstName;
+      formPatch.lastName = lastName;
+    }
+    if (patch.phone !== undefined) formPatch.phone = patch.phone;
+    if (patch.altPhone !== undefined) formPatch.altPhone = patch.altPhone;
+    if (patch.email !== undefined) formPatch.email = patch.email;
+    if (patch.gender !== undefined) formPatch.gender = patch.gender;
+    if (patch.dob !== undefined) {
+      formPatch.dob = patch.dob;
+      if (patch.dob) {
+        const age = Math.floor((Date.now() - new Date(patch.dob).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+        formPatch.ageYears = String(Math.max(0, age));
+      }
+    }
+    if (patch.age !== undefined) formPatch.ageYears = patch.age;
+    if (patch.serviceCategory !== undefined) formPatch.serviceCategory = patch.serviceCategory;
+    if (patch.appointmentCentre !== undefined) formPatch.appointmentCentre = patch.appointmentCentre;
+    if (patch.appointmentDateTime !== undefined) formPatch.appointmentDateTime = patch.appointmentDateTime;
+    if (patch.country !== undefined) formPatch.country = patch.country;
+    if (patch.state !== undefined) formPatch.state = patch.state;
+    if (patch.district !== undefined) formPatch.district = patch.district;
+    if (patch.city !== undefined) formPatch.city = patch.city;
+    if (patch.address !== undefined) formPatch.address = patch.address;
+    if (patch.pin !== undefined) formPatch.pin = patch.pin;
+    if (patch.patientType !== undefined) formPatch.patientType = patch.patientType;
+    if (patch.branch !== undefined) formPatch.branch = patch.branch;
+    if (patch.referringDoctor !== undefined) formPatch.referringDoctor = patch.referringDoctor;
+    if (patch.counsellorId !== undefined) formPatch.counsellorId = patch.counsellorId;
+    if (patch.autoAssignCounsellor !== undefined) formPatch.autoAssignCounsellor = patch.autoAssignCounsellor;
+
+    if (Object.keys(formPatch).length > 0) {
+      setFormData((prev) => ({ ...prev, ...formPatch }));
+      if (formPatch.phone) setAllowDuplicateRegistration(false);
+    }
+
+    if (patch.hearAboutNavayu !== undefined) {
+      setNavayuFields((prev) => ({ ...prev, hearAboutNavayu: patch.hearAboutNavayu! }));
+      setValidationErrors((prev) => {
+        if (!prev.hearAboutNavayu) return prev;
+        const updated = { ...prev };
+        delete updated.hearAboutNavayu;
+        return updated;
+      });
+    }
+
+    const errorFields = Object.keys(patch);
+    setValidationErrors((prev) => {
+      const updated = { ...prev };
+      let changed = false;
+      errorFields.forEach((field) => {
+        if (updated[field]) {
+          delete updated[field];
+          changed = true;
+        }
+      });
+      return changed ? updated : prev;
+    });
+  }, []);
 
   useEffect(() => {
     if (isPlatformRuntimeEnabled()) {
@@ -343,21 +453,39 @@ export default function ReceptionRegistration() {
   const validateStep = (stepIdx: number): boolean => {
     const errors: Record<string, string> = {};
     if (stepIdx === 0) {
-      if (!formData.firstName.trim()) errors.firstName = 'First name is required';
-      if (!formData.lastName.trim()) errors.lastName = 'Last name is required';
-      if (!formData.dob) errors.dob = 'Date of birth is required';
-      if (!formData.patientType.trim()) errors.patientType = 'Patient type is required';
+      if (navayuMode) {
+        const fullName = formData.fullName || `${formData.firstName} ${formData.lastName}`.trim();
+        if (!fullName) errors.fullName = 'Full name is required';
+        if (!formData.phone.trim()) errors.phone = 'Mobile number is required';
+        else if (!validatePhone(formData.phone)) errors.phone = 'Invalid phone (10 digits, starting 6-9)';
+        if (formData.altPhone && !validatePhone(formData.altPhone)) errors.altPhone = 'Invalid alternate phone';
+        if (!formData.gender) errors.gender = 'Gender is required';
+        if (!formData.ageYears.trim()) errors.age = 'Age is required';
+        if (!formData.serviceCategory) errors.serviceCategory = 'Select a service category';
+        if (!formData.appointmentCentre) errors.appointmentCentre = 'Select an appointment centre';
+        if (!formData.country) errors.country = 'Country is required';
+        if (!formData.state) errors.state = 'State is required';
+        if (!formData.district) errors.district = 'District is required';
+        if (!formData.city.trim()) errors.city = 'City is required';
+        if (!formData.patientType.trim()) errors.patientType = 'Patient type is required';
+        if (!navayuFields.hearAboutNavayu) errors.hearAboutNavayu = 'Select how the patient heard about us';
+        if (navayuFields.hearAboutNavayu === 'doctor_referral' && !formData.referringDoctor.trim()) {
+          errors.referringDoctor = 'Referring doctor name is required';
+        }
+      } else {
+        if (!formData.firstName.trim()) errors.firstName = 'First name is required';
+        if (!formData.lastName.trim()) errors.lastName = 'Last name is required';
+        if (!formData.dob) errors.dob = 'Date of birth is required';
+        if (!formData.patientType.trim()) errors.patientType = 'Patient type is required';
+      }
     }
-    if (stepIdx === 1) {
+    if (stepIdx === 1 && !navayuMode) {
       if (!formData.phone.trim()) errors.phone = 'Phone number is required';
       else if (!validatePhone(formData.phone)) errors.phone = 'Invalid phone format (10 digits, starting 6-9)';
       if (formData.altPhone && !validatePhone(formData.altPhone)) errors.altPhone = 'Invalid phone format';
     }
     if (stepIdx === 3) {
       if (!formData.department.trim()) errors.department = 'Select department to route the patient';
-      if (navayuMode && !navayuFields.hearAboutNavayu) {
-        errors.hearAboutNavayu = 'Select how the patient heard about us';
-      }
     }
     if (stepIdx === 4) {
       if (formData.aadhaar && !validateAadhaar(formData.aadhaar)) errors.aadhaar = 'Invalid Aadhaar format (12 digits)';
@@ -392,6 +520,9 @@ export default function ReceptionRegistration() {
 
   const newUHID = `UHID-${(240000 + storePatients.length + 1).toString()}`;
   const calculatedAge = formData.dob ? Math.floor((Date.now() - new Date(formData.dob).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null;
+  const resolvedAge = navayuMode && formData.ageYears
+    ? Number(formData.ageYears)
+    : calculatedAge ?? 0;
 
   const buildNavayuVisitPayload = () => {
     if (!navayuMode || !navayuFields.hearAboutNavayu) {
@@ -403,6 +534,180 @@ export default function ReceptionRegistration() {
       navayuNotes: buildNavayuRegistrationNotes(metadata),
     };
   };
+
+  const buildNavayuIntakeNotes = () => {
+    if (!navayuMode) return '';
+    const counsellorId = formData.autoAssignCounsellor ? pickAutoCounsellorId() : formData.counsellorId;
+    const parts = [
+      formData.serviceCategory ? `Service: ${formData.serviceCategory}` : null,
+      formData.appointmentCentre ? `Centre: ${formData.appointmentCentre}` : null,
+      formData.appointmentDateTime ? `Appointment: ${formData.appointmentDateTime}` : null,
+      counsellorId ? `Counsellor: ${counsellorNameById(counsellorId)}` : null,
+      formData.referringDoctor ? `Referring doctor: ${formData.referringDoctor}` : null,
+    ].filter(Boolean);
+    return parts.join(' · ');
+  };
+
+  const submitRegistration = useCallback(async (opts?: { pageOneOnly?: boolean }) => {
+    const pageOneOnly = opts?.pageOneOnly ?? false;
+    if (!validateStep(0)) {
+      setStep(0);
+      toast.error('Complete required fields on page 1 before registering');
+      return;
+    }
+    if (!pageOneOnly && !navayuMode) {
+      if (!validateStep(1)) {
+        setStep(1);
+        return;
+      }
+      if (!validateStep(5)) {
+        setStep(5);
+        toast.error('Consent is required before registration');
+        return;
+      }
+    }
+
+    const patientName = navayuMode
+      ? (formData.fullName || `${formData.firstName} ${formData.lastName}`).trim()
+      : `${formData.firstName} ${formData.lastName}`.trim();
+    const registrationPatientType = formData.patientType;
+    const journeyPatientType = selectedJourneyType;
+
+    if (editingUhid) {
+      updatePatient(editingUhid, {
+        name: patientName,
+        age: resolvedAge,
+        gender: formData.gender === 'male' ? 'M' : formData.gender === 'female' ? 'F' : 'O',
+        phone: formData.phone,
+        photoUrl: formData.photoDataUrl || undefined,
+        documents: formData.documents,
+        bloodGroup: formData.bloodGroup || undefined,
+        abhaId: formData.abhaId || undefined,
+        aadhaar: formData.aadhaar || undefined,
+        category: formData.category,
+        patientType: journeyPatientType,
+        registrationPatientType,
+        department: formData.department || undefined,
+        assignedDoctor: formData.assignedDoctor || undefined,
+        allergies: formData.allergies || undefined,
+        chronicDiseases: formData.chronicDiseases || undefined,
+        branch: formData.branch,
+        insuranceProvider: formData.insuranceProvider || undefined,
+        policyNo: formData.policyNo || undefined,
+        referralSource: navayuFields.hearAboutNavayu || formData.referralSource || undefined,
+      });
+      setEditingUhid(null);
+      setMode('list');
+      setStep(0);
+      toast.success('Patient updated');
+      return;
+    }
+
+    const existingMatch = duplicatePhoneWarning ?? duplicateWarning;
+    if (existingMatch?.uhid && !allowDuplicateRegistration) {
+      toast.error('Possible duplicate patient', {
+        description: 'Use View existing record / Merge records, or click Continue anyway to override.',
+      });
+      setStep(0);
+      return;
+    }
+    if (existingMatch?.uhid) {
+      await backfillPlatformPatientId(existingMatch.uhid);
+    }
+
+    setPlatformError(null);
+    try {
+      const { visitMetadata, navayuNotes } = buildNavayuVisitPayload();
+      const intakeNotes = buildNavayuIntakeNotes();
+      const registrationNotes = [navayuNotes, intakeNotes].filter(Boolean).join(' · ')
+        || `Front-desk visit for ${registrationPatientType} (journey: ${journeyPatientType})`;
+
+      const appointmentDate = formData.appointmentDateTime
+        ? formData.appointmentDateTime.split('T')[0]
+        : new Date().toISOString().split('T')[0];
+      const appointmentTime = formData.appointmentDateTime
+        ? formData.appointmentDateTime.split('T')[1]?.slice(0, 5)
+        : new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+      const result = startFrontDeskVisit({
+        patient: {
+          name: patientName,
+          age: resolvedAge,
+          gender: formData.gender === 'male' ? 'M' : formData.gender === 'female' ? 'F' : 'O',
+          phone: formData.phone,
+          photoUrl: formData.photoDataUrl || undefined,
+          documents: formData.documents,
+          guardianName: formData.guardianName || undefined,
+          guardianRelation: formData.guardianRelation || undefined,
+          guardianPhone: formData.guardianPhone || undefined,
+          emergencyContactName: formData.emergencyContact || undefined,
+          emergencyContactPhone: formData.emergencyPhone || undefined,
+          emergencyContactRelation: formData.emergencyRelation || undefined,
+          bloodGroup: formData.bloodGroup || undefined,
+          abhaId: formData.abhaId || undefined,
+          aadhaar: formData.aadhaar || undefined,
+          category: formData.category,
+          patientType: journeyPatientType,
+          registrationPatientType,
+          department: formData.department || routingDepartments[0] || 'General Medicine',
+          assignedDoctor: formData.assignedDoctor || getDefaultAssignedDoctor(formData.department || routingDepartments[0]),
+          allergies: formData.allergies || undefined,
+          chronicDiseases: formData.chronicDiseases || undefined,
+          branch: formData.branch,
+          insuranceProvider: formData.insuranceProvider || undefined,
+          policyNo: formData.policyNo || undefined,
+          tpaProvider: formData.tpaProvider || undefined,
+          tpaPolicyNo: formData.tpaPolicyNo || undefined,
+          tpaPreAuthStatus: formData.preAuthStatus,
+          referralSource: navayuFields.hearAboutNavayu || formData.referralSource || undefined,
+          referralDoctor: formData.referringDoctor || undefined,
+          referralHospital: formData.referringHospital || undefined,
+          referralClinic: formData.referringClinic || undefined,
+          isMLC: formData.isMLC,
+          mlcPoliceCase: formData.mlcPoliceCase || undefined,
+          mlcReportingAuthority: formData.mlcReportingAuthority || undefined,
+          mlcIncidentDescription: formData.mlcIncidentDescription || undefined,
+          visitMetadata,
+        },
+        appointmentDate,
+        appointmentTime,
+        notes: registrationNotes,
+        visitMetadata,
+        initialBillingItems: [
+          {
+            description: `${registrationPatientType} registration and front-desk processing`,
+            amount: isEmergencyJourney ? 500 : isAdmissionJourney ? 350 : 250,
+          },
+        ],
+      });
+      void afterNavayuRegistration(result.uhid, patientName, formData.phone);
+      setDemoResult({ patientName, ...result });
+      setNavayuFields(createDefaultNavayuRegistrationState());
+      setAllowDuplicateRegistration(false);
+      setMode('list');
+      setStep(0);
+    } catch (e) {
+      setPlatformError(e instanceof Error ? e.message : 'Registration failed');
+    }
+  }, [
+    allowDuplicateRegistration,
+    backfillPlatformPatientId,
+    buildNavayuVisitPayload,
+    duplicatePhoneWarning,
+    duplicateWarning,
+    editingUhid,
+    formData,
+    isAdmissionJourney,
+    isEmergencyJourney,
+    navayuFields.hearAboutNavayu,
+    navayuMode,
+    resolvedAge,
+    routingDepartments,
+    selectedJourneyType,
+    startFrontDeskVisit,
+    updatePatient,
+    validateStep,
+  ]);
 
   useEffect(() => {
     if (!demoResult?.uhid) return;
@@ -446,6 +751,7 @@ export default function ReceptionRegistration() {
     setEditingUhid(uhid);
     setFormData(prev => ({
       ...prev,
+      fullName: patient.name,
       firstName,
       lastName: rest.join(' '),
       dob: '',
@@ -469,7 +775,6 @@ export default function ReceptionRegistration() {
       documents: patient.documents ?? [],
     }));
     setAllowDuplicateRegistration(true);
-    setRegistrationTab('full');
     setStep(0);
     setMode('new');
   };
@@ -855,67 +1160,6 @@ export default function ReceptionRegistration() {
 
   // ── New Registration Form ──
   if (mode === 'new') {
-    const handleWalkInFast = () => {
-      if (!formData.firstName.trim() || !validatePhone(formData.phone)) {
-        setValidationErrors({
-          firstName: !formData.firstName.trim() ? 'Name required' : '',
-          phone: !validatePhone(formData.phone) ? 'Valid 10-digit mobile required' : '',
-          hearAboutNavayu: navayuMode && !navayuFields.hearAboutNavayu ? 'Referral source required' : '',
-        });
-        return;
-      }
-      if (navayuMode && !navayuFields.hearAboutNavayu) {
-        setValidationErrors({ hearAboutNavayu: 'Select how the patient heard about us' });
-        return;
-      }
-      const existingMatch = duplicatePhoneWarning ?? duplicateWarning;
-      if (existingMatch?.uhid && !allowDuplicateRegistration) {
-        toast.error('Possible duplicate patient', {
-          description: 'Open the existing record, merge it, or click Continue anyway before creating another record.',
-        });
-        return;
-      }
-      setPlatformError(null);
-      try {
-        const patientName = `${formData.firstName} ${formData.lastName}`.trim();
-        const { visitMetadata, navayuNotes } = buildNavayuVisitPayload();
-        const result = startFrontDeskVisit({
-          patient: {
-            name: patientName,
-            age: Number(formData.dob) || 30,
-            gender: formData.gender === 'female' ? 'F' : formData.gender === 'male' ? 'M' : 'O',
-            phone: formData.phone,
-            category: formData.category,
-            patientType: selectedJourneyType,
-            registrationPatientType: formData.patientType,
-            photoUrl: formData.photoDataUrl || undefined,
-            documents: formData.documents,
-            department: formData.department || routingDepartments[0] || 'Spine & MSK',
-            assignedDoctor: formData.assignedDoctor || getDefaultAssignedDoctor(formData.department || routingDepartments[0]),
-            branch: formData.branch,
-            referralSource: navayuFields.hearAboutNavayu || formData.referralSource,
-            visitMetadata,
-          },
-          appointmentDate: new Date().toISOString().split('T')[0],
-          appointmentTime: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }),
-          appointmentType: 'new',
-          notes: navayuNotes ?? 'Walk-in fast path registration',
-          visitMetadata,
-          initialBillingItems: [{ description: 'OPD walk-in registration', amount: 250 }],
-        });
-        void afterNavayuRegistration(result.uhid, patientName, formData.phone);
-        setDemoResult({ patientName, ...result });
-        setMode('list');
-        setRegistrationTab('full');
-        setStep(0);
-        setNavayuFields(createDefaultNavayuRegistrationState());
-        setAllowDuplicateRegistration(false);
-        navigate('/reception/queue');
-      } catch (e) {
-        setPlatformError(e instanceof Error ? e.message : 'Walk-in registration failed');
-      }
-    };
-
     return (
       <div className="space-y-6">
         <InlinePlatformError message={platformError} onDismiss={() => setPlatformError(null)} />
@@ -925,72 +1169,10 @@ export default function ReceptionRegistration() {
             <h1 className="text-2xl font-bold tracking-tight">{editingUhid ? 'Edit Patient Information' : 'New Patient Registration'}</h1>
             <p className="text-sm text-muted-foreground mt-1">UHID: <span className="font-mono font-semibold text-foreground">{editingUhid ?? newUHID}</span> · Branch: {formData.branch}</p>
           </div>
-          <button onClick={() => { setMode('list'); setStep(0); setRegistrationTab('full'); setEditingUhid(null); }} className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"><X className="w-4 h-4" /> Cancel</button>
+          <button onClick={() => { setMode('list'); setStep(0); setEditingUhid(null); }} className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"><X className="w-4 h-4" /> Cancel</button>
         </div>
 
-        <Tabs
-          value={registrationTab}
-          onValueChange={(v) => setRegistrationTab(v === 'walkin' ? 'walkin' : 'full')}
-        >
-          <TabsList>
-            <TabsTrigger value="full">Full registration</TabsTrigger>
-            <TabsTrigger value="walkin">Walk-in fast path</TabsTrigger>
-          </TabsList>
-          <TabsContent value="walkin" className="mt-4 space-y-4">
-            <div className="rounded-xl border bg-card p-6 space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Minimal capture for walk-ins — registers patient, books today&apos;s slot, checks in, and issues a queue token in one step.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input
-                  value={formData.firstName}
-                  onChange={(e) => updateField('firstName', e.target.value)}
-                  className="px-3 py-2 rounded-lg border bg-background text-sm"
-                  placeholder="First name *"
-                />
-                <input
-                  value={formData.lastName}
-                  onChange={(e) => updateField('lastName', e.target.value)}
-                  className="px-3 py-2 rounded-lg border bg-background text-sm"
-                  placeholder="Last name"
-                />
-                <input
-                  value={formData.phone}
-                  onChange={(e) => updateField('phone', e.target.value)}
-                  className="px-3 py-2 rounded-lg border bg-background text-sm"
-                  placeholder="Mobile *"
-                />
-                <AppSelect
-                  value={formData.department}
-                  onValueChange={(value) => {
-                    updateField('department', value);
-                    if (!formData.assignedDoctor) {
-                      updateField('assignedDoctor', getDefaultAssignedDoctor(value));
-                    }
-                  }}
-                  options={(navayuMode ? routingDepartments : ['General Medicine', 'Cardiology', 'Orthopedics', 'Pediatrics', 'Dermatology']).map((d) => ({ value: d, label: d }))}
-                  className="px-3 py-2 rounded-lg border bg-background text-sm"
-                />
-                <AppSelect
-                  value={formData.assignedDoctor}
-                  onValueChange={(value) => updateField('assignedDoctor', value)}
-                  options={walkInDoctorOptions.map((d) => ({ value: d, label: d }))}
-                  className="px-3 py-2 rounded-lg border bg-background text-sm sm:col-span-2"
-                />
-              </div>
-              {navayuMode && (
-                <NavayuRegistrationFields
-                  value={navayuFields}
-                  onChange={handleNavayuFieldsChange}
-                  errors={{ hearAboutNavayu: validationErrors.hearAboutNavayu }}
-                />
-              )}
-              <Button className="w-full sm:w-auto" onClick={handleWalkInFast}>
-                Register walk-in & go to queue
-              </Button>
-            </div>
-          </TabsContent>
-          <TabsContent value="full" className="mt-4 space-y-6">
+        <div className="space-y-6">
         {/* Duplicate Warning */}
         <AnimatePresence>
           {(duplicateWarning || duplicatePhoneWarning) && (
@@ -1059,7 +1241,22 @@ export default function ReceptionRegistration() {
         {/* Step Content */}
         <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="rounded-xl border bg-card p-6">
           {/* Step 0: Patient Info */}
-          {step === 0 && (
+          {step === 0 && navayuMode && (
+            <div className="space-y-4">
+              <h2 className="font-semibold flex items-center gap-2"><User className="w-4 h-4" /> Patient Information</h2>
+              <p className="text-sm text-muted-foreground">
+                Complete all required fields below to register the patient. Optional steps can be skipped.
+              </p>
+              <NavayuRegistrationPageOne
+                form={pageOneForm}
+                patientTypes={settings.registration.patientTypes}
+                errors={validationErrors}
+                onChange={handlePageOneChange}
+              />
+            </div>
+          )}
+
+          {step === 0 && !navayuMode && (
             <div className="space-y-4">
               <h2 className="font-semibold flex items-center gap-2"><User className="w-4 h-4" /> Patient Information</h2>
               {/* Photo Capture */}
@@ -1172,7 +1369,7 @@ export default function ReceptionRegistration() {
                   <AppSelect
                     value={formData.branch}
                     onValueChange={(value) => updateField('branch', value)}
-                    options={BRANCHES.map((branch) => ({ value: branch, label: branch }))}
+                    options={branchOptions.map((branch) => ({ value: branch, label: branch }))}
                     className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
                   />
                 </div>
@@ -1478,7 +1675,7 @@ export default function ReceptionRegistration() {
                 <NavayuRegistrationFields
                   value={navayuFields}
                   onChange={handleNavayuFieldsChange}
-                  errors={{ hearAboutNavayu: validationErrors.hearAboutNavayu }}
+                  showReferral={false}
                 />
               )}
             </div>
@@ -1706,138 +1903,31 @@ export default function ReceptionRegistration() {
         </motion.div>
 
         {/* Navigation */}
-        <div className="flex justify-between">
+        <div className="flex justify-between flex-wrap gap-2">
           <button onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0}
             className="px-4 py-2 rounded-lg border text-sm font-medium disabled:opacity-30 hover:bg-accent transition-colors">Back</button>
-          {step < STEPS.length - 1 ? (
+          {navayuMode && step === 0 ? (
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={handleNext}
+                className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent transition-colors">
+                Continue to optional details
+              </button>
+              <button onClick={() => void submitRegistration({ pageOneOnly: true })}
+                className="px-6 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2">
+                <Check className="w-4 h-4" /> {editingUhid ? 'Save patient' : 'Register patient'}
+              </button>
+            </div>
+          ) : step < STEPS.length - 1 ? (
             <button onClick={handleNext}
               className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">Continue</button>
           ) : (
-            <button onClick={async () => {
-              const patientName = `${formData.firstName} ${formData.lastName}`.trim();
-              const registrationPatientType = formData.patientType;
-              const journeyPatientType = selectedJourneyType;
-
-              if (!editingUhid && navayuMode && !navayuFields.hearAboutNavayu) {
-                setValidationErrors({ hearAboutNavayu: 'Select how the patient heard about us' });
-                setStep(3);
-                return;
-              }
-
-              if (editingUhid) {
-                updatePatient(editingUhid, {
-                  name: patientName,
-                  age: calculatedAge ?? 0,
-                  gender: formData.gender === 'male' ? 'M' : formData.gender === 'female' ? 'F' : 'O',
-                  phone: formData.phone,
-                  photoUrl: formData.photoDataUrl || undefined,
-                  documents: formData.documents,
-                  bloodGroup: formData.bloodGroup || undefined,
-                  abhaId: formData.abhaId || undefined,
-                  aadhaar: formData.aadhaar || undefined,
-                  category: formData.category,
-                  patientType: journeyPatientType,
-                  registrationPatientType,
-                  department: formData.department || undefined,
-                  assignedDoctor: formData.assignedDoctor || undefined,
-                  allergies: formData.allergies || undefined,
-                  chronicDiseases: formData.chronicDiseases || undefined,
-                  branch: formData.branch,
-                  insuranceProvider: formData.insuranceProvider || undefined,
-                  policyNo: formData.policyNo || undefined,
-                  referralSource: navayuFields.hearAboutNavayu || formData.referralSource || undefined,
-                });
-                setEditingUhid(null);
-                setMode('list');
-                setStep(0);
-                return;
-              }
-
-              const existingMatch = duplicatePhoneWarning ?? duplicateWarning;
-              if (existingMatch?.uhid && !allowDuplicateRegistration) {
-                toast.error('Possible duplicate patient', {
-                  description: `Use View existing record / Merge records, or click Continue anyway to override.`,
-                });
-                setStep(0);
-                return;
-              }
-              if (existingMatch?.uhid) {
-                await backfillPlatformPatientId(existingMatch.uhid);
-              }
-
-              const { visitMetadata, navayuNotes } = buildNavayuVisitPayload();
-              const registrationNotes = navayuNotes
-                ?? `Front-desk demo visit for ${registrationPatientType} (journey: ${journeyPatientType})`;
-
-              const result = startFrontDeskVisit({
-                patient: {
-                  name: patientName,
-                  age: calculatedAge ?? 0,
-                  gender: formData.gender === 'male' ? 'M' : formData.gender === 'female' ? 'F' : 'O',
-                  phone: formData.phone,
-                  photoUrl: formData.photoDataUrl || undefined,
-                  documents: formData.documents,
-                  guardianName: formData.guardianName || undefined,
-                  guardianRelation: formData.guardianRelation || undefined,
-                  guardianPhone: formData.guardianPhone || undefined,
-                  emergencyContactName: formData.emergencyContact || undefined,
-                  emergencyContactPhone: formData.emergencyPhone || undefined,
-                  emergencyContactRelation: formData.emergencyRelation || undefined,
-                  bloodGroup: formData.bloodGroup || undefined,
-                  abhaId: formData.abhaId || undefined,
-                  aadhaar: formData.aadhaar || undefined,
-                  category: formData.category,
-                  patientType: journeyPatientType,
-                  registrationPatientType,
-                  department: formData.department || routingDepartments[0] || 'General Medicine',
-                  assignedDoctor: formData.assignedDoctor || getDefaultAssignedDoctor(formData.department || routingDepartments[0]),
-                  allergies: formData.allergies || undefined,
-                  chronicDiseases: formData.chronicDiseases || undefined,
-                  branch: formData.branch,
-                  insuranceProvider: formData.insuranceProvider || undefined,
-                  policyNo: formData.policyNo || undefined,
-                  tpaProvider: formData.tpaProvider || undefined,
-                  tpaPolicyNo: formData.tpaPolicyNo || undefined,
-                  tpaPreAuthStatus: formData.preAuthStatus,
-                  referralSource: navayuFields.hearAboutNavayu || formData.referralSource || undefined,
-                  referralDoctor: formData.referringDoctor || undefined,
-                  referralHospital: formData.referringHospital || undefined,
-                  referralClinic: formData.referringClinic || undefined,
-                  isMLC: formData.isMLC,
-                  mlcPoliceCase: formData.mlcPoliceCase || undefined,
-                  mlcReportingAuthority: formData.mlcReportingAuthority || undefined,
-                  mlcIncidentDescription: formData.mlcIncidentDescription || undefined,
-                  visitMetadata,
-                },
-                notes: registrationNotes,
-                visitMetadata,
-                initialBillingItems: [
-                  {
-                    description: `${registrationPatientType} registration and front-desk processing`,
-                    amount: isEmergencyJourney
-                      ? 500
-                      : isAdmissionJourney
-                        ? 350
-                        : 250,
-                  },
-                ],
-              });
-              void afterNavayuRegistration(result.uhid, patientName, formData.phone);
-              setDemoResult({
-                patientName,
-                ...result,
-              });
-              setNavayuFields(createDefaultNavayuRegistrationState());
-              setAllowDuplicateRegistration(false);
-              setMode('list'); setStep(0);
-            }}
+            <button onClick={() => void submitRegistration()}
               className="px-6 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2">
               <Check className="w-4 h-4" /> {editingUhid ? 'Save Patient Info' : 'Start Live Visit'}
             </button>
           )}
         </div>
-          </TabsContent>
-        </Tabs>
+        </div>
       </div>
     );
   }
@@ -1863,12 +1953,12 @@ export default function ReceptionRegistration() {
             <AlertTriangle className="w-4 h-4" /> Emergency
           </button>
           <button
-            onClick={() => { setRegistrationTab('walkin'); setMode('new'); }}
+            onClick={() => setShowOpdToken(true)}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-accent transition-colors"
           >
-            <Clock className="w-4 h-4" /> Walk-in fast
+            <Hash className="w-4 h-4" /> OPD token
           </button>
-          <button onClick={() => { setRegistrationTab('full'); setMode('new'); }}
+          <button onClick={() => { setMode('new'); setStep(0); }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
             <UserPlus className="w-4 h-4" /> New Patient
           </button>
@@ -1953,7 +2043,7 @@ export default function ReceptionRegistration() {
       <div className="flex items-center gap-2">
         <Building2 className="w-4 h-4 text-muted-foreground" />
         <div className="flex gap-1.5">
-          {['All Branches', ...BRANCHES].map(b => (
+          {['All Branches', ...branchOptions].map(b => (
             <button key={b} onClick={() => setSelectedBranch(b)}
               className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${selectedBranch === b ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
               {b}
@@ -2068,6 +2158,12 @@ export default function ReceptionRegistration() {
         </table>
         {filtered.length === 0 && <div className="p-8 text-center text-sm text-muted-foreground">No patients found</div>}
       </div>
+
+      <OpdTokenDialog
+        open={showOpdToken}
+        onClose={() => setShowOpdToken(false)}
+        onTokenIssued={() => navigate('/reception/queue')}
+      />
     </div>
   );
 }

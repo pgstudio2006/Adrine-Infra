@@ -28,8 +28,8 @@ const statusLabels: Record<string, string> = {
 };
 
 export default function ReceptionQueue() {
-  const { queue, updateQueueStatus } = useHospital();
-  const { error: platformError, loading, refresh, platformOn } = useReceptionPlatform({
+  const { queue, updateQueueStatus, clearCompletedFromQueue } = useHospital();
+  const { error: platformError, loading } = useReceptionPlatform({
     queue: true,
     appointments: false,
   });
@@ -104,12 +104,17 @@ export default function ReceptionQueue() {
         <Button variant="outline" size="sm" onClick={() => setTvMode(true)} className="gap-2">
           <Monitor className="w-4 h-4" /> TV Display
         </Button>
-        {platformOn ? (
-          <Button variant="ghost" size="sm" onClick={() => void refresh()} disabled={loading} className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh board
-          </Button>
-        ) : null}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={clearCompletedFromQueue}
+          disabled={loading}
+          className="gap-2"
+          title="Remove completed patients from the board"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh board
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

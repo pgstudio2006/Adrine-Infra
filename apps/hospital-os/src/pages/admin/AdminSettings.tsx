@@ -18,9 +18,10 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { ClipboardList, FileText, LayoutTemplate, LockKeyhole, Palette, Settings2, SlidersHorizontal } from 'lucide-react';
+import { ClipboardList, CalendarClock, FileText, LayoutTemplate, LockKeyhole, Palette, Settings2, SlidersHorizontal } from 'lucide-react';
+import { AdminSchedulingPanel } from '@/components/admin/AdminSchedulingPanel';
 
-type SettingsTab = 'branding' | 'roles' | 'navigation' | 'features' | 'registration' | 'forms' | 'advanced';
+type SettingsTab = 'branding' | 'roles' | 'navigation' | 'features' | 'registration' | 'scheduling' | 'forms' | 'advanced';
 
 const TAB_OPTIONS: Array<{ key: SettingsTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { key: 'branding', label: 'Branding', icon: Palette },
@@ -28,6 +29,7 @@ const TAB_OPTIONS: Array<{ key: SettingsTab; label: string; icon: React.Componen
   { key: 'navigation', label: 'Navigation', icon: SlidersHorizontal },
   { key: 'features', label: 'Feature Flags', icon: Settings2 },
   { key: 'registration', label: 'Registration', icon: ClipboardList },
+  { key: 'scheduling', label: 'Scheduling', icon: CalendarClock },
   { key: 'forms', label: 'Form Builder', icon: FileText },
   { key: 'advanced', label: 'Advanced JSON', icon: LockKeyhole },
 ];
@@ -365,6 +367,17 @@ export default function AdminSettings() {
                 <Switch checked={settings.featureFlags[flag]} onCheckedChange={(checked) => updateFeatureFlag(flag, checked)} />
               </div>
             ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {tab === 'scheduling' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Senior Doctors & Leave</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AdminSchedulingPanel />
           </CardContent>
         </Card>
       )}

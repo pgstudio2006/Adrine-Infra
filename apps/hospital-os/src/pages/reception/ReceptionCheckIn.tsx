@@ -1,155 +1,84 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from 'react';
+import { Search } from 'lucide-react';
+import { useHospital } from '@/stores/hospitalStore';
+import { InlinePlatformError } from '@/components/opd/InlinePlatformError';
+import { useReceptionPlatform } from '@/hooks/useReceptionPlatform';
+import { listSeniorDoctors } from '@/lib/scheduling/senior-doctor-registry';
 import {
-  CheckCircle2,
-  Clock,
-  Hash,
-  Phone,
-  Search,
-  UserCheck,
-} from "lucide-react";
-import { useHospital } from "@/stores/hospitalStore";
-import { AppSelect } from "@/components/ui/app-select";
-import { InlinePlatformError } from "@/components/opd/InlinePlatformError";
-import { useReceptionPlatform } from "@/hooks/useReceptionPlatform";
-import { Button } from "@/components/ui/button";
-import { isNavayuTenant, NAVAYU_CLINICAL_DEPARTMENTS } from "@/lib/navayu/navayu-forms";
-import {
-  getClinicalDepartments,
-  getClinicalDoctorsForDepartment,
-  getDefaultAssignedDoctor,
-} from "@/lib/opd/branch-clinical-roster";
-import { queueEntryKey } from "@/lib/opd/queue-presenters";
-
-const DEPARTMENTS = isNavayuTenant()
-  ? [...NAVAYU_CLINICAL_DEPARTMENTS]
-  : getClinicalDepartments();
+  DoctorDayScheduleGrid,
+  type ScheduleGridAction,
+} from '@/components/reception/DoctorDayScheduleGrid';
+import type { HospitalAppointment } from '@/stores/hospitalStore';
+import type { SeniorDoctor } from '@/lib/scheduling/senior-doctor-registry';
 
 function toYmd(date: Date) {
-  return date.toISOString().split("T")[0];
+  return date.toISOString().split('T')[0];
 }
+
+const TODAY = toYmd(new Date());
 
 export default function ReceptionCheckIn() {
   const {
     appointments,
-    queue,
     checkInPatient,
-    updateQueueStatus,
-    updateAppointmentStatus,
-    startFrontDeskVisit,
   } = useHospital();
   const { error: platformError, loading } = useReceptionPlatform({
     queue: true,
     appointments: true,
   });
   const [errorDismissed, setErrorDismissed] = useState(false);
+  const [search, setSearch] = useState('');
+  const [seniorDoctors, setSeniorDoctors] = useState<SeniorDoctor[]>(() => listSeniorDoctors());
 
   useEffect(() => {
     setErrorDismissed(false);
   }, [platformError]);
 
-  const [search, setSearch] = useState("");
-  const [selectedDate, setSelectedDate] = useState(toYmd(new Date()));
-  const [showWalkIn, setShowWalkIn] = useState(false);
-  const [walkInResult, setWalkInResult] = useState<null | { name: string; tokenNo: number | null; uhid: string }>(null);
-  const [walkInForm, setWalkInForm] = useState({
-    name: "",
-    age: "",
-    gender: "M",
-    phone: "",
-    department: DEPARTMENTS[0] ?? "General Medicine",
-    doctor: getDefaultAssignedDoctor(DEPARTMENTS[0] ?? "General Medicine"),
-    notes: "",
-  });
+  useEffect(() => {
+    setSeniorDoctors(listSeniorDoctors());
+  }, []);
 
-  const queueByAppointment = useMemo(() => {
-    const map = new Map<string, (typeof queue)[number]>();
-    queue.forEach((entry) => {
-      if (entry.appointmentId) {
-        map.set(entry.appointmentId, entry);
-      }
-    });
-    return map;
-  }, [queue]);
+  const seniorDoctorNames = useMemo(
+    () => new Set(seniorDoctors.map((doctor) => doctor.name)),
+    [seniorDoctors],
+  );
 
-  const rows = useMemo(() => {
+  const todaysAppointments = useMemo(() => {
     const query = search.toLowerCase();
-
     return appointments
-      .filter((appointment) => appointment.date === selectedDate)
+      .filter((appointment) => appointment.date === TODAY)
+      .filter((appointment) => seniorDoctorNames.has(appointment.doctor))
       .filter((appointment) => {
-        const queueEntry = queueByAppointment.get(appointment.id);
-        const token = queueEntry?.tokenNo ? String(queueEntry.tokenNo) : "";
+        if (!query) return true;
         return (
           appointment.patientName.toLowerCase().includes(query)
           || appointment.id.toLowerCase().includes(query)
           || appointment.uhid.toLowerCase().includes(query)
           || appointment.phone.includes(search)
           || appointment.doctor.toLowerCase().includes(query)
-          || token.includes(search)
         );
       })
-      .map((appointment) => {
-        const queueEntry = queueByAppointment.get(appointment.id);
-        return {
-          appointment,
-          queueEntry,
-          tokenNo: queueEntry?.tokenNo ?? null,
-          stage: queueEntry?.status || appointment.status,
-        };
-      })
-      .sort((left, right) => left.appointment.time.localeCompare(right.appointment.time));
-  }, [appointments, queueByAppointment, search, selectedDate]);
+      .filter(
+        (appointment) =>
+          appointment.status !== 'cancelled' && appointment.status !== 'no-show',
+      );
+  }, [appointments, search, seniorDoctorNames]);
 
   const stats = {
-    scheduled: rows.filter((row) => row.appointment.status === "scheduled" || row.appointment.status === "confirmed").length,
-    checkedIn: rows.filter((row) => row.stage === "waiting" || row.stage === "called" || row.stage === "checked-in").length,
-    withDoctor: rows.filter((row) => row.stage === "in-consultation").length,
-    completed: rows.filter((row) => row.stage === "completed" || row.appointment.status === "completed").length,
+    scheduled: todaysAppointments.filter(
+      (appointment) => appointment.status === 'scheduled' || appointment.status === 'confirmed',
+    ).length,
+    checkedIn: todaysAppointments.filter(
+      (appointment) =>
+        appointment.status === 'checked-in' || appointment.status === 'in-consultation',
+    ).length,
+    completed: todaysAppointments.filter((appointment) => appointment.status === 'completed').length,
   };
 
-  const handleWalkInToken = () => {
-    if (!walkInForm.name.trim() || !walkInForm.phone.trim()) {
-      return;
+  const handleGridAction = (action: ScheduleGridAction, appointment: HospitalAppointment) => {
+    if (action === 'check-in') {
+      checkInPatient(appointment.id, appointment.notes);
     }
-
-    const result = startFrontDeskVisit({
-      patient: {
-        name: walkInForm.name.trim(),
-        age: Number(walkInForm.age) || 30,
-        gender: walkInForm.gender,
-        phone: walkInForm.phone,
-        category: "general",
-        patientType: "OPD",
-        department: walkInForm.department,
-        assignedDoctor: walkInForm.doctor,
-        branch: "Main Hospital",
-      },
-      appointmentDate: selectedDate,
-      appointmentTime: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false }),
-      appointmentType: "new",
-      notes: walkInForm.notes || "Walk-in token generated at reception",
-      initialBillingItems: [{ description: "OPD walk-in registration", amount: 250 }],
-    });
-
-    setWalkInResult({
-      name: walkInForm.name,
-      tokenNo: result.tokenNo,
-      uhid: result.uhid,
-    });
-
-    setWalkInForm({
-      name: "",
-      age: "",
-      gender: "M",
-      phone: "",
-      department: DEPARTMENTS[0] ?? "General Medicine",
-      doctor: getDefaultAssignedDoctor(DEPARTMENTS[0] ?? "General Medicine"),
-      notes: "",
-    });
-  };
-
-  const handleCheckInAppointment = (appointmentId: string, notes?: string) => {
-    checkInPatient(appointmentId, notes);
   };
 
   return (
@@ -162,111 +91,32 @@ export default function ReceptionCheckIn() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Patient Check-In</h1>
-          <p className="text-sm text-muted-foreground mt-1">Check in scheduled visits or issue a walk-in token — one primary action per row</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Today&apos;s appointments only — check in patients with a scheduled senior-doctor visit
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(event) => setSelectedDate(event.target.value)}
-            className="px-3 py-2 rounded-lg border bg-card text-sm"
-          />
-          <Button
-            type="button"
-            variant={showWalkIn ? "secondary" : "default"}
-            onClick={() => setShowWalkIn((prev) => !prev)}
-          >
-            Walk-in token
-          </Button>
+        <div className="text-sm text-muted-foreground font-medium px-3 py-2 rounded-lg border bg-card">
+          {new Date().toLocaleDateString('en-IN', {
+            weekday: 'short',
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+          })}
         </div>
       </div>
 
-      {showWalkIn && (
-        <div className="rounded-xl border bg-card p-4 space-y-3">
-          <p className="text-sm font-semibold">Quick Walk-in Registration</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <input
-              value={walkInForm.name}
-              onChange={(event) => setWalkInForm((prev) => ({ ...prev, name: event.target.value }))}
-              className="px-3 py-2 rounded-lg border bg-background text-sm"
-              placeholder="Patient name"
-            />
-            <input
-              type="number"
-              value={walkInForm.age}
-              onChange={(event) => setWalkInForm((prev) => ({ ...prev, age: event.target.value }))}
-              className="px-3 py-2 rounded-lg border bg-background text-sm"
-              placeholder="Age"
-            />
-            <input
-              value={walkInForm.phone}
-              onChange={(event) => setWalkInForm((prev) => ({ ...prev, phone: event.target.value }))}
-              className="px-3 py-2 rounded-lg border bg-background text-sm"
-              placeholder="Phone"
-            />
-            <AppSelect
-              value={walkInForm.gender}
-              onValueChange={(value) => setWalkInForm((prev) => ({ ...prev, gender: value }))}
-              options={[
-                { value: "M", label: "Male" },
-                { value: "F", label: "Female" },
-                { value: "O", label: "Other" },
-              ]}
-              className="px-3 py-2 rounded-lg border bg-background text-sm"
-            />
-            <AppSelect
-              value={walkInForm.department}
-              onValueChange={(value) => setWalkInForm((prev) => ({ ...prev, department: value, doctor: getDefaultAssignedDoctor(value) }))}
-              options={DEPARTMENTS.map((department) => ({ value: department, label: department }))}
-              className="px-3 py-2 rounded-lg border bg-background text-sm"
-            />
-            <AppSelect
-              value={walkInForm.doctor}
-              onValueChange={(value) => setWalkInForm((prev) => ({ ...prev, doctor: value }))}
-              options={getClinicalDoctorsForDepartment(walkInForm.department).map((doctor) => ({ value: doctor, label: doctor }))}
-              className="px-3 py-2 rounded-lg border bg-background text-sm"
-            />
-            <input
-              value={walkInForm.notes}
-              onChange={(event) => setWalkInForm((prev) => ({ ...prev, notes: event.target.value }))}
-              className="px-3 py-2 rounded-lg border bg-background text-sm lg:col-span-2"
-              placeholder="Complaint / notes"
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setShowWalkIn(false)}>
-              Close
-            </Button>
-            <Button type="button" onClick={handleWalkInToken}>
-              Generate walk-in token
-            </Button>
-          </div>
-
-          {walkInResult && (
-            <div className="rounded-lg border border-success/30 bg-success/5 px-3 py-2 text-sm">
-              Token generated for <strong>{walkInResult.name}</strong> · UHID {walkInResult.uhid}
-              {walkInResult.tokenNo ? ` · Token #${walkInResult.tokenNo}` : ""}
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <div className="rounded-xl border bg-card p-4 text-center">
           <p className="text-xl font-bold">{stats.scheduled}</p>
-          <p className="text-xs text-muted-foreground">Scheduled</p>
+          <p className="text-xs text-muted-foreground">Awaiting check-in</p>
         </div>
         <div className="rounded-xl border bg-card p-4 text-center">
           <p className="text-xl font-bold">{stats.checkedIn}</p>
-          <p className="text-xs text-muted-foreground">Checked In</p>
-        </div>
-        <div className="rounded-xl border bg-card p-4 text-center">
-          <p className="text-xl font-bold">{stats.withDoctor}</p>
-          <p className="text-xs text-muted-foreground">With Doctor</p>
+          <p className="text-xs text-muted-foreground">Checked in / with doctor</p>
         </div>
         <div className="rounded-xl border bg-card p-4 text-center">
           <p className="text-xl font-bold">{stats.completed}</p>
-          <p className="text-xs text-muted-foreground">Completed</p>
+          <p className="text-xs text-muted-foreground">Completed today</p>
         </div>
       </div>
 
@@ -276,94 +126,25 @@ export default function ReceptionCheckIn() {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           className="w-full pl-10 pr-4 py-2 rounded-xl border bg-card text-sm"
-          placeholder="Search by patient, UHID, doctor, phone, or token"
+          placeholder="Search patient, UHID, doctor, or phone"
         />
       </div>
 
-      <div className="space-y-2">
-        {rows.map((row) => (
-          <div key={row.appointment.id} className="rounded-xl border bg-card p-4">
-            <div className="flex items-start justify-between gap-3 flex-wrap">
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-semibold">{row.appointment.patientName}</p>
-                  {row.tokenNo && <span className="text-xs px-1.5 py-0.5 rounded bg-muted font-mono">#{row.tokenNo}</span>}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {row.appointment.id} · {row.appointment.uhid} · {row.appointment.phone}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {row.appointment.time} · {row.appointment.department} · {row.appointment.doctor}
-                </p>
-              </div>
+      <DoctorDayScheduleGrid
+        doctors={seniorDoctors}
+        appointments={todaysAppointments}
+        date={TODAY}
+        mode="check-in"
+        onAction={handleGridAction}
+      />
 
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{row.stage}</span>
-
-                {!row.queueEntry && (row.appointment.status === "scheduled" || row.appointment.status === "confirmed") ? (
-                  <Button
-                    size="sm"
-                    onClick={() => handleCheckInAppointment(row.appointment.id, row.appointment.notes)}
-                    className="gap-1"
-                  >
-                    <Hash className="w-3 h-3" /> Check in & issue token
-                  </Button>
-                ) : null}
-
-                {row.queueEntry?.status === "waiting" ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => updateQueueStatus(queueEntryKey(row.queueEntry!), "called")}
-                    className="gap-1"
-                  >
-                    <Phone className="w-3 h-3" /> Call
-                  </Button>
-                ) : null}
-
-                {row.queueEntry?.status === "called" ? (
-                  <Button
-                    size="sm"
-                    onClick={() => updateQueueStatus(queueEntryKey(row.queueEntry!), "in-consultation")}
-                    className="gap-1"
-                  >
-                    <UserCheck className="w-3 h-3" /> Hand off to doctor
-                  </Button>
-                ) : null}
-
-                {row.queueEntry?.status === "in-consultation" ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      updateQueueStatus(queueEntryKey(row.queueEntry!), "completed");
-                      updateAppointmentStatus(row.appointment.id, "completed");
-                    }}
-                    className="gap-1"
-                  >
-                    <CheckCircle2 className="w-3 h-3" /> Complete visit
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {rows.length === 0 && !loading && (
-          <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground space-y-2">
-            {platformError && !errorDismissed ? (
-              <p>Appointments could not sync from the platform. Fix the error above and retry.</p>
-            ) : (
-              <p>No appointments available for selected date and search.</p>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="rounded-xl border bg-card p-4 text-xs text-muted-foreground flex items-center gap-2">
-        <Clock className="w-4 h-4" />
-        Check-in updates queue in real time. Walk-in token generation creates patient, appointment, queue token, and initial billing in one flow.
-      </div>
+      {todaysAppointments.length === 0 && !loading && (
+        <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
+          {platformError && !errorDismissed
+            ? 'Appointments could not sync from the platform. Fix the error above and retry.'
+            : 'No appointments scheduled for today with senior doctors.'}
+        </div>
+      )}
     </div>
   );
 }

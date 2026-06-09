@@ -1059,6 +1059,8 @@ interface HospitalStore {
   queueBoardHydrated: boolean;
   /** Mark board snapshot stale before a cold refresh (avoids "0 waiting" flash). */
   markQueueBoardStale: () => void;
+  /** Remove completed patients from the local queue board (refresh board action). */
+  clearCompletedFromQueue: () => void;
 
   // Actions
   registerPatient: (data: Omit<HospitalPatient, 'uhid' | 'registeredOn'>) => string;
@@ -1132,6 +1134,7 @@ interface HospitalStore {
     requestedBy?: string;
   }) => { admissionId: string; ward: string; bed: string };
   bookAppointment: (data: Omit<HospitalAppointment, 'id'>) => string;
+  updateAppointment: (id: string, patch: Partial<Omit<HospitalAppointment, 'id'>>) => void;
   updateAppointmentStatus: (id: string, status: HospitalAppointment['status']) => void;
   checkInPatient: (appointmentId: string, complaint?: string) => number;
   updateQueueStatus: (key: number | QueueEntryLookup, status: QueueEntry['status']) => void;
@@ -2622,6 +2625,18 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     return id;
   }, [backfillPlatformPatientId, patients]);
 
+  const updateAppointment = useCallback((id: string, patch: Partial<Omit<HospitalAppointment, 'id'>>) => {
+    setAppointments((prev) =>
+      prev.map((appointment) =>
+        appointment.id === id ? { ...appointment, ...patch } : appointment,
+      ),
+    );
+    const label = patch.patientName ?? id;
+    toast.success('Appointment updated', {
+      description: `${label}${patch.date ? ` · ${patch.date}` : ''}${patch.time ? ` ${patch.time}` : ''}`,
+    });
+  }, []);
+
   const updateAppointmentStatus = useCallback((id: string, status: HospitalAppointment['status']) => {
     const appt = appointments.find(a => a.id === id);
     setAppointments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
@@ -2928,6 +2943,24 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
   const markQueueBoardStale = useCallback(() => {
     if (!canUseOpdRuntime()) return;
     setQueueBoardHydrated(false);
+  }, []);
+
+  const clearCompletedFromQueue = useCallback(() => {
+    let removed = 0;
+    setQueue((prev) => {
+      const next = prev.filter((entry) => entry.status !== 'completed');
+      removed = prev.length - next.length;
+      return next;
+    });
+    if (removed > 0) {
+      toast.success('Board refreshed', {
+        description: `Removed ${removed} completed patient${removed === 1 ? '' : 's'} from the queue.`,
+      });
+    } else {
+      toast.message('Board is up to date', {
+        description: 'No completed patients to remove.',
+      });
+    }
   }, []);
 
   const updateQueueStatus = useCallback((key: number | QueueEntryLookup, status: QueueEntry['status']) => {
@@ -5928,7 +5961,8 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
       queueBoardSyncing,
       queueBoardHydrated,
       markQueueBoardStale,
-      registerPatient, updatePatient, refreshPatientsFromPlatform, backfillPlatformPatientId, startFrontDeskVisit, admitPatient, transferOpdToIPD, convertOpdToIPDByUHID, bookAppointment, updateAppointmentStatus, checkInPatient,
+      clearCompletedFromQueue,
+      registerPatient, updatePatient, refreshPatientsFromPlatform, backfillPlatformPatientId, startFrontDeskVisit, admitPatient, transferOpdToIPD, convertOpdToIPDByUHID, bookAppointment, updateAppointment, updateAppointmentStatus, checkInPatient,
       updateQueueStatus, refreshQueueFromPlatform, refreshAppointmentsFromPlatform, refreshPlatformIpdSnapshots, refreshDepartmentWorklistsFromPlatform, nextQueuePatient, saveConsultation, updateLabStage, updateLabOrder,
       updatePrescriptionStatus, updateMedicationLineStatus, dispensePrescription, updateRadiologyOrder,
       addDailyServiceCharge, issueWardMedicine, updateWardMedicineIssueStatus,

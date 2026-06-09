@@ -239,6 +239,20 @@ export function NavayuMetadataForm({ form, value, onChange, onFileUpload }: Prop
                   </div>
                 );
               }
+              if (field.type === 'email' || field.type === 'date' || field.type === 'time' || field.type === 'text') {
+                const inputType = field.type === 'text' ? 'text' : field.type;
+                return (
+                  <div key={field.id}>
+                    <label className="text-xs font-medium mb-1 block">{field.label}</label>
+                    <input
+                      type={inputType}
+                      value={(value[field.id] as string) ?? ''}
+                      onChange={(e) => onChange({ ...value, [field.id]: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
+                    />
+                  </div>
+                );
+              }
               if (field.type === 'select' && field.options) {
                 return (
                   <div key={field.id}>

@@ -45,6 +45,21 @@ function FieldControl({
     );
   }
 
+  if (field.type === 'email' || field.type === 'date' || field.type === 'time' || field.type === 'text') {
+    const inputType = field.type === 'text' ? 'text' : field.type;
+    return (
+      <div>
+        <label className="text-xs font-medium mb-1 block">{field.label}</label>
+        <input
+          type={inputType}
+          value={typeof current === 'string' ? current : ''}
+          onChange={(event) => onChange({ ...value, [field.id]: event.target.value })}
+          className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
+        />
+      </div>
+    );
+  }
+
   if (field.type === 'select' && field.options) {
     return (
       <div>

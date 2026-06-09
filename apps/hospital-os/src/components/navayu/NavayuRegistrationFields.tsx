@@ -36,9 +36,10 @@ interface Props {
   value: NavayuRegistrationFormState;
   onChange: (next: NavayuRegistrationFormState) => void;
   errors?: { hearAboutNavayu?: string };
+  showReferral?: boolean;
 }
 
-export function NavayuRegistrationFields({ value, onChange, errors }: Props) {
+export function NavayuRegistrationFields({ value, onChange, errors, showReferral = true }: Props) {
   const referralOptions = getNavayuReferralOptions();
   const lifestyleFields = getNavayuLifestyleFields();
   const painRegions = getNavayuPainRegionOptions();
@@ -59,27 +60,36 @@ export function NavayuRegistrationFields({ value, onChange, errors }: Props) {
 
   return (
     <div className="border-t pt-4 mt-4 space-y-5">
-      <div>
-        <h3 className="text-sm font-semibold mb-1">MSK intake (Gurgaon)</h3>
-        <p className="text-xs text-muted-foreground mb-3">
-          Referral, lifestyle, and pain regions sync to the doctor consult and CRM when platform runtime is on.
-        </p>
-        <label className="text-sm font-medium mb-1 block">How did you hear about us? *</label>
-        <AppSelect
-          value={value.hearAboutNavayu}
-          onValueChange={(next) =>
-            onChange({ ...value, hearAboutNavayu: normalizeNavayuReferralValue(next) })
-          }
-          options={[
-            { value: '', label: 'Select referral source' },
-            ...referralOptions.map((option) => ({ value: option.value, label: option.label })),
-          ]}
-          className={`w-full px-3 py-2 rounded-lg border bg-background text-sm ${errors?.hearAboutNavayu ? 'border-destructive' : ''}`}
-        />
-        {errors?.hearAboutNavayu && (
-          <p className="text-xs text-destructive mt-1">{errors.hearAboutNavayu}</p>
-        )}
-      </div>
+      {showReferral ? (
+        <div>
+          <h3 className="text-sm font-semibold mb-1">MSK intake (Gurgaon)</h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            Referral, lifestyle, and pain regions sync to the doctor consult and CRM when platform runtime is on.
+          </p>
+          <label className="text-sm font-medium mb-1 block">How did you hear about us? *</label>
+          <AppSelect
+            value={value.hearAboutNavayu}
+            onValueChange={(next) =>
+              onChange({ ...value, hearAboutNavayu: normalizeNavayuReferralValue(next) })
+            }
+            options={[
+              { value: '', label: 'Select referral source' },
+              ...referralOptions.map((option) => ({ value: option.value, label: option.label })),
+            ]}
+            className={`w-full px-3 py-2 rounded-lg border bg-background text-sm ${errors?.hearAboutNavayu ? 'border-destructive' : ''}`}
+          />
+          {errors?.hearAboutNavayu && (
+            <p className="text-xs text-destructive mt-1">{errors.hearAboutNavayu}</p>
+          )}
+        </div>
+      ) : (
+        <div>
+          <h3 className="text-sm font-semibold mb-1">MSK intake (optional)</h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            Lifestyle and pain regions sync to the doctor consult when platform runtime is on.
+          </p>
+        </div>
+      )}
 
       <div>
         <label className="text-sm font-medium mb-2 block">Lifestyle snapshot</label>

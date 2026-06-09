@@ -1,38 +1,33 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import {
-  AlertTriangle,
   CalendarDays,
   CheckCircle2,
-  Clock,
   Plus,
   Search,
   UserCheck,
   X,
 } from "lucide-react";
 import { useHospital, type HospitalAppointment } from "@/stores/hospitalStore";
-import { AppSelect } from "@/components/ui/app-select";
 import { useOperationalEventStream } from "@/runtime/realtime-runtime";
 import {
   getPlatformSession,
   isPlatformRuntimeEnabled,
 } from "@/runtime/platform-session";
 import { InlinePlatformError } from "@/components/shared/InlinePlatformError";
-import {
-  isNavayuTenant,
-  loadPatientPhone,
-  NAVAYU_CLINICAL_DEPARTMENTS,
-} from "@/lib/navayu/navayu-forms";
+import { loadPatientPhone } from "@/lib/navayu/navayu-forms";
 import { toast } from "sonner";
+import { listSeniorDoctors } from "@/lib/scheduling/senior-doctor-registry";
+import { findAppointmentConflict } from "@/lib/scheduling/appointment-slots";
 import {
-  getClinicalDepartments,
-  getClinicalDoctorsForDepartment,
-  getDefaultAssignedDoctor,
-} from "@/lib/opd/branch-clinical-roster";
-
-const DEPARTMENTS = isNavayuTenant()
-  ? [...NAVAYU_CLINICAL_DEPARTMENTS]
-  : getClinicalDepartments();
+  AppointmentBookingModal,
+  type BookingFormState,
+} from "@/components/reception/AppointmentBookingModal";
+import {
+  DoctorDayScheduleGrid,
+  type ScheduleGridAction,
+} from "@/components/reception/DoctorDayScheduleGrid";
+import type { SeniorDoctor } from "@/lib/scheduling/senior-doctor-registry";
 
 const STATUS_STYLES: Record<HospitalAppointment["status"], string> = {
   scheduled: "bg-info/10 text-info",
@@ -67,18 +62,6 @@ function formatDateLabel(dateYmd: string) {
   });
 }
 
-function buildTimeSlots() {
-  const slots: string[] = [];
-  for (let hour = 7; hour <= 20; hour++) {
-    for (const minute of ["00", "15", "30", "45"]) {
-      slots.push(`${String(hour).padStart(2, "0")}:${minute}`);
-    }
-  }
-  return slots;
-}
-
-const TIME_SLOTS = buildTimeSlots();
-
 function compareByDateTime(
   left: HospitalAppointment,
   right: HospitalAppointment,
@@ -95,6 +78,7 @@ export default function ReceptionAppointments() {
     appointments,
     patients,
     bookAppointment,
+    updateAppointment,
     checkInPatient,
     updateAppointmentStatus,
     refreshAppointmentsFromPlatform,
@@ -111,20 +95,36 @@ export default function ReceptionAppointments() {
     string | null
   >(null);
   const [showBooking, setShowBooking] = useState(false);
+  const [editingAppointmentId, setEditingAppointmentId] = useState<string | null>(null);
+  const [seniorDoctors, setSeniorDoctors] = useState<SeniorDoctor[]>(() => listSeniorDoctors());
   const [platformError, setPlatformError] = useState<string | null>(null);
-  const [bookingForm, setBookingForm] = useState({
+  const [bookingForm, setBookingForm] = useState<BookingFormState>(() => ({
     patientUhid: "",
     patientName: "",
     phone: "",
-    department: "",
-    doctor: "",
+    department: listSeniorDoctors()[0]?.department ?? "",
+    doctor: listSeniorDoctors()[0]?.name ?? "",
     date: toYmd(new Date()),
     time: "09:00",
     duration: "30",
-    type: "new" as HospitalAppointment["type"],
+    type: "new",
     notes: "",
-    checkInNow: false,
-  });
+  }));
+
+  const refreshSeniorDoctors = useCallback(() => {
+    setSeniorDoctors(listSeniorDoctors());
+  }, []);
+
+  useEffect(() => {
+    refreshSeniorDoctors();
+    const onStorage = (event: StorageEvent) => {
+      if (event.key?.includes('senior_doctors') || event.key?.includes('doctor_leave')) {
+        refreshSeniorDoctors();
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [refreshSeniorDoctors]);
 
   const syncPlatformAppointments = useCallback(async () => {
     try {
@@ -252,85 +252,117 @@ export default function ReceptionAppointments() {
     );
   }, [patients]);
 
-  const slotConflict = useMemo(() => {
-    if (!bookingForm.doctor || !bookingForm.date || !bookingForm.time) {
-      return false;
-    }
+  const seniorDoctorNames = useMemo(
+    () => new Set(seniorDoctors.map((doctor) => doctor.name)),
+    [seniorDoctors],
+  );
 
-    return appointments.some(
-      (appointment) =>
-        appointment.doctor === bookingForm.doctor &&
-        appointment.date === bookingForm.date &&
-        appointment.time === bookingForm.time &&
-        appointment.status !== "cancelled" &&
-        appointment.status !== "no-show",
-    );
-  }, [appointments, bookingForm.date, bookingForm.doctor, bookingForm.time]);
+  const calendarAppointments = useMemo(
+    () =>
+      dayAppointments.filter((appointment) => seniorDoctorNames.has(appointment.doctor)),
+    [dayAppointments, seniorDoctorNames],
+  );
 
-  const handlePickPatient = (uhid: string) => {
-    const patient = bookingPatients.find((item) => item.uhid === uhid);
-    const phone =
-      patient?.phone?.trim() || loadPatientPhone(uhid) || "";
-    setBookingForm((prev) => ({
-      ...prev,
-      patientUhid: uhid,
-      patientName: patient?.name || "",
-      phone,
-      department: patient?.department || prev.department,
-      doctor: patient?.assignedDoctor || prev.doctor,
-    }));
-  };
-
-  const handleBookAppointment = () => {
-    if (slotConflict) {
-      toast.error("Selected doctor already has an appointment at this slot.");
-      return;
-    }
-    if (!bookingForm.patientUhid || !bookingForm.patientName) {
-      toast.error("Select a patient to book the appointment.");
-      return;
-    }
-    if (!bookingForm.phone?.trim()) {
-      toast.error("Enter the patient phone number to continue.");
-      return;
-    }
-    if (!bookingForm.department || !bookingForm.doctor) {
-      toast.error("Select department and doctor before booking.");
-      return;
-    }
-
-    const appointmentId = bookAppointment({
-      uhid: bookingForm.patientUhid,
-      patientName: bookingForm.patientName,
-      phone: bookingForm.phone,
-      doctor: bookingForm.doctor,
-      department: bookingForm.department,
-      date: bookingForm.date,
-      time: bookingForm.time,
-      duration: Number(bookingForm.duration),
-      status: "scheduled",
-      type: bookingForm.type,
-      notes: bookingForm.notes,
-    });
-
-    if (bookingForm.checkInNow) {
-      checkInPatient(appointmentId, bookingForm.notes || "Walk-in check-in");
-    }
-
-    setShowBooking(false);
+  const openBookingModal = (prefill?: Partial<BookingFormState>, editId?: string | null) => {
+    const defaultDoctor = seniorDoctors[0];
     setBookingForm({
       patientUhid: "",
       patientName: "",
       phone: "",
-      department: "",
-      doctor: "",
+      department: defaultDoctor?.department ?? "",
+      doctor: defaultDoctor?.name ?? "",
       date: selectedDate,
       time: "09:00",
       duration: "30",
       type: "new",
       notes: "",
-      checkInNow: false,
+      ...prefill,
     });
+    setEditingAppointmentId(editId ?? null);
+    setShowBooking(true);
+  };
+
+  const handleSaveBooking = (form: BookingFormState) => {
+    const duration = Number(form.duration);
+    const conflict = findAppointmentConflict(appointments, {
+      doctor: form.doctor,
+      date: form.date,
+      time: form.time,
+      duration,
+      excludeId: editingAppointmentId ?? undefined,
+    });
+    if (conflict) {
+      toast.error("Slot overlaps another appointment");
+      return;
+    }
+
+    if (editingAppointmentId) {
+      updateAppointment(editingAppointmentId, {
+        uhid: form.patientUhid,
+        patientName: form.patientName,
+        phone: form.phone,
+        doctor: form.doctor,
+        department: form.department,
+        date: form.date,
+        time: form.time,
+        duration,
+        type: form.type,
+        notes: form.notes,
+      });
+    } else {
+      bookAppointment({
+        uhid: form.patientUhid,
+        patientName: form.patientName,
+        phone: form.phone,
+        doctor: form.doctor,
+        department: form.department,
+        date: form.date,
+        time: form.time,
+        duration,
+        status: "scheduled",
+        type: form.type,
+        notes: form.notes,
+      });
+    }
+
+    setShowBooking(false);
+    setEditingAppointmentId(null);
+  };
+
+  const handleGridAction = (action: ScheduleGridAction, appointment: HospitalAppointment) => {
+    if (action === "open") {
+      setSelectedAppointmentId(appointment.id);
+      return;
+    }
+    if (action === "check-in") {
+      handleCheckInAppointment(appointment.id, appointment.notes);
+      return;
+    }
+    if (action === "reschedule") {
+      openBookingModal(
+        {
+          patientUhid: appointment.uhid,
+          patientName: appointment.patientName,
+          phone: appointment.phone,
+          department: appointment.department,
+          doctor: appointment.doctor,
+          date: appointment.date,
+          time: appointment.time,
+          duration: String(appointment.duration),
+          type: appointment.type,
+          notes: appointment.notes,
+        },
+        appointment.id,
+      );
+      return;
+    }
+    if (action === "cancel") {
+      handleCancelAppointment(appointment.id);
+      return;
+    }
+    if (action === "complete") {
+      handleCompleteAppointment(appointment.id);
+    }
   };
 
   const handleCancelAppointment = (appointmentId: string) => {
@@ -361,7 +393,7 @@ export default function ReceptionAppointments() {
           </p>
         </div>
         <button
-          onClick={() => setShowBooking(true)}
+          onClick={() => openBookingModal()}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
         >
           <Plus className="w-4 h-4" /> Book Appointment
@@ -429,86 +461,26 @@ export default function ReceptionAppointments() {
       </div>
 
       {view === "day" && (
-        <div className="rounded-xl border bg-card overflow-hidden">
-          <div className="border-b px-4 py-3 text-sm font-medium flex items-center gap-2">
+        <div className="space-y-3">
+          <div className="text-sm font-medium flex items-center gap-2">
             <CalendarDays className="w-4 h-4 text-muted-foreground" />
-            {formatDateLabel(selectedDate)}
+            {formatDateLabel(selectedDate)} · Senior doctor schedule
           </div>
-          <div className="divide-y">
-            {TIME_SLOTS.map((slot) => {
-              const slotAppointments = dayAppointments.filter(
-                (appointment) => appointment.time === slot,
-              );
-              return (
-                <div key={slot} className="flex min-h-[52px]">
-                  <div className="w-20 shrink-0 px-3 py-2 text-xs text-muted-foreground font-mono border-r bg-muted/20">
-                    {slot}
-                  </div>
-                  <div className="flex-1 p-1.5 flex gap-2 flex-wrap">
-                    {slotAppointments.map((appointment) => (
-                      <div
-                        key={appointment.id}
-                        className="rounded-lg border px-3 py-2 min-w-[250px] bg-card"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-medium">
-                            {appointment.patientName}
-                          </p>
-                          <span
-                            className={`text-[11px] px-2 py-0.5 rounded-full ${STATUS_STYLES[appointment.status]}`}
-                          >
-                            {appointment.status}
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {appointment.doctor} · {appointment.department} ·{" "}
-                          {appointment.duration} min
-                        </p>
-                        <div className="mt-2 flex gap-1.5">
-                          {(appointment.status === "scheduled" ||
-                            appointment.status === "confirmed") && (
-                            <button
-                              onClick={() =>
-                                handleCheckInAppointment(
-                                  appointment.id,
-                                  appointment.notes,
-                                )
-                              }
-                              className="text-[11px] px-2 py-1 rounded border hover:bg-accent"
-                            >
-                              Check In
-                            </button>
-                          )}
-                          {appointment.status !== "completed" &&
-                            appointment.status !== "cancelled" && (
-                              <button
-                                onClick={() =>
-                                  handleCompleteAppointment(appointment.id)
-                                }
-                                className="text-[11px] px-2 py-1 rounded border hover:bg-accent"
-                              >
-                                Complete
-                              </button>
-                            )}
-                          {appointment.status !== "cancelled" &&
-                            appointment.status !== "completed" && (
-                              <button
-                                onClick={() =>
-                                  handleCancelAppointment(appointment.id)
-                                }
-                                className="text-[11px] px-2 py-1 rounded border border-destructive/30 text-destructive hover:bg-destructive/10"
-                              >
-                                Cancel
-                              </button>
-                            )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <DoctorDayScheduleGrid
+            doctors={seniorDoctors}
+            appointments={calendarAppointments}
+            date={selectedDate}
+            mode="appointments"
+            onAction={handleGridAction}
+            onEmptySlotClick={(doctor, time) =>
+              openBookingModal({
+                doctor: doctor.name,
+                department: doctor.department,
+                date: selectedDate,
+                time,
+              })
+            }
+          />
         </div>
       )}
 
@@ -620,6 +592,31 @@ export default function ReceptionAppointments() {
                           Check In
                         </button>
                       )}
+                      {appointment.status !== "cancelled" &&
+                        appointment.status !== "completed" && (
+                          <button
+                            onClick={() =>
+                              openBookingModal(
+                                {
+                                  patientUhid: appointment.uhid,
+                                  patientName: appointment.patientName,
+                                  phone: appointment.phone,
+                                  department: appointment.department,
+                                  doctor: appointment.doctor,
+                                  date: appointment.date,
+                                  time: appointment.time,
+                                  duration: String(appointment.duration),
+                                  type: appointment.type,
+                                  notes: appointment.notes,
+                                },
+                                appointment.id,
+                              )
+                            }
+                            className="text-xs px-2 py-1 rounded border hover:bg-accent"
+                          >
+                            Reschedule
+                          </button>
+                        )}
                       {appointment.status !== "completed" &&
                         appointment.status !== "cancelled" && (
                           <button
@@ -650,231 +647,21 @@ export default function ReceptionAppointments() {
         </div>
       )}
 
-      <AnimatePresence>
-        {showBooking && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-            onClick={() => setShowBooking(false)}
-          >
-            <div
-              className="bg-card border rounded-xl w-full max-w-2xl p-6 space-y-5"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold">Book Appointment</h2>
-                <button
-                  onClick={() => setShowBooking(false)}
-                  className="p-1 rounded hover:bg-accent"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {slotConflict && (
-                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4" />
-                  Selected doctor already has an appointment at this slot.
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium mb-1 block">
-                    Patient
-                  </label>
-                  <AppSelect
-                    value={bookingForm.patientUhid || undefined}
-                    onValueChange={handlePickPatient}
-                    placeholder="Select patient"
-                    options={bookingPatients.map((patient) => ({
-                      value: patient.uhid,
-                      label: `${patient.name} (${patient.uhid})`,
-                    }))}
-                    className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">
-                    Patient Name
-                  </label>
-                  <input
-                    value={bookingForm.patientName}
-                    onChange={(event) =>
-                      setBookingForm((prev) => ({
-                        ...prev,
-                        patientName: event.target.value,
-                      }))
-                    }
-                    className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">
-                    Phone
-                  </label>
-                  <input
-                    value={bookingForm.phone}
-                    onChange={(event) =>
-                      setBookingForm((prev) => ({
-                        ...prev,
-                        phone: event.target.value,
-                      }))
-                    }
-                    className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">
-                    Department
-                  </label>
-                  <AppSelect
-                    value={bookingForm.department || undefined}
-                    onValueChange={(value) =>
-                      setBookingForm((prev) => ({
-                        ...prev,
-                        department: value,
-                        doctor: getDefaultAssignedDoctor(value),
-                      }))
-                    }
-                    placeholder="Select"
-                    options={DEPARTMENTS.map((department) => ({
-                      value: department,
-                      label: department,
-                    }))}
-                    className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">
-                    Doctor
-                  </label>
-                  <AppSelect
-                    value={bookingForm.doctor || undefined}
-                    onValueChange={(value) =>
-                      setBookingForm((prev) => ({ ...prev, doctor: value }))
-                    }
-                    placeholder="Select"
-                    options={getClinicalDoctorsForDepartment(bookingForm.department).map(
-                      (doctor) => ({ value: doctor, label: doctor }),
-                    )}
-                    disabled={!bookingForm.department}
-                    className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Type</label>
-                  <AppSelect
-                    value={bookingForm.type}
-                    onValueChange={(value) =>
-                      setBookingForm((prev) => ({
-                        ...prev,
-                        type: value as HospitalAppointment["type"],
-                      }))
-                    }
-                    options={[
-                      { value: "new", label: "New" },
-                      { value: "follow-up", label: "Follow-up" },
-                      { value: "teleconsultation", label: "Teleconsultation" },
-                    ]}
-                    className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Date</label>
-                  <input
-                    type="date"
-                    value={bookingForm.date}
-                    onChange={(event) =>
-                      setBookingForm((prev) => ({
-                        ...prev,
-                        date: event.target.value,
-                      }))
-                    }
-                    className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Time</label>
-                  <AppSelect
-                    value={bookingForm.time}
-                    onValueChange={(value) =>
-                      setBookingForm((prev) => ({ ...prev, time: value }))
-                    }
-                    options={TIME_SLOTS.map((slot) => ({
-                      value: slot,
-                      label: slot,
-                    }))}
-                    className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">
-                    Duration
-                  </label>
-                  <AppSelect
-                    value={bookingForm.duration}
-                    onValueChange={(value) =>
-                      setBookingForm((prev) => ({ ...prev, duration: value }))
-                    }
-                    options={[
-                      { value: "15", label: "15 min" },
-                      { value: "30", label: "30 min" },
-                      { value: "45", label: "45 min" },
-                      { value: "60", label: "60 min" },
-                    ]}
-                    className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="text-sm font-medium mb-1 block">
-                    Notes
-                  </label>
-                  <textarea
-                    value={bookingForm.notes}
-                    onChange={(event) =>
-                      setBookingForm((prev) => ({
-                        ...prev,
-                        notes: event.target.value,
-                      }))
-                    }
-                    className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
-                    rows={2}
-                  />
-                </div>
-                <label className="sm:col-span-2 flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={bookingForm.checkInNow}
-                    onChange={(event) =>
-                      setBookingForm((prev) => ({
-                        ...prev,
-                        checkInNow: event.target.checked,
-                      }))
-                    }
-                  />
-                  Check in immediately and generate queue token
-                </label>
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setShowBooking(false)}
-                  className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleBookAppointment}
-                  disabled={slotConflict}
-                  className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
-                >
-                  Save Appointment
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </AnimatePresence>
+      <AppointmentBookingModal
+        key={`${showBooking}-${editingAppointmentId ?? "new"}-${bookingForm.time}`}
+        open={showBooking}
+        title={editingAppointmentId ? "Reschedule appointment" : "Book appointment"}
+        patients={bookingPatients}
+        appointments={appointments}
+        seniorDoctors={seniorDoctors}
+        initialForm={bookingForm}
+        editingAppointmentId={editingAppointmentId}
+        onClose={() => {
+          setShowBooking(false);
+          setEditingAppointmentId(null);
+        }}
+        onSubmit={handleSaveBooking}
+      />
 
       <AnimatePresence>
         {selectedAppointment && (
@@ -968,6 +755,32 @@ export default function ReceptionAppointments() {
                       className="flex-1 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-accent flex items-center justify-center gap-1"
                     >
                       <CheckCircle2 className="w-4 h-4" /> Mark Complete
+                    </button>
+                  )}
+                {selectedAppointment.status !== "cancelled" &&
+                  selectedAppointment.status !== "completed" && (
+                    <button
+                      onClick={() => {
+                        setSelectedAppointmentId(null);
+                        openBookingModal(
+                          {
+                            patientUhid: selectedAppointment.uhid,
+                            patientName: selectedAppointment.patientName,
+                            phone: selectedAppointment.phone,
+                            department: selectedAppointment.department,
+                            doctor: selectedAppointment.doctor,
+                            date: selectedAppointment.date,
+                            time: selectedAppointment.time,
+                            duration: String(selectedAppointment.duration),
+                            type: selectedAppointment.type,
+                            notes: selectedAppointment.notes,
+                          },
+                          selectedAppointment.id,
+                        );
+                      }}
+                      className="flex-1 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-accent flex items-center justify-center gap-1"
+                    >
+                      Reschedule
                     </button>
                   )}
                 {selectedAppointment.status !== "cancelled" &&
