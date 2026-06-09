@@ -96,7 +96,6 @@ function prerequisitesForRoute(pathname: string): string[] {
 }
 
 const ALWAYS_ALLOWED_PREFIXES = [
-  '/reception/flow',
   '/reception/registration',
   '/reception/appointments',
   '/login',
@@ -125,7 +124,7 @@ export function evaluateOperationalRouteAccess(
     if (!spineStepSatisfied(stepId, ctx)) {
       const step = frontDeskSpine.steps.find((s) => s.id === stepId);
       const label = step?.label ?? stepId;
-      const redirectTo = step?.route ?? '/reception/flow';
+      const redirectTo = step?.route ?? '/reception';
       return {
         allowed: false,
         reason: `Complete "${label}" before this screen when platform runtime is on.`,

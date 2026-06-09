@@ -79,7 +79,6 @@ import {
 
 // Reception pages
 import ReceptionDashboard from "@/pages/reception/ReceptionDashboard";
-import ReceptionFlowHub from "@/pages/reception/ReceptionFlowHub";
 import ReceptionRegistration from "@/pages/reception/ReceptionRegistration";
 import ReceptionAppointments from "@/pages/reception/ReceptionAppointments";
 import ReceptionCheckIn from "@/pages/reception/ReceptionCheckIn";
@@ -396,7 +395,7 @@ const NURSE_PAGES: Record<string, React.ComponentType> = {
 
 const RECEPTION_PAGES: Record<string, React.ComponentType> = {
   "/reception": ReceptionDashboard,
-  "/reception/flow": ReceptionFlowHub,
+  "/reception/flow": () => <Navigate to="/reception" replace />,
   "/reception/registration": ReceptionRegistration,
   "/reception/appointments": ReceptionAppointments,
   "/reception/checkin": ReceptionCheckIn,

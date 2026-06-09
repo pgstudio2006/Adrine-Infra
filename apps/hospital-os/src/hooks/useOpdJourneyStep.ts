@@ -3,7 +3,6 @@ import { useLocation } from 'react-router-dom';
 
 const FRONT_DESK_PATH_TO_STEP: Record<string, string> = {
   '/reception': 'register',
-  '/reception/flow': 'register',
   '/reception/registration': 'register',
   '/reception/appointments': 'schedule',
   '/reception/checkin': 'checkin',

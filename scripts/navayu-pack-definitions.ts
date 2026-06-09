@@ -75,7 +75,6 @@ const GURGAON_PHARMACY_TABS = NAVAYU_PHARMACY_LIVE_TABS;
 
 const GURGAON_RECEPTION_TABS = [
   'dashboard',
-  'flow-hub',
   'registration',
   'appointments',
   'checkin',
@@ -200,9 +199,9 @@ export function buildGurgaonPack() {
       doctor: { label: 'Doctor', description: 'Senior MSK consult, AI summary, protocol mapping' },
       jr_doctor: { label: 'Junior Doctor', description: 'MSK intake, exam and investigations' },
       nurse: { label: 'Nurse', description: 'Ward care, vitals, medications' },
-      receptionist: { label: 'Reception', description: 'Registration, queue, front-desk billing' },
+      receptionist: { label: 'Front Desk', description: 'Registration, queue, front-desk billing' },
       pharmacist: { label: 'Pharmacist', description: 'Dispensing and pharmacy inventory' },
-      billing: { label: 'Counsellor / Packages', description: 'Treatment packages and revenue proposals' },
+      billing: { label: 'Counsellor', description: 'Treatment packages and revenue proposals' },
       crm_manager: { label: 'CRM & Counselling', description: 'Leads, lifecycle, referral analytics' },
       lab_technician: { label: 'Lab Technician', description: 'Disabled at Gurgaon center' },
       radiologist: { label: 'Radiologist', description: 'Disabled at Gurgaon center' },

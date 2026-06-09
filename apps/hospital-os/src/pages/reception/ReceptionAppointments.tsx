@@ -18,8 +18,6 @@ import {
   isPlatformRuntimeEnabled,
 } from "@/runtime/platform-session";
 import { InlinePlatformError } from "@/components/shared/InlinePlatformError";
-import { PlatformConnectivityStrip } from "@/components/PlatformConnectivityStrip";
-import { isPlatformAuthoritative } from "@/runtime/platform-store-bridge";
 import {
   isNavayuTenant,
   loadPatientPhone,
@@ -349,10 +347,6 @@ export default function ReceptionAppointments() {
 
   return (
     <div className="space-y-6">
-      {isPlatformAuthoritative() ? (
-        <PlatformConnectivityStrip detail="Appointments hydrate from scheduling range and OPD queue linkage when platform runtime is on." />
-      ) : null}
-
       <InlinePlatformError
         error={platformError}
         onRetry={syncPlatformAppointments}

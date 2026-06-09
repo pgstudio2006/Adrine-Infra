@@ -21,7 +21,7 @@
       "enabled": true
     },
     "receptionist": {
-      "label": "Reception",
+      "label": "Front Desk",
       "description": "Registration, queue, front-desk billing",
       "enabled": true
     },
@@ -36,7 +36,7 @@
       "enabled": true
     },
     "billing": {
-      "label": "Counsellor / Packages",
+      "label": "Counsellor",
       "description": "Treatment packages and revenue proposals",
       "enabled": true
     },
@@ -236,9 +236,6 @@
     },
     "receptionist": {
       "dashboard": {
-        "visible": true
-      },
-      "flow-hub": {
         "visible": true
       },
       "registration": {

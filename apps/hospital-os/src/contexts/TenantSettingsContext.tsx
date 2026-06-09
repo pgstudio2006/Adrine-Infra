@@ -17,6 +17,7 @@ import {
 } from '@/config/tenantSettings';
 import { TenantSettingsContext, TenantSettingsContextType } from '@/contexts/tenantSettingsStore';
 import { getCounsellorCrmTabs, getEffectiveTabVisibility, NavUserContext, resolveNavProfile } from '@/config/routeAccess';
+import { getNavayuRoleDisplayLabel } from '@/lib/navayu/navayu-forms';
 import { isNavRouteVisible } from '@/config/nav-visibility';
 import { getServerTenantSettings, loadBranchConfig } from '@/runtime/branch-config';
 import { getPlatformSession, isPlatformRuntimeEnabled } from '@/runtime/platform-session';
@@ -143,7 +144,7 @@ export function TenantSettingsProvider({ children }: { children: React.ReactNode
   }
 
   function getRoleLabel(role: UserRole) {
-    return settings.roles[role].label;
+    return getNavayuRoleDisplayLabel(role, settings.roles[role].label);
   }
 
   function getRoleDescription(role: UserRole) {
@@ -180,6 +181,10 @@ export function TenantSettingsProvider({ children }: { children: React.ReactNode
 
     const visibleTabs = roleTabs
       .filter((tab) => {
+        if (tab.key === 'flow-hub') {
+          return false;
+        }
+
         if (!isNavRouteVisible(tab.path)) {
           return false;
         }

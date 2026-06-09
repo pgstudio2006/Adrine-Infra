@@ -7,7 +7,6 @@ import {
   UserPlus,
   ArrowRight,
   Activity,
-  ClipboardList,
   Building2,
   UserCheck,
 } from "lucide-react";
@@ -19,8 +18,6 @@ import {
   formatWaitMinutes,
 } from "@/lib/opd/queue-presenters";
 import { Button } from "@/components/ui/button";
-import { PlatformConnectivityStrip } from "@/components/PlatformConnectivityStrip";
-import { isPlatformAuthoritative } from "@/runtime/platform-store-bridge";
 import { InlinePlatformError } from "@/components/shared/InlinePlatformError";
 import { usePlatformHydration } from "@/hooks/usePlatformHydration";
 
@@ -107,24 +104,16 @@ export default function ReceptionDashboard() {
 
   return (
     <div className="space-y-6">
-      {isPlatformAuthoritative() ? (
-        <PlatformConnectivityStrip detail="Dashboard metrics derive from hydrated patients, appointments, OPD board queue, and IPD snapshots." />
-      ) : null}
-
       <InlinePlatformError error={hydrationError} onRetry={retry} />
 
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Reception</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Front Desk</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Front desk command — run the P0 OPD spine through Flow,
-            Registration, Appointments, Check-In, Queue, and Billing
+            Registration, appointments, check-in, queue, and billing
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" onClick={() => navigate("/reception/flow")}>
-            Flow hub
-          </Button>
           <Button
             onClick={() => navigate("/reception/registration")}
             className="gap-2"
@@ -159,18 +148,7 @@ export default function ReceptionDashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <button
-          type="button"
-          onClick={() => navigate("/reception/flow")}
-          className="rounded-xl border p-4 hover:bg-accent/50 transition-colors text-left"
-        >
-          <ClipboardList className="w-5 h-5 text-primary mb-2" />
-          <p className="text-sm font-semibold">Flow hub</p>
-          <p className="text-xs text-muted-foreground">
-            OPD spine and blockers
-          </p>
-        </button>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         <button
           type="button"
           onClick={() => navigate("/reception/registration")}
@@ -288,11 +266,6 @@ export default function ReceptionDashboard() {
         </div>
       </div>
 
-      <div className="rounded-xl border bg-card p-4 flex items-center gap-2 text-xs text-muted-foreground">
-        <ClipboardList className="w-4 h-4 shrink-0" />
-        Use Flow hub to avoid skipping check-in or queue handoff. Billing exit
-        is the final front-desk step before the patient leaves.
-      </div>
     </div>
   );
 }

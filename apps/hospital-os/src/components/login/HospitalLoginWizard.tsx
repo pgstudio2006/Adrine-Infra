@@ -36,6 +36,7 @@ import {
   type HospitalGateResponse,
   type PortalBranch,
 } from '@/runtime/auth-portal';
+import { getNavayuRoleDisplayLabel } from '@/lib/navayu/navayu-forms';
 
 const ROLE_ICONS: Record<string, React.ReactNode> = {
   admin: <Shield className="w-6 h-6" />,
@@ -111,7 +112,12 @@ export function HospitalLoginWizard({ onRaiseTicket }: Props) {
     setLoadingRoles(true);
     void fetchBranchPortalRoles(selectedBranch.id, gate.tenantId)
       .then((roles) => {
-        setPortalRoles(roles);
+        setPortalRoles(
+          roles.map((role) => ({
+            ...role,
+            label: getNavayuRoleDisplayLabel(role.role, role.label),
+          })),
+        );
         if (roles.length === 0) {
           toast.error('No modules enabled for this branch');
         }

@@ -93,7 +93,6 @@ export const ROLE_TABS: Record<UserRole, RoleTab[]> = {
   ],
   receptionist: [
     { key: "dashboard", label: "Dashboard", path: "/reception" },
-    { key: "flow-hub", label: "Flow", path: "/reception/flow" },
     {
       key: "registration",
       label: "Registration",

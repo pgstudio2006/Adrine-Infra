@@ -450,6 +450,14 @@ export function isNavayuTenant(): boolean {
   return !!tenantId && /navayu/i.test(tenantId);
 }
 
+/** Navayu-facing role labels (login tiles, navbar) override legacy pack strings. */
+export function getNavayuRoleDisplayLabel(role: string, fallback: string): string {
+  if (!isNavayuTenant()) return fallback;
+  if (role === 'billing') return 'Counsellor';
+  if (role === 'receptionist') return 'Front Desk';
+  return fallback;
+}
+
 export function getNavayuRegistrationForm(): NavayuFormDefinition {
   return loadFormFromBranch('registration_v0', DEFAULT_REGISTRATION_FORM);
 }

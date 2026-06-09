@@ -28,7 +28,6 @@ const C1_LEANING_EXACT: readonly string[] = [
   "/doctor/radiology",
   "/doctor/ipd",
   "/reception",
-  "/reception/flow",
   "/reception/registration",
   "/reception/checkin",
   "/reception/queue",
@@ -448,7 +447,7 @@ export function getRoutePreviewMessage(pathname: string): string {
     return "This doctor view is partially connected. Queue, consultation, labs, and IPD profiles use platform when runtime is on.";
   }
   if (pathname === "/reception/photos") {
-    return "Patient photos are preview-only. Registration, check-in, queue, and flow hub are the platform-backed reception P0 path.";
+    return "Patient photos are preview-only. Registration, check-in, and queue are the platform-backed front desk P0 path.";
   }
   if (pathname === "/reception/billing") {
     return "Front-desk billing posts charges to domain finance when platform runtime is on (OPD draft + sync charge). Counsellor MSK packages use /billing-dept/counselling.";
@@ -457,7 +456,7 @@ export function getRoutePreviewMessage(pathname: string): string {
     return "Navayu counsellor desk: protocol tiers from protocols.json, MSK workflow transitions, billing charge sync, and scheduling follow-up when runtime is on.";
   }
   if (pathname.startsWith("/reception")) {
-    return "Reception P0 is C1-leaning: dashboard, registration, appointments, check-in, queue, billing, beds, IPD, and flow hub use platform data when runtime is on.";
+    return "Front desk P0 is C1-leaning: dashboard, registration, appointments, check-in, queue, billing, beds, and IPD use platform data when runtime is on.";
   }
   return "This module is in preview. Operational truth may be local-only until the platform spine is connected.";
 }

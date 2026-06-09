@@ -12,8 +12,6 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AppSelect } from '@/components/ui/app-select';
 import { useTenantSettings } from '@/hooks/useTenantSettings';
-import { isPlatformAuthoritative } from '@/runtime/platform-store-bridge';
-import { PlatformConnectivityStrip } from '@/components/PlatformConnectivityStrip';
 import { useClinicalPlatformListSync } from '@/hooks/useClinicalPlatformListSync';
 import { InlinePlatformError } from '@/components/opd/InlinePlatformError';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -1848,12 +1846,6 @@ export default function ReceptionRegistration() {
   return (
     <div className="space-y-6">
       <InlinePlatformError message={platformError} onDismiss={() => setPlatformError(null)} />
-      {isPlatformAuthoritative() && (
-        <PlatformConnectivityStrip
-          label="Registration spine"
-          detail={`${storePatients.length} patients in session store · new registrations sync to domain-api when runtime is on`}
-        />
-      )}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Patient Registration</h1>

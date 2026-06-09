@@ -12,8 +12,6 @@ import { AppSelect } from "@/components/ui/app-select";
 import { InlinePlatformError } from "@/components/opd/InlinePlatformError";
 import { useReceptionPlatform } from "@/hooks/useReceptionPlatform";
 import { Button } from "@/components/ui/button";
-import { PlatformConnectivityStrip } from "@/components/PlatformConnectivityStrip";
-import { isPlatformAuthoritative } from "@/runtime/platform-store-bridge";
 import { isNavayuTenant, NAVAYU_CLINICAL_DEPARTMENTS } from "@/lib/navayu/navayu-forms";
 import {
   getClinicalDepartments,
@@ -156,10 +154,6 @@ export default function ReceptionCheckIn() {
 
   return (
     <div className="space-y-6">
-      {isPlatformAuthoritative() ? (
-        <PlatformConnectivityStrip detail="Appointments and queue board hydrate on check-in and SSE deltas." />
-      ) : null}
-
       <InlinePlatformError
         message={errorDismissed ? null : platformError}
         onDismiss={() => setErrorDismissed(true)}

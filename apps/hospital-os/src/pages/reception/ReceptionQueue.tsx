@@ -8,8 +8,6 @@ import { useReceptionPlatform } from '@/hooks/useReceptionPlatform';
 import { averageWaitMinutes, formatWaitMinutes, queueEntryKey } from '@/lib/opd/queue-presenters';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { PlatformConnectivityStrip } from '@/components/PlatformConnectivityStrip';
-import { isPlatformAuthoritative } from '@/runtime/platform-store-bridge';
 
 type QueueGroup = Record<string, ReturnType<typeof useHospital>['queue']>;
 
@@ -79,12 +77,6 @@ export default function ReceptionQueue() {
 
   return (
     <div className="space-y-6">
-      {isPlatformAuthoritative() ? (
-        <PlatformConnectivityStrip
-          detail="Queue hydrated from GET /opd/board/visits · wait times from visit createdAt"
-        />
-      ) : null}
-
       <InlinePlatformError
         message={errorDismissed ? null : platformError}
         onDismiss={() => setErrorDismissed(true)}
