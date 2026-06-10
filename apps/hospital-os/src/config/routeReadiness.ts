@@ -83,7 +83,6 @@ const C1_LEANING_LAB_PREFIXES: readonly string[] = ["/lab/"];
 const LAB_PREVIEW_EXACT = new Set([
   "/lab/catalog",
   "/lab/qc",
-  "/lab/analyzers",
   "/lab/referral",
   "/lab/consumables",
   "/lab/histo",
