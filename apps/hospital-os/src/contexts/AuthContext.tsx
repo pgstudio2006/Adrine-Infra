@@ -12,6 +12,7 @@ import { platformFetch } from '@/runtime/platform-client';
 import { coerceTenantSettings } from '@/config/tenantSettings';
 import { roleCanAccessModule } from '@engines/packs';
 import { toast } from 'sonner';
+import { allowDemoLogin } from '@/lib/platform/demo-fallback';
 
 function isProductionHospitalOs(): boolean {
   return import.meta.env.PROD === true;
@@ -193,21 +194,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(
     (role: UserRole, name: string, options?: { department?: string }) => {
+      if (!allowDemoLogin()) {
+        toast.error('Use email and password to sign in', {
+          description: 'Role picker login is disabled when platform auth is required.',
+        });
+        return;
+      }
+
+      const newUser: User = {
+        id: crypto.randomUUID(),
+        name,
+        role,
+        department: options?.department,
+      };
+
+      if (!isPlatformRuntimeEnabled()) {
+        persistUser(newUser);
+        return;
+      }
+
       const run = async () => {
-        if (isProductionHospitalOs()) {
-          toast.error('Use email and password to sign in', {
-            description: 'Role picker login is disabled in production builds.',
-          });
-          return;
-        }
-
-        const newUser: User = {
-          id: crypto.randomUUID(),
-          name,
-          role,
-          department: options?.department,
-        };
-
         if (isPlatformRuntimeEnabled()) {
           const kernel = import.meta.env.VITE_KERNEL_API_URL as string | undefined;
           if (kernel) {

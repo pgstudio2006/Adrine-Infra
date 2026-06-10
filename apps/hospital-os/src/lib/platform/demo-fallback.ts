@@ -1,5 +1,12 @@
 import { isPlatformRuntimeEnabled } from '@/runtime/platform-session';
 
+/** Role-picker / one-click demo login (Vercel static demo, local dev). */
+export function allowDemoLogin(): boolean {
+  if (!import.meta.env.PROD) return true;
+  if (!isPlatformRuntimeEnabled()) return true;
+  return import.meta.env.VITE_ALLOW_DEMO_LOGIN === 'true';
+}
+
 /**
  * Demo/sample UI data is allowed only for local Vite dev without platform APIs.
  * Production and platform-runtime builds must never show fabricated rows.

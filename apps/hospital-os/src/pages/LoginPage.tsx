@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { HospitalLoginWizard } from '@/components/login/HospitalLoginWizard';
+import { isNavayuTenant } from '@/lib/navayu/navayu-forms';
 
 const ROLE_ICONS: Record<UserRole, React.ReactNode> = {
   admin: <Shield className="w-6 h-6" />,
@@ -115,6 +116,7 @@ export default function LoginPage() {
   const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
   const [ticketForm, setTicketForm] = useState<TicketFormState>(createInitialTicketForm());
   const openTicketDialog = () => setIsTicketDialogOpen(true);
+  const showStandaloneModules = !isNavayuTenant();
 
   const doctorDirectory = useMemo(() => {
     const departmentMap = new Map<string, Set<string>>();
@@ -309,6 +311,7 @@ export default function LoginPage() {
           <HospitalLoginWizard onRaiseTicket={openTicketDialog} />
         ) : (
           <>
+        {showStandaloneModules && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           <motion.button
             type="button"
@@ -346,6 +349,7 @@ export default function LoginPage() {
             </p>
           </motion.button>
         </div>
+        )}
 
         {/* Role Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
