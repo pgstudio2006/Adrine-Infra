@@ -127,9 +127,12 @@ export type Analyzer = {
 };
 
 export const ANALYZERS: Analyzer[] = [
-  { id: "AN-HEM-01", name: "Sysmex XN-1000", section: "Hematology", protocol: "HL7 ASTM", status: "online", pendingMessages: 0 },
-  { id: "AN-CHE-01", name: "Roche cobas c311", section: "Biochemistry", protocol: "HL7 v2 ORU", status: "online", pendingMessages: 0 },
-  { id: "AN-CHE-02", name: "Beckman AU480", section: "Biochemistry", protocol: "HL7 v2 ORU", status: "maintenance", pendingMessages: 0 },
-  { id: "AN-MIC-01", name: "BD BACTEC FX", section: "Microbiology", protocol: "Manual", status: "online", pendingMessages: 0 },
-  { id: "AN-SER-01", name: "BioMérieux VIDAS", section: "Serology", protocol: "HL7 ASTM", status: "offline", pendingMessages: 0 },
+  { id: "sysmex-xt1000", name: "Sysmex XT-1000", section: "Hematology", protocol: "HL7 v2 ORU", status: "online", pendingMessages: 0 },
+  { id: "transasia-elite580", name: "Transasia Elite 580", section: "Hematology", protocol: "HL7 ASTM", status: "online", pendingMessages: 0 },
+  { id: "biomerieux-bactalert", name: "Biomérieux BACT/ALERT", section: "Microbiology", protocol: "HL7 v2 ORU", status: "online", pendingMessages: 0 },
+  { id: "biomerieux-vitek", name: "Biomérieux VITEK", section: "Microbiology", protocol: "HL7 v2 ORU", status: "online", pendingMessages: 0 },
+  { id: "dyses-chemistry", name: "Dyses Clinical Chemistry", section: "Biochemistry", protocol: "HL7 ASTM", status: "online", pendingMessages: 0 },
+  { id: "biorad-d10", name: "BioRad D-10 HPLC", section: "Biochemistry", protocol: "HL7 ASTM", status: "online", pendingMessages: 0 },
+  { id: "biomerieux-vidas", name: "Biomérieux VIDAS", section: "Serology", protocol: "HL7 v2 ORU", status: "online", pendingMessages: 0 },
+  { id: "transasia-ecl412", name: "Transasia ECL 412", section: "Hematology", protocol: "HL7 ASTM", status: "online", pendingMessages: 0 },
 ];

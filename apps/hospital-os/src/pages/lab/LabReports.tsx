@@ -10,9 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Search, Download, FileText } from "lucide-react";
 import { useHospital } from "@/stores/hospitalStore";
 import { canReleaseLabReport } from "@/operations/lab-stage-guards";
+import { openLabReportPrintWindow } from "@/lib/lis/lab-report-document";
+import { useTenantSettings } from "@/hooks/useTenantSettings";
 
 export default function LabReports() {
   const { labOrders, invoices, updateLabOrder, updateLabStage } = useHospital();
+  const { settings } = useTenantSettings();
   const [search, setSearch] = useState("");
 
   useDepartmentWorklistSync("lab");
@@ -66,6 +69,24 @@ export default function LabReports() {
     setAuthorizedBy(order.authorizedBy || order.validatedBy || "Dr. Pathak");
   };
 
+  const exportReportPdf = (order = selectedOrder) => {
+    if (!order) return;
+    openLabReportPrintWindow({
+      labName: settings.branding.organizationName || "ADRINE Laboratory",
+      orderId: order.orderId,
+      patientName: order.patientName,
+      uhid: order.uhid,
+      specimenType: order.specimenType || specimenType,
+      methodName: order.methodName || methodName,
+      reportedAt: order.reportedAt || new Date().toLocaleString("en-IN"),
+      results: order.results || results,
+      interpretation: order.interpretation || interpretation,
+      comments: order.comments || comments,
+      authorizedBy: order.authorizedBy || authorizedBy,
+      machineSource: order.methodName,
+    });
+  };
+
   const saveReportDraft = (release: boolean) => {
     if (!selectedOrder) return;
     updateLabOrder(selectedOrder.orderId, {
@@ -93,7 +114,14 @@ export default function LabReports() {
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Reports</h1>
           <p className="text-sm text-muted-foreground mt-1">Released lab reports and validated result summaries</p>
         </div>
-        <Button size="sm" variant="outline"><Download className="h-4 w-4 mr-1" /> Export Report</Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!filteredOrders[0]}
+          onClick={() => exportReportPdf(filteredOrders[0])}
+        >
+          <Download className="h-4 w-4 mr-1" /> Export Report
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -170,9 +198,12 @@ export default function LabReports() {
                     <Badge variant={order.stage === "Reported" ? "default" : "secondary"} className="text-xs">{order.stage}</Badge>
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">{order.reportedAt || "Not released"}</TableCell>
-                  <TableCell>
+                  <TableCell className="flex gap-1">
                     <Button variant="ghost" size="icon" onClick={() => openOrder(order.orderId)}>
                       <FileText className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => exportReportPdf(order)} title="Export PDF">
+                      <Download className="h-4 w-4" />
                     </Button>
                   </TableCell>
                       </>
@@ -249,6 +280,7 @@ export default function LabReports() {
                 </div>
               </div>
               <div className="flex gap-2">
+                <Button variant="outline" onClick={() => exportReportPdf()}><Download className="h-4 w-4 mr-1" /> PDF</Button>
                 <Button variant="outline" className="flex-1" onClick={() => saveReportDraft(false)}>Save Draft</Button>
                 <Button className="flex-1" onClick={() => saveReportDraft(true)}>Release Report</Button>
               </div>

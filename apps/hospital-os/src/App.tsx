@@ -124,6 +124,13 @@ import LabReferral from "@/pages/lab/LabReferral";
 import LabConsumables from "@/pages/lab/LabConsumables";
 import LabHisto from "@/pages/lab/LabHisto";
 
+// Blood Bank pages
+import BloodBankDashboard from "@/pages/blood-bank/BloodBankDashboard";
+import BloodBankDonors from "@/pages/blood-bank/BloodBankDonors";
+import BloodBankInventory from "@/pages/blood-bank/BloodBankInventory";
+import BloodBankIssue from "@/pages/blood-bank/BloodBankIssue";
+import BloodBankCompliance from "@/pages/blood-bank/BloodBankCompliance";
+
 // Pharmacy pages
 import PharmacyDashboard from "@/pages/pharmacy/PharmacyDashboard";
 import PharmacyPrescriptions from "@/pages/pharmacy/PharmacyPrescriptions";
@@ -438,6 +445,14 @@ const LAB_PAGES: Record<string, React.ComponentType> = {
   "/lab/referral": LabReferral,
   "/lab/consumables": LabConsumables,
   "/lab/histo": LabHisto,
+};
+
+const BLOOD_BANK_PAGES: Record<string, React.ComponentType> = {
+  "/blood-bank": BloodBankDashboard,
+  "/blood-bank/donors": BloodBankDonors,
+  "/blood-bank/inventory": BloodBankInventory,
+  "/blood-bank/issue": BloodBankIssue,
+  "/blood-bank/compliance": BloodBankCompliance,
 };
 
 const PHARMACY_PAGES: Record<string, React.ComponentType> = {
@@ -822,6 +837,19 @@ function AppRoutes() {
         />
       ))}
 
+      {/* Blood Bank routes */}
+      {Object.entries(BLOOD_BANK_PAGES).map(([path, Component]) => (
+        <Route
+          key={path}
+          path={path}
+          element={
+            <AppLayout>
+              <Component />
+            </AppLayout>
+          }
+        />
+      ))}
+
       {/* Pharmacy routes — fully built */}
       {Object.entries(PHARMACY_PAGES).map(([path, Component]) => (
         <Route
@@ -989,6 +1017,7 @@ function AppRoutes() {
             !RECEPTION_PAGES[t.path] &&
             !NURSE_PAGES[t.path] &&
             !LAB_PAGES[t.path] &&
+            !BLOOD_BANK_PAGES[t.path] &&
             !PHARMACY_PAGES[t.path] &&
             !RADIOLOGY_PAGES[t.path] &&
             !BILLING_PAGES[t.path] &&

@@ -267,6 +267,11 @@ export default function LoginPage() {
     navigate('/dashboard');
   };
 
+  const launchStandaloneModule = (module: 'lis' | 'blood-bank') => {
+    login('lab_technician', module === 'lis' ? 'LIS Demo' : 'Blood Bank Demo');
+    navigate(module === 'lis' ? '/lab/analyzers' : '/blood-bank');
+  };
+
   return (
     <div className="min-h-screen bg-[#fbfbf9] text-zinc-950 flex flex-col items-center justify-center p-6 relative overflow-hidden">
       <div
@@ -304,6 +309,44 @@ export default function LoginPage() {
           <HospitalLoginWizard onRaiseTicket={openTicketDialog} />
         ) : (
           <>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <motion.button
+            type="button"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            onClick={() => launchStandaloneModule('lis')}
+            className="rounded-md border border-primary/40 bg-primary/5 p-5 text-left hover:border-primary hover:shadow-md transition-all"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="rounded-sm bg-primary text-primary-foreground p-2">
+                <FlaskConical className="w-5 h-5" />
+              </div>
+              <p className="font-bold text-sm">Laboratory Information System (LIS)</p>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              8 pathology analysers — Sysmex, Transasia, Biomérieux, Dyses, BioRad. HL7 middleware demo with auto report generation.
+            </p>
+          </motion.button>
+          <motion.button
+            type="button"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            onClick={() => launchStandaloneModule('blood-bank')}
+            className="rounded-md border border-rose-300/60 bg-rose-50/80 p-5 text-left hover:border-rose-400 hover:shadow-md transition-all"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="rounded-sm bg-rose-600 text-white p-2">
+                <Droplets className="w-5 h-5" />
+              </div>
+              <p className="font-bold text-sm">Blood Bank Management</p>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Donor to transfusion lifecycle — TTI testing, component inventory, cross-match, NBTC & DCA reporting.
+            </p>
+          </motion.button>
+        </div>
+
         {/* Role Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
           {roles.map((role, i) => {
