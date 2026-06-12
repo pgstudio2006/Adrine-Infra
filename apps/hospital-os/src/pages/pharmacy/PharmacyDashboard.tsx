@@ -1,6 +1,4 @@
 import { useMemo } from "react";
-import { isAdrine2026Experience } from "@/lib/adrine/experience";
-import PharmacyDashboard2026 from "@/pages/pharmacy/PharmacyDashboard2026";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,10 +41,6 @@ const severityIcon: Record<string, string> = {
 };
 
 export default function PharmacyDashboard() {
-  if (isAdrine2026Experience()) {
-    return <PharmacyDashboard2026 />;
-  }
-
   const { prescriptions, pharmacyInventory } = useHospital();
   useDepartmentWorklistSync("pharmacy");
 

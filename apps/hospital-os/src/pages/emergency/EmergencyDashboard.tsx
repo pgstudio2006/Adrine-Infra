@@ -1,7 +1,5 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { isAdrine2026Experience } from '@/lib/adrine/experience';
-import EmergencyDashboard2026 from '@/pages/emergency/EmergencyDashboard2026';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,10 +21,6 @@ import { useEmergencyOperationalStream } from '@/hooks/useEmergencyOperationalSt
 import { TraumaBayBoard } from '@/components/emergency/TraumaBayBoard';
 
 export default function EmergencyDashboard() {
-  if (isAdrine2026Experience()) {
-    return <EmergencyDashboard2026 />;
-  }
-
   const navigate = useNavigate();
   const { emergencyCases, createEmergencyCase } = useHospital();
   useEmergencyOperationalStream({ worklists: true });

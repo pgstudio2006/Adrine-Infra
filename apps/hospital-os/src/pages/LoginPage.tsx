@@ -24,8 +24,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { HospitalLoginWizard } from '@/components/login/HospitalLoginWizard';
 import { isNavayuTenant } from '@/lib/navayu/navayu-forms';
-import { isAdrine2026Experience } from '@/lib/adrine/experience';
-import AdrineLoginPage from '@/pages/AdrineLoginPage';
 
 const ROLE_ICONS: Record<UserRole, React.ReactNode> = {
   admin: <Shield className="w-6 h-6" />,
@@ -275,10 +273,6 @@ export default function LoginPage() {
     login('lab_technician', module === 'lis' ? 'LIS Demo' : 'Blood Bank Demo');
     navigate(module === 'lis' ? '/lab/analyzers' : '/blood-bank');
   };
-
-  if (isAdrine2026Experience()) {
-    return <AdrineLoginPage />;
-  }
 
   return (
     <div className="min-h-screen bg-[#fbfbf9] text-zinc-950 flex flex-col items-center justify-center p-6 relative overflow-hidden">

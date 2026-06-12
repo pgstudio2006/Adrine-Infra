@@ -1,6 +1,4 @@
 import { useMemo } from 'react';
-import { isAdrine2026Experience } from '@/lib/adrine/experience';
-import CRMDashboard2026 from './CRMDashboard2026';
 import { useCrmPlatform } from '@/hooks/useCrmPlatform';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -50,8 +48,6 @@ const statusStyles: Record<string, string> = {
 };
 
 export default function CRMDashboard() {
-  if (isAdrine2026Experience()) return <CRMDashboard2026 />;
-
   const { platformOn, summary, leads: platformLeads, campaigns: platformCampaigns, lifecycle: platformLifecycle } =
     useCrmPlatform();
 

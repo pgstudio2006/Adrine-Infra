@@ -1,6 +1,4 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { isAdrine2026Experience } from '@/lib/adrine/experience';
-import DashboardPage2026 from './DashboardPage2026';
 import { motion } from 'framer-motion';
 import {
   Users, CalendarDays, BedDouble, TrendingUp, Activity,
@@ -99,8 +97,6 @@ const typeIcons = {
 
 // ── Component ──────────────────────────────────────
 export default function DashboardPage() {
-  if (isAdrine2026Experience()) return <DashboardPage2026 />;
-
   const { user } = useAuth();
   const role = user?.role ?? 'admin';
 

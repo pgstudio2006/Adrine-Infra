@@ -1,8 +1,5 @@
 import { motion } from 'framer-motion';
 import { Construction } from 'lucide-react';
-import { isAdrine2026Experience } from '@/lib/adrine/experience';
-import { getModulePreset } from '@/lib/adrine/module-presets';
-import AdrineModuleScreen from '@/components/modules/AdrineModuleScreen';
 
 interface RolePlaceholderProps {
   title: string;
@@ -10,20 +7,6 @@ interface RolePlaceholderProps {
 }
 
 export default function RolePlaceholder({ title, subtitle }: RolePlaceholderProps) {
-  if (isAdrine2026Experience()) {
-    const preset = getModulePreset(title);
-    return (
-      <AdrineModuleScreen
-        title={title}
-        subtitle={subtitle ?? preset.subtitle}
-        module={title}
-        metrics={preset.metrics}
-        workflow={preset.workflow}
-        aiInsight={preset.aiInsight}
-      />
-    );
-  }
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }}

@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { isAdrine2026Experience } from "@/lib/adrine/experience";
-import NurseDashboard2026 from "@/pages/nurse/NurseDashboard2026";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useHospital } from "@/stores/hospitalStore";
 import { useClinicalPlatformListSync } from "@/hooks/useClinicalPlatformListSync";
@@ -51,10 +49,6 @@ function parseRecordedAt(value: string): number {
 }
 
 export default function NurseDashboard() {
-  if (isAdrine2026Experience()) {
-    return <NurseDashboard2026 />;
-  }
-
   const {
     admissions,
     nursingRounds,
