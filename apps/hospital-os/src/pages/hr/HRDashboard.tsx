@@ -1,4 +1,6 @@
 import { motion } from 'framer-motion';
+import { isAdrine2026Experience } from '@/lib/adrine/experience';
+import HRDashboard2026 from './HRDashboard2026';
 import { useHrPlatform } from '@/hooks/useHrPlatform';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +44,7 @@ const pendingActions = [
 ];
 
 export default function HRDashboard() {
+  if (isAdrine2026Experience()) return <HRDashboard2026 />;
   const { platformOn, staff } = useHrPlatform();
   const totalStaff = platformOn && staff.length > 0 ? String(staff.length) : stats[0].value;
 

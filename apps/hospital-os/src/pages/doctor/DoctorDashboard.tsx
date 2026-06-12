@@ -30,6 +30,8 @@ import { useDashboardEngine } from '@/hooks/useDashboardEngine';
 import { buildDoctorKpis } from '@/lib/dashboard/dashboard-engine';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { isAdrine2026Experience } from '@/lib/adrine/experience';
+import DoctorDashboard2026 from './DoctorDashboard2026';
 
 const fadeIn = (i: number) => ({
   initial: { opacity: 0, y: 12 },
@@ -72,6 +74,11 @@ function formatDisplayTime(value: string) {
 }
 
 export default function DoctorDashboard() {
+  if (isAdrine2026Experience()) return <DoctorDashboard2026 />;
+  return <DoctorDashboardLegacy />;
+}
+
+function DoctorDashboardLegacy() {
   const navigate = useNavigate();
   const roleBasePath = useClinicalBasePath();
   const { nursingRounds } = useHospital();

@@ -3,6 +3,8 @@ import { Badge } from '@/components/ui/badge';
 import { Users, Bed, CalendarDays, Activity, IndianRupee, Pill, FlaskConical, UsersRound, FileText, ArrowRight, Globe, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { isAdrine2026Experience } from '@/lib/adrine/experience';
+import AdminDashboard2026 from './AdminDashboard2026';
 
 const STATS = [
   { label: 'Total Patients', value: '8', sub: '+12% this month', icon: Users, color: 'text-success' },
@@ -42,6 +44,11 @@ const item = {
 };
 
 export default function AdminDashboard() {
+  if (isAdrine2026Experience()) return <AdminDashboard2026 />;
+  return <AdminDashboardLegacy />;
+}
+
+function AdminDashboardLegacy() {
   const navigate = useNavigate();
 
   return (

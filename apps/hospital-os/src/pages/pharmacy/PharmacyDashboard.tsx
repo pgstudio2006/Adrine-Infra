@@ -8,6 +8,8 @@ import { useHospital } from "@/stores/hospitalStore";
 import { useDepartmentWorklistSync } from "@/hooks/useDepartmentWorklistSync";
 import { PlatformConnectivityStrip } from "@/components/PlatformConnectivityStrip";
 import { isPlatformAuthoritative } from "@/runtime/platform-store-bridge";
+import { isAdrine2026Experience } from "@/lib/adrine/experience";
+import PharmacyDashboard2026 from "./PharmacyDashboard2026";
 
 type RecentRx = {
   id: string;
@@ -41,6 +43,7 @@ const severityIcon: Record<string, string> = {
 };
 
 export default function PharmacyDashboard() {
+  if (isAdrine2026Experience()) return <PharmacyDashboard2026 />;
   const { prescriptions, pharmacyInventory } = useHospital();
   useDepartmentWorklistSync("pharmacy");
 

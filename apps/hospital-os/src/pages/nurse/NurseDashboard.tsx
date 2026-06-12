@@ -33,6 +33,8 @@ import {
   ClinicalTableEmptyRow,
   NursePageHeader,
 } from "@/components/clinical/ClinicalTableStates";
+import { isAdrine2026Experience } from "@/lib/adrine/experience";
+import NurseDashboard2026 from "./NurseDashboard2026";
 
 /** Hours after which a patient is considered "vitals overdue" without a fresh round. */
 const VITALS_DUE_HOURS = 6;
@@ -49,6 +51,7 @@ function parseRecordedAt(value: string): number {
 }
 
 export default function NurseDashboard() {
+  if (isAdrine2026Experience()) return <NurseDashboard2026 />;
   const {
     admissions,
     nursingRounds,

@@ -1,5 +1,7 @@
 import { motion } from 'framer-motion';
 import { Construction } from 'lucide-react';
+import { isAdrine2026Experience } from '@/lib/adrine/experience';
+import ModuleWorkspace from '@/components/adrine/ModuleWorkspace';
 
 interface RolePlaceholderProps {
   title: string;
@@ -7,6 +9,10 @@ interface RolePlaceholderProps {
 }
 
 export default function RolePlaceholder({ title, subtitle }: RolePlaceholderProps) {
+  if (isAdrine2026Experience()) {
+    return <ModuleWorkspace title={title} subtitle={subtitle} />;
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }}

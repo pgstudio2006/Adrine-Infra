@@ -7,6 +7,8 @@ import { useTenantSettings } from '@/hooks/useTenantSettings';
 import { canAccessRoute } from '@/config/routeAccess';
 import { getPlatformSession } from '@/runtime/platform-session';
 import { ModuleAccessDenied } from '@/components/auth/ModuleAccessDenied';
+import { isAdrine2026Experience } from '@/lib/adrine/experience';
+import AdrineTopShell from '@/components/shell/AdrineTopShell';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -17,6 +19,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const { user } = useAuth();
   const { settings } = useTenantSettings();
   const session = getPlatformSession();
+
+  if (isAdrine2026Experience()) {
+    return <AdrineTopShell>{children}</AdrineTopShell>;
+  }
 
   const blocked =
     user &&

@@ -10,6 +10,8 @@ import { useDepartmentWorklistSync } from "@/hooks/useDepartmentWorklistSync";
 import { canUseLabRuntime, platformListLabBranchWorklist } from "@/runtime/lab-runtime";
 import { PlatformConnectivityStrip } from "@/components/PlatformConnectivityStrip";
 import { InlinePlatformError } from "@/components/shared/InlinePlatformError";
+import { isAdrine2026Experience } from "@/lib/adrine/experience";
+import LabDashboard2026 from "./LabDashboard2026";
 
 const priorityColor = (p: string) => {
   if (p === "Emergency") return "destructive";
@@ -24,6 +26,11 @@ const statusColor = (stage: string, sampleStatus: string) => {
 };
 
 export default function LabDashboard() {
+  if (isAdrine2026Experience()) return <LabDashboard2026 />;
+  return <LabDashboardLegacy />;
+}
+
+function LabDashboardLegacy() {
   const { labOrders } = useHospital();
   useDepartmentWorklistSync("lab");
 

@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { isAdrine2026Experience } from '@/lib/adrine/experience';
+import OTDashboard2026 from './OTDashboard2026';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { OperationsModulePage } from '@/components/operations/OperationsModulePage';
@@ -59,6 +61,7 @@ const DEMO_RECOVERY = [
 ];
 
 export default function OTDashboard() {
+  if (isAdrine2026Experience()) return <OTDashboard2026 />;
   const { platformOn, cases, rooms, loading, error, refresh } = useOtPlatformData();
 
   const hasLiveData = platformOn && cases.length > 0;

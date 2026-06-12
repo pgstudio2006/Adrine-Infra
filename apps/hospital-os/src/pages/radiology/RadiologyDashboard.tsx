@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { isAdrine2026Experience } from "@/lib/adrine/experience";
+import RadiologyDashboard2026 from "./RadiologyDashboard2026";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,6 +18,7 @@ const statusColor: Record<string, string> = {
 };
 
 export default function RadiologyDashboard() {
+  if (isAdrine2026Experience()) return <RadiologyDashboard2026 />;
   const { radiologyOrders } = useHospital();
   const [platformError, setPlatformError] = useState<string | null>(null);
   useDepartmentWorklistSync("radiology");
