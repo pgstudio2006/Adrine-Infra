@@ -62,7 +62,7 @@ const protocolAdherence = [
 const deteriorationAlerts = [
   { id: 1, patient: 'Vijay Kumar', bed: 'ICU-B1', alert: 'SpO2 dropped below 88%', time: '2 min ago', severity: 'critical', mews: 8 },
   { id: 2, patient: 'Ramesh Patel', bed: 'ICU-A1', alert: 'MAP <65 for 30 min', time: '8 min ago', severity: 'critical', mews: 7 },
-  { id: 3, patient: 'Arjun Mehta', bed: 'ICU-B2', alert: 'Rising lactate (4.2 → 5.8)', time: '15 min ago', severity: 'warning', mews: 6 },
+  { id: 3, patient: 'Arjun Mehta', bed: 'ICU-B2', alert: 'Rising lactate (4.2 ΓåÆ 5.8)', time: '15 min ago', severity: 'warning', mews: 6 },
   { id: 4, patient: 'Ward-12 Bed 3', bed: 'W12-B3', alert: 'MEWS score increased to 5', time: '22 min ago', severity: 'warning', mews: 5 },
   { id: 5, patient: 'Ward-8 Bed 7', bed: 'W8-B7', alert: 'Urine output <0.5ml/kg/hr x 4hrs', time: '35 min ago', severity: 'moderate', mews: 4 },
 ];
@@ -108,7 +108,7 @@ export default function AdminMortalityAnalytics() {
       {platformOn && (
         <PlatformConnectivityStrip
           label="Live safety signals"
-          detail={`Escalations ${snapshot?.counts.openEscalations ?? 0} · nursing missed ${analytics?.metrics.nursingMissed ?? 0}`}
+          detail={`Escalations ${snapshot?.counts.openEscalations ?? 0} ┬╖ nursing missed ${analytics?.metrics.nursingMissed ?? 0}`}
           error={error}
         />
       )}
@@ -332,7 +332,7 @@ export default function AdminMortalityAnalytics() {
                       <td className="py-2 text-center">{p.responseTime}</td>
                       <td className="py-2 text-center">
                         <Badge variant={p.trend === 'deteriorating' ? 'destructive' : p.trend === 'improving' ? 'default' : 'outline'} className="text-[10px]">
-                          {p.trend === 'deteriorating' ? '↓' : p.trend === 'improving' ? '↑' : '→'} {p.trend}
+                          {p.trend === 'deteriorating' ? 'Γåô' : p.trend === 'improving' ? 'Γåæ' : 'ΓåÆ'} {p.trend}
                         </Badge>
                       </td>
                       <td className="py-2 text-center">{p.admittedHours}h</td>

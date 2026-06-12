@@ -1,6 +1,7 @@
 import { ROLE_BASE_PATH, ROLE_TABS, RoleTab } from '@/config/roleNavigation';
 import { isNavRouteVisible } from '@/config/nav-visibility';
 import { NavProfile, NavProfileMatch, TenantSettings } from '@/config/tenantSettings';
+import { isNavayuTenant } from '@/lib/navayu/navayu-forms';
 import { UserRole } from '@/types/roles';
 
 export interface NavUserContext {
@@ -134,6 +135,14 @@ export function canAccessRoute(
 
   if (!isNavRouteVisible(normalized)) {
     return false;
+  }
+
+  if (
+    isNavayuTenant() &&
+    (normalized === '/hr/staff' || normalized.startsWith('/hr/staff/')) &&
+    ctx.role === 'admin'
+  ) {
+    return settings.roles.admin?.enabled ?? false;
   }
 
   if (!settings.roles[ctx.role]?.enabled) {

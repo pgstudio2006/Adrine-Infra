@@ -11,6 +11,7 @@ import { useHospital } from '@/stores/hospitalStore';
 import { PlatformConnectivityStrip } from '@/components/PlatformConnectivityStrip';
 import { PreviewSectionBadge } from '@/components/shared/PreviewSectionBadge';
 import { useAdminOperationalData } from '@/hooks/useAdminOperationalData';
+import { isNavayuTenant } from '@/lib/navayu/navayu-forms';
 import type { OperationalSnapshotCounts } from '@adrine/hospital-operations';
 
 const fadeIn = (i: number) => ({
@@ -38,6 +39,7 @@ function deptRowsFromCounts(c: OperationalSnapshotCounts) {
 
 export default function AdminCommandCenter() {
   const { emergencyCases, labOrders, prescriptions } = useHospital();
+  const navayuMode = isNavayuTenant();
   const { snapshot, finance, error, loading, platformOn } = useAdminOperationalData('24h');
   const [clock, setClock] = useState(new Date());
 
@@ -103,7 +105,7 @@ export default function AdminCommandCenter() {
 
   return (
     <div className="space-y-4">
-      {platformOn && (
+      {!navayuMode && platformOn && (
         <PlatformConnectivityStrip
           label="Live command center"
           detail={platformDetail ?? 'Loading operational snapshot…'}
@@ -246,9 +248,11 @@ export default function AdminCommandCenter() {
         </Card>
       </motion.div>
 
-      <motion.div {...fadeIn(5)}>
-        <PreviewSectionBadge explanation="Hourly patient flow chart is not on domain analytics yet — use live KPI grid and department load above for operational decisions." />
-      </motion.div>
+      {!navayuMode && (
+        <motion.div {...fadeIn(5)}>
+          <PreviewSectionBadge explanation="Hourly patient flow chart is not on domain analytics yet — use live KPI grid and department load above for operational decisions." />
+        </motion.div>
+      )}
     </div>
   );
 }

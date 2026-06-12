@@ -114,7 +114,7 @@
         "visible": false
       },
       "staff": {
-        "visible": true
+        "visible": false
       },
       "departments": {
         "visible": false
@@ -648,7 +648,7 @@
         "visible": false
       },
       "staff": {
-        "visible": false
+        "visible": true
       },
       "scheduling": {
         "visible": false

@@ -178,8 +178,8 @@ import {
 } from "@/pages/radiology/RadiologyPlannedScreens";
 
 // Admin pages
+import AdminStaffRoute from "@/components/admin/AdminStaffRoute";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
-import AdminStaff from "@/pages/admin/AdminStaff";
 import AdminDepartments from "@/pages/admin/AdminDepartments";
 import AdminFinance from "@/pages/admin/AdminFinance";
 import AdminExpenses from "@/pages/admin/AdminExpenses";
@@ -319,12 +319,12 @@ const ADMIN_PAGES: Record<string, React.ComponentType> = {
   "/admin/mortality": AdminMortalityAnalytics,
   "/admin/ai-workflow": AdminAIWorkflow,
   "/admin/disease-mapping": AdminDiseaseMapping,
+  "/admin/geo-intelligence": AdminGeoIntelligence,
   "/admin/data-mining": AdminDataMining,
   "/admin/kaizen": AdminKaizen,
   "/admin/revenue-cycle": AdminRevenueCycle,
   "/admin/treatment-success": AdminTreatmentSuccess,
   "/admin/morning-briefing": AdminMorningBriefing,
-  "/admin/staff": AdminStaff,
   "/admin/departments": AdminDepartments,
   "/admin/finance": AdminFinance,
   "/admin/expenses": AdminExpenses,
@@ -666,15 +666,6 @@ function AppRoutes() {
           }
         />
       ))}
-      <Route
-        path="/admin/geo-intelligence"
-        element={
-          <AppLayout>
-            <AdminGeoIntelligence />
-          </AppLayout>
-        }
-      />
-
       {Object.entries(DOCTOR_PAGES).map(([path, Component]) => (
         <Route
           key={path}
@@ -927,6 +918,15 @@ function AppRoutes() {
           }
         />
       ))}
+
+      <Route
+        path="/admin/staff"
+        element={
+          <AppLayout>
+            <AdminStaffRoute />
+          </AppLayout>
+        }
+      />
 
       {/* HR routes — fully built */}
       {Object.entries(HR_PAGES).map(([path, Component]) => (

@@ -30,6 +30,11 @@ export const ROLE_TABS: Record<UserRole, RoleTab[]> = {
       label: "Disease Mapping",
       path: "/admin/disease-mapping",
     },
+    {
+      key: "geo-intelligence",
+      label: "Geo Intelligence",
+      path: "/admin/geo-intelligence",
+    },
     { key: "data-mining", label: "Data Mining", path: "/admin/data-mining" },
     { key: "kaizen", label: "Kaizen", path: "/admin/kaizen" },
     {

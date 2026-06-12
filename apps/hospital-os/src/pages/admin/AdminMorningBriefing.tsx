@@ -48,10 +48,10 @@ const LINE_COLORS: Record<string, string> = {
 };
 
 const LINE_PREFIX: Record<string, string> = {
-  info: 'ℹ',
-  success: '✓',
-  warning: '⚠',
-  critical: '✖',
+  info: 'Γä╣',
+  success: 'Γ£ô',
+  warning: 'ΓÜá',
+  critical: 'Γ£û',
 };
 
 export default function AdminMorningBriefing() {
@@ -92,21 +92,21 @@ export default function AdminMorningBriefing() {
   const allTerminalLines: { text: string; type: string }[] = [];
   allTerminalLines.push({ text: `ADRINE AI COMMAND CENTER  |  Good Morning, Administrator`, type: 'info' });
   allTerminalLines.push({ text: `Generated: ${briefing.generatedAt}`, type: 'info' });
-  allTerminalLines.push({ text: `Hospital Health Score: ${briefing.healthScore}/100 — ${briefing.healthLabel}`, type: briefing.healthScore >= 70 ? 'success' : briefing.healthScore >= 50 ? 'warning' : 'critical' });
-  allTerminalLines.push({ text: '─'.repeat(70), type: 'info' });
+  allTerminalLines.push({ text: `Hospital Health Score: ${briefing.healthScore}/100 ΓÇö ${briefing.healthLabel}`, type: briefing.healthScore >= 70 ? 'success' : briefing.healthScore >= 50 ? 'warning' : 'critical' });
+  allTerminalLines.push({ text: 'ΓöÇ'.repeat(70), type: 'info' });
 
   for (const section of briefing.briefingSections) {
-    allTerminalLines.push({ text: `\n▸ ${section.title.toUpperCase()}`, type: 'info' });
+    allTerminalLines.push({ text: `\nΓû╕ ${section.title.toUpperCase()}`, type: 'info' });
     for (const line of section.lines) {
-      allTerminalLines.push({ text: `  ${LINE_PREFIX[line.type] ?? '·'} ${line.text}`, type: line.type });
+      allTerminalLines.push({ text: `  ${LINE_PREFIX[line.type] ?? '┬╖'} ${line.text}`, type: line.type });
     }
   }
 
   const mergedAdvice = [...platformAdvice, ...briefing.advice];
   if (mergedAdvice.length > 0) {
-    allTerminalLines.push({ text: '\n▸ AI RECOMMENDATIONS', type: 'info' });
+    allTerminalLines.push({ text: '\nΓû╕ AI RECOMMENDATIONS', type: 'info' });
     for (const a of mergedAdvice) {
-      allTerminalLines.push({ text: `  → ${a}`, type: 'success' });
+      allTerminalLines.push({ text: `  ΓåÆ ${a}`, type: 'success' });
     }
   }
   if (platformHealth) {
@@ -136,7 +136,7 @@ export default function AdminMorningBriefing() {
       {canUseAIRuntime() && (
         <PlatformConnectivityStrip
           label="Platform morning briefing"
-          detail={platformHealth ? `Branch health: ${platformHealth}` : 'Loading domain AI briefing…'}
+          detail={platformHealth ? `Branch health: ${platformHealth}` : 'Loading domain AI briefingΓÇª'}
           error={aiError}
         />
       )}
@@ -148,7 +148,7 @@ export default function AdminMorningBriefing() {
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight">AI Command Center</h1>
-            <p className="text-sm text-muted-foreground">Morning Briefing — powered by 7 Intelligence Layers</p>
+            <p className="text-sm text-muted-foreground">Morning Briefing ΓÇö powered by 7 Intelligence Layers</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -163,7 +163,7 @@ export default function AdminMorningBriefing() {
 
       {/* Health Score + KPIs Row */}
       <div className="grid grid-cols-7 gap-3">
-        {/* Health Score — larger card */}
+        {/* Health Score ΓÇö larger card */}
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}>
           <Card className={`h-full border-2 ${STATUS_BG[briefing.healthScore >= 70 ? 'good' : briefing.healthScore >= 50 ? 'warning' : 'critical']} shadow-lg ${scoreGlow}`}>
             <CardContent className="p-4 flex flex-col items-center justify-center h-full">
@@ -190,7 +190,7 @@ export default function AdminMorningBriefing() {
 
       <AnimatePresence mode="wait">
         {showTerminal ? (
-          /* ─── Terminal View ─── */
+          /* ΓöÇΓöÇΓöÇ Terminal View ΓöÇΓöÇΓöÇ */
           <motion.div key="terminal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <Card className="bg-zinc-950 border-zinc-800">
               <CardContent className="p-0">
@@ -200,7 +200,7 @@ export default function AdminMorningBriefing() {
                     <div className="w-3 h-3 rounded-full bg-amber-500" />
                     <div className="w-3 h-3 rounded-full bg-emerald-500" />
                   </div>
-                  <p className="text-xs text-zinc-500 font-mono ml-2">adrine-ai-command-center — morning-briefing</p>
+                  <p className="text-xs text-zinc-500 font-mono ml-2">adrine-ai-command-center ΓÇö morning-briefing</p>
                   <Sparkles className="w-3 h-3 text-primary ml-auto animate-pulse" />
                 </div>
                 <div ref={terminalRef} className="p-4 font-mono text-sm overflow-y-auto max-h-[420px] space-y-0.5">
@@ -217,7 +217,7 @@ export default function AdminMorningBriefing() {
             </Card>
           </motion.div>
         ) : (
-          /* ─── Dashboard View ─── */
+          /* ΓöÇΓöÇΓöÇ Dashboard View ΓöÇΓöÇΓöÇ */
           <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
             {/* Briefing Sections */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -295,7 +295,7 @@ export default function AdminMorningBriefing() {
                               </div>
                               <p className="text-xs text-muted-foreground mt-0.5">{alert.message}</p>
                               {alert.suggestedAction && (
-                                <p className="text-[10px] text-primary mt-1">→ {alert.suggestedAction}</p>
+                                <p className="text-[10px] text-primary mt-1">ΓåÆ {alert.suggestedAction}</p>
                               )}
                             </div>
                           </div>

@@ -20,17 +20,50 @@ const fadeIn = (i: number) => ({
   transition: { delay: i * 0.04, duration: 0.3 },
 });
 
-type RevenueByDept = { dept: string; revenue: number; cost: number; margin: number };
-type MonthlyRevenue = { month: string; revenue: number; collection: number; outstanding: number };
-type LeakagePoint = { area: string; amount: string; impact: 'critical' | 'high' | 'medium' | 'low'; description: string };
-type PayerMixSlice = { name: string; value: number; color: string };
-type ClaimsCycleStage = { stage: string; count: number; value: string };
+const revenueByDept = [
+  { dept: 'OPD', revenue: 28.5, cost: 12.2, margin: 57 },
+  { dept: 'IPD', revenue: 45.2, cost: 28.1, margin: 38 },
+  { dept: 'Emergency', revenue: 12.8, cost: 8.4, margin: 34 },
+  { dept: 'Lab', revenue: 18.4, cost: 6.2, margin: 66 },
+  { dept: 'Radiology', revenue: 15.6, cost: 7.8, margin: 50 },
+  { dept: 'Pharmacy', revenue: 22.1, cost: 16.5, margin: 25 },
+  { dept: 'OT/Surgery', revenue: 35.8, cost: 18.2, margin: 49 },
+];
 
-const revenueByDept: RevenueByDept[] = [];
-const monthlyRevenue: MonthlyRevenue[] = [];
-const leakagePoints: LeakagePoint[] = [];
-const payerMix: PayerMixSlice[] = [];
-const claimsCycle: ClaimsCycleStage[] = [];
+const monthlyRevenue = [
+  { month: 'Jul', revenue: 142, collection: 128, outstanding: 14 },
+  { month: 'Aug', revenue: 155, collection: 138, outstanding: 17 },
+  { month: 'Sep', revenue: 148, collection: 135, outstanding: 13 },
+  { month: 'Oct', revenue: 168, collection: 152, outstanding: 16 },
+  { month: 'Nov', revenue: 172, collection: 158, outstanding: 14 },
+  { month: 'Dec', revenue: 185, collection: 170, outstanding: 15 },
+  { month: 'Jan', revenue: 178, collection: 165, outstanding: 13 },
+  { month: 'Feb', revenue: 192, collection: 180, outstanding: 12 },
+];
+
+const leakagePoints = [
+  { area: 'Unbilled Procedures', amount: 'Γé╣4.2L', impact: 'high', description: '23 procedures not linked to billing' },
+  { area: 'Insurance Claim Rejections', amount: 'Γé╣8.5L', impact: 'critical', description: '45 claims rejected ΓÇö incomplete documentation' },
+  { area: 'Pharmacy Returns', amount: 'Γé╣1.8L', impact: 'medium', description: 'Unused dispensed medications not reconciled' },
+  { area: 'Late Charge Capture', amount: 'Γé╣3.1L', impact: 'high', description: 'Ward charges entered >48h after service' },
+  { area: 'Under-coded Diagnoses', amount: 'Γé╣5.7L', impact: 'high', description: 'DRG coding opportunities missed' },
+];
+
+const payerMix = [
+  { name: 'Self-Pay', value: 38, color: 'hsl(var(--primary))' },
+  { name: 'CGHS/ECHS', value: 22, color: 'hsl(var(--destructive))' },
+  { name: 'TPA/Insurance', value: 28, color: 'hsl(var(--muted-foreground))' },
+  { name: 'Corporate', value: 8, color: 'hsl(var(--accent-foreground))' },
+  { name: 'Ayushman Bharat', value: 4, color: 'hsl(var(--secondary-foreground))' },
+];
+
+const claimsCycle = [
+  { stage: 'Claims Submitted', count: 245, value: 'Γé╣48.2L' },
+  { stage: 'Under Processing', count: 89, value: 'Γé╣18.6L' },
+  { stage: 'Approved', count: 128, value: 'Γé╣24.8L' },
+  { stage: 'Rejected', count: 18, value: 'Γé╣3.2L' },
+  { stage: 'Settled', count: 112, value: 'Γé╣22.1L' },
+];
 
 export default function AdminRevenueCycle() {
   const { invoices } = useHospital();
@@ -42,7 +75,7 @@ export default function AdminRevenueCycle() {
     const outstanding = finance.summary.outstandingCents / 100;
     return [
       { label: 'Open Invoices', value: String(finance.summary.openInvoices), change: 'Live finance API', good: true },
-      { label: 'Outstanding', value: `₹${outstanding.toLocaleString('en-IN')}`, change: 'Branch ledger', good: outstanding < 500_000 },
+      { label: 'Outstanding', value: `Γé╣${outstanding.toLocaleString('en-IN')}`, change: 'Branch ledger', good: outstanding < 500_000 },
       { label: 'Billing Blockers', value: String(finance.summary.dischargeBillingBlockers), change: 'Discharge clearance', good: finance.summary.dischargeBillingBlockers === 0 },
       { label: 'Draft Invoices', value: String(snapshot.counts.billingDraftInvoices), change: 'Command snapshot', good: true },
       { label: 'Insurance Auth', value: String(finance.summary.insuranceAuthorizations), change: 'Pending pipeline', good: true },
@@ -54,11 +87,11 @@ export default function AdminRevenueCycle() {
   };
 
   const kpiCards = liveKpis ?? [
-    { label: 'Invoice Total (store)', value: `₹${(totalFromStore / 100).toLocaleString('en-IN')}`, change: 'Local store only', good: true },
-    { label: 'Collection Rate', value: '—', change: 'Connect platform', good: true },
-    { label: 'Revenue Leakage', value: '—', change: 'Connect platform', good: true },
-    { label: 'Avg Days to Collect', value: '—', change: 'Connect platform', good: true },
-    { label: 'Claim Rejection Rate', value: '—', change: 'Connect platform', good: true },
+    { label: 'Monthly Revenue', value: `Γé╣${(192 + totalFromStore / 100).toFixed(1)}L`, change: 'Preview', good: true },
+    { label: 'Collection Rate', value: '93.7%', change: 'Preview', good: true },
+    { label: 'Revenue Leakage', value: 'Γé╣23.3L', change: 'Preview', good: true },
+    { label: 'Avg Days to Collect', value: '32', change: 'Preview', good: true },
+    { label: 'Claim Rejection Rate', value: '7.3%', change: 'Preview', good: true },
   ];
 
   return (
@@ -66,13 +99,13 @@ export default function AdminRevenueCycle() {
       {platformOn && (
         <PlatformConnectivityStrip
           label="Live revenue cycle signals"
-          detail={`Outstanding ₹${((finance?.summary.outstandingCents ?? 0) / 100).toLocaleString('en-IN')} · ${analytics?.metrics.dischargeTurnaround ?? 0} discharges (7d)`}
+          detail={`Outstanding Γé╣${((finance?.summary.outstandingCents ?? 0) / 100).toLocaleString('en-IN')} ┬╖ ${analytics?.metrics.dischargeTurnaround ?? 0} discharges (7d)`}
           error={error}
         />
       )}
       {!platformOn && (
         <p className="text-xs text-muted-foreground border border-dashed rounded-lg px-3 py-2">
-          Platform runtime is off. KPI row uses hospitalStore invoice totals; analytics panels below remain empty until live data is connected.
+          Charts and leakage tables below are illustrative preview data. KPI row uses hospitalStore totals when platform is off.
         </p>
       )}
       <motion.div {...fadeIn(0)} className="flex items-center justify-between">
@@ -111,12 +144,9 @@ export default function AdminRevenueCycle() {
               <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 flex items-center gap-1.5">
                 <Zap className="w-3.5 h-3.5" /> AI-Detected Revenue Leakage Points
               </p>
-              <Badge className="text-[10px] bg-amber-600">{leakagePoints.length} detected</Badge>
+              <Badge className="text-[10px] bg-amber-600">Γé╣23.3L potential recovery</Badge>
             </div>
             <div className="space-y-2">
-              {leakagePoints.length === 0 && (
-                <p className="text-[11px] text-muted-foreground">No revenue leakage points detected yet.</p>
-              )}
               {leakagePoints.map((l, i) => (
                 <div key={i} className="flex items-center justify-between bg-background border rounded-lg p-2.5">
                   <div>
@@ -140,10 +170,7 @@ export default function AdminRevenueCycle() {
         <motion.div {...fadeIn(3)}>
           <Card>
             <CardContent className="p-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Revenue vs Collection Trend (₹L)</p>
-              {monthlyRevenue.length === 0 && (
-                <p className="text-[11px] text-muted-foreground mb-2">No monthly revenue trend data yet.</p>
-              )}
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Revenue vs Collection Trend (Γé╣L)</p>
               <ResponsiveContainer width="100%" height={200}>
                 <AreaChart data={monthlyRevenue}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -164,9 +191,6 @@ export default function AdminRevenueCycle() {
           <Card>
             <CardContent className="p-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Payer Mix Distribution</p>
-              {payerMix.length === 0 && (
-                <p className="text-[11px] text-muted-foreground mb-2">No payer mix data yet.</p>
-              )}
               <div className="flex items-center gap-4">
                 <ResponsiveContainer width="50%" height={180}>
                   <PieChart>
@@ -196,18 +220,15 @@ export default function AdminRevenueCycle() {
         <motion.div {...fadeIn(5)}>
           <Card>
             <CardContent className="p-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Department Revenue & Margin (₹L)</p>
-              {revenueByDept.length === 0 && (
-                <p className="text-[11px] text-muted-foreground mb-2">No department revenue data yet.</p>
-              )}
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Department Revenue & Margin (Γé╣L)</p>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={revenueByDept}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="dept" tick={{ fontSize: 9 }} stroke="hsl(var(--muted-foreground))" />
                   <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
                   <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))' }} />
-                  <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} name="Revenue (₹L)" />
-                  <Bar dataKey="cost" fill="hsl(var(--muted))" radius={[2, 2, 0, 0]} name="Cost (₹L)" />
+                  <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} name="Revenue (Γé╣L)" />
+                  <Bar dataKey="cost" fill="hsl(var(--muted))" radius={[2, 2, 0, 0]} name="Cost (Γé╣L)" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -222,9 +243,6 @@ export default function AdminRevenueCycle() {
                 <FileText className="w-3.5 h-3.5" /> Insurance Claims Pipeline
               </p>
               <div className="space-y-2">
-                {claimsCycle.length === 0 && (
-                  <p className="text-[11px] text-muted-foreground">No insurance claims in pipeline yet.</p>
-                )}
                 {claimsCycle.map((c, i) => (
                   <div key={i} className="flex items-center justify-between border rounded-lg p-2.5">
                     <div className="flex items-center gap-2">

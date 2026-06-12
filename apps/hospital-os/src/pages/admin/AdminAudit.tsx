@@ -8,6 +8,7 @@ import { useMemo, useState } from 'react';
 import { useHospital } from '@/stores/hospitalStore';
 import { PlatformConnectivityStrip } from '@/components/PlatformConnectivityStrip';
 import { useAdminOperationalData } from '@/hooks/useAdminOperationalData';
+import { isNavayuTenant } from '@/lib/navayu/navayu-forms';
 import { downloadCsv } from '@/lib/export';
 import { toast } from 'sonner';
 import {
@@ -27,6 +28,7 @@ function severityFromEventName(name: string): 'info' | 'warning' | 'critical' {
 }
 
 export default function AdminAudit() {
+  const navayuMode = isNavayuTenant();
   const { workflowEvents } = useHospital();
   const { auditEvents, platformOn, error, loading } = useAdminOperationalData('7d');
   const [search, setSearch] = useState('');
@@ -103,14 +105,14 @@ export default function AdminAudit() {
 
   return (
     <div className="space-y-6">
-      {platformOn && (
+      {!navayuMode && platformOn && (
         <PlatformConnectivityStrip
           label="Live audit feed"
           detail={`${auditEvents.length} platform events (7d) + ${workflowEvents.length} local workflow events`}
           error={error}
         />
       )}
-      {!platformOn && !loading && (
+      {!navayuMode && !platformOn && !loading && (
         <p className="text-xs text-muted-foreground rounded-lg border border-dashed px-3 py-2">
           Preview: showing local workflow events only. Enable platform runtime for domain analytics event stream.
         </p>
