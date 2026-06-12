@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { isAdrine2026Experience } from '@/lib/adrine/experience';
+import DoctorDashboard2026 from '@/pages/doctor/DoctorDashboard2026';
 import {
   Users,
   CalendarDays,
@@ -72,6 +74,10 @@ function formatDisplayTime(value: string) {
 }
 
 export default function DoctorDashboard() {
+  if (isAdrine2026Experience()) {
+    return <DoctorDashboard2026 />;
+  }
+
   const navigate = useNavigate();
   const roleBasePath = useClinicalBasePath();
   const { nursingRounds } = useHospital();

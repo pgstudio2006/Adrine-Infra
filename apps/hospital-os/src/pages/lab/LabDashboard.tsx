@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { isAdrine2026Experience } from "@/lib/adrine/experience";
+import LabDashboard2026 from "@/pages/lab/LabDashboard2026";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +26,13 @@ const statusColor = (stage: string, sampleStatus: string) => {
 };
 
 export default function LabDashboard() {
+  if (isAdrine2026Experience()) {
+    return <LabDashboard2026 />;
+  }
+  return <LabDashboardLegacy />;
+}
+
+function LabDashboardLegacy() {
   const { labOrders } = useHospital();
   useDepartmentWorklistSync("lab");
 

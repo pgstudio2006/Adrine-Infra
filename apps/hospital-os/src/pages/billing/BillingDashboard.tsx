@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { isAdrine2026Experience } from "@/lib/adrine/experience";
+import BillingDashboard2026 from "@/pages/billing/BillingDashboard2026";
 import { platformGetBillingDeptDashboard } from "@/runtime/finance-runtime";
 import { canUseFinanceRuntime } from "@/runtime/finance-runtime";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,6 +54,10 @@ const shortcuts = [
 ];
 
 export default function BillingDashboard() {
+  if (isAdrine2026Experience()) {
+    return <BillingDashboard2026 />;
+  }
+
   const aggregates = useBillingStoreAggregates();
   const useLiveKpis = aggregates.platformOn;
   const [desk, setDesk] = useState<{ insuranceCount?: number } | null>(null);

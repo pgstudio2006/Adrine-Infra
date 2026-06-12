@@ -2,8 +2,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Droplets, Heart, Package, AlertTriangle, Thermometer } from "lucide-react";
 import { BLOOD_UNITS, DONORS, REQUISITIONS } from "./bloodBankReferenceData";
+import { isAdrine2026Experience } from '@/lib/adrine/experience';
+import BloodBankDashboard2026 from './BloodBankDashboard2026';
 
 export default function BloodBankDashboard() {
+  if (isAdrine2026Experience()) return <BloodBankDashboard2026 />;
   const available = BLOOD_UNITS.filter((u) => u.status === "Available").length;
   const quarantine = BLOOD_UNITS.filter((u) => u.status === "Quarantine").length;
   const pendingReq = REQUISITIONS.filter((r) => r.status === "Pending").length;

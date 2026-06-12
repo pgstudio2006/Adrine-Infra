@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
+import { isAdrine2026Experience } from "@/lib/adrine/experience";
+import ReceptionDashboard2026 from "@/pages/reception/ReceptionDashboard2026";
 import {
   Users,
   CalendarCheck,
@@ -22,6 +24,10 @@ import { InlinePlatformError } from "@/components/shared/InlinePlatformError";
 import { usePlatformHydration } from "@/hooks/usePlatformHydration";
 
 export default function ReceptionDashboard() {
+  if (isAdrine2026Experience()) {
+    return <ReceptionDashboard2026 />;
+  }
+
   const navigate = useNavigate();
   const { patients, appointments, queue, admissions } = useHospital();
   const { error: hydrationError, retry } = usePlatformHydration({});
