@@ -19,11 +19,8 @@ import {
 import { isPlatformRuntimeEnabled } from '@/runtime/platform-session';
 import { useEmergencyOperationalStream } from '@/hooks/useEmergencyOperationalStream';
 import { TraumaBayBoard } from '@/components/emergency/TraumaBayBoard';
-import { isAdrine2026Experience } from '@/lib/adrine/experience';
-import EmergencyDashboard2026 from './EmergencyDashboard2026';
 
 export default function EmergencyDashboard() {
-  if (isAdrine2026Experience()) return <EmergencyDashboard2026 />;
   const navigate = useNavigate();
   const { emergencyCases, createEmergencyCase } = useHospital();
   useEmergencyOperationalStream({ worklists: true });

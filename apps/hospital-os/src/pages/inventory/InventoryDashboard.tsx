@@ -1,6 +1,4 @@
 import { useMemo } from 'react';
-import { isAdrine2026Experience } from '@/lib/adrine/experience';
-import InventoryDashboard2026 from './InventoryDashboard2026';
 import { Card, CardContent } from '@/components/ui/card';
 import { OperationsModulePage } from '@/components/operations/OperationsModulePage';
 import { Link } from 'react-router-dom';
@@ -63,7 +61,6 @@ const container = { hidden: {}, show: { transition: { staggerChildren: 0.04 } } 
 const item = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.35 } } };
 
 export default function InventoryDashboard() {
-  if (isAdrine2026Experience()) return <InventoryDashboard2026 />;
   const { platformOn, catalog, moves, loading } = useInventoryPlatformData();
   const recentMovements = useMemo(
     () => pickPlatformRows(platformOn && moves.length > 0, moves.slice(0, 5).map(mapMoveToRecentRow), RECENT_MOVEMENTS_DEMO),

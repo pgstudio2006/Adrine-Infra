@@ -11,8 +11,6 @@ import { useBillingStoreAggregates } from "@/hooks/useBillingDeptPlatform";
 import { BillingDeptShell } from "@/components/billing/BillingDeptShell";
 import { BillingEmptyState } from "@/components/billing/BillingEmptyState";
 import { allowDemoFallback, pickPlatformRows } from "@/lib/platform/demo-fallback";
-import { isAdrine2026Experience } from "@/lib/adrine/experience";
-import BillingDashboard2026 from "./BillingDashboard2026";
 
 const DEMO_STATS = [
   { label: "Today's Revenue", value: "₹4,82,350", icon: IndianRupee, trend: "+12% vs yesterday" },
@@ -54,7 +52,6 @@ const shortcuts = [
 ];
 
 export default function BillingDashboard() {
-  if (isAdrine2026Experience()) return <BillingDashboard2026 />;
   const aggregates = useBillingStoreAggregates();
   const useLiveKpis = aggregates.platformOn;
   const [desk, setDesk] = useState<{ insuranceCount?: number } | null>(null);

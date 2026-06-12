@@ -1,6 +1,4 @@
 import { motion } from 'framer-motion';
-import { isAdrine2026Experience } from '@/lib/adrine/experience';
-import SchedulingDashboard2026 from './SchedulingDashboard2026';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -43,7 +41,6 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 export default function SchedulingDashboard() {
-  if (isAdrine2026Experience()) return <SchedulingDashboard2026 />;
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">

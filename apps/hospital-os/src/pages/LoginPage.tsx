@@ -24,8 +24,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { HospitalLoginWizard } from '@/components/login/HospitalLoginWizard';
 import { isNavayuTenant } from '@/lib/navayu/navayu-forms';
-import { isAdrine2026Experience } from '@/lib/adrine/experience';
-import AdrineLoginPage from '@/pages/AdrineLoginPage';
 
 const ROLE_ICONS: Record<UserRole, React.ReactNode> = {
   admin: <Shield className="w-6 h-6" />,
@@ -106,13 +104,6 @@ const generateTicketId = () => {
 };
 
 export default function LoginPage() {
-  if (isAdrine2026Experience()) {
-    return <AdrineLoginPage />;
-  }
-  return <LegacyLoginPage />;
-}
-
-function LegacyLoginPage() {
   const { login } = useAuth();
   const platformRuntime = isPlatformRuntimeEnabled();
   const kernelUrl = import.meta.env.VITE_KERNEL_API_URL as string | undefined;

@@ -1,6 +1,4 @@
 import { useMemo } from "react";
-import { isAdrine2026Experience } from "@/lib/adrine/experience";
-import DialysisDashboard2026 from "./DialysisDashboard2026";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OperationsModulePage } from "@/components/operations/OperationsModulePage";
 import { Link } from "react-router-dom";
@@ -41,7 +39,6 @@ const alerts = [
 ];
 
 export default function DialysisDashboard() {
-  if (isAdrine2026Experience()) return <DialysisDashboard2026 />;
   const { platformOn, sessions, machines, loading } = useDialysisPlatformData();
   const todaySessions = useMemo(
     () => pickPlatformRows(platformOn && sessions.length > 0, sessions.map(mapDialysisSessionRow), todaySessionsDemo),

@@ -20,15 +20,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { InlinePlatformError } from "@/components/shared/InlinePlatformError";
 import { usePlatformHydration } from "@/hooks/usePlatformHydration";
-import { isAdrine2026Experience } from "@/lib/adrine/experience";
-import ReceptionDashboard2026 from "./ReceptionDashboard2026";
 
 export default function ReceptionDashboard() {
-  if (isAdrine2026Experience()) return <ReceptionDashboard2026 />;
-  return <ReceptionDashboardLegacy />;
-}
-
-function ReceptionDashboardLegacy() {
   const navigate = useNavigate();
   const { patients, appointments, queue, admissions } = useHospital();
   const { error: hydrationError, retry } = usePlatformHydration({});
