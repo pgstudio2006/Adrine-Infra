@@ -757,6 +757,13 @@
     "workflowDesignerEnabled": false,
     "apiAccessEnabled": false
   },
+  "integrations": {
+    "twentyCrm": {
+      "enabled": true,
+      "baseUrl": "http://localhost:3000",
+      "embedMode": true
+    }
+  },
   "navProfiles": {
     "counsellor": {
       "match": {

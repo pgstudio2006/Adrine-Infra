@@ -310,6 +310,7 @@ import Campaigns from "@/pages/crm/Campaigns";
 import FeedbackSurveys from "@/pages/crm/FeedbackSurveys";
 import PatientLifecycle from "@/pages/crm/PatientLifecycle";
 import CRMAnalytics from "@/pages/crm/CRMAnalytics";
+import { wrapCrmPage } from "@/lib/twenty/wrap-crm-page";
 
 const queryClient = new QueryClient();
 
@@ -604,14 +605,14 @@ const DIALYSIS_PAGES: Record<string, React.ComponentType> = {
 };
 
 const CRM_PAGES: Record<string, React.ComponentType> = {
-  "/crm": CRMDashboard,
-  "/crm/leads": LeadManagement,
-  "/crm/lifecycle": PatientLifecycle,
-  "/crm/campaigns": Campaigns,
-  "/crm/drip-campaigns": CrmDripCampaigns,
-  "/crm/experience": FeedbackSurveys,
-  "/crm/reports": CRMAnalytics,
-  "/admin/crm": CRMDashboard,
+  "/crm": wrapCrmPage("/crm", CRMDashboard),
+  "/crm/leads": wrapCrmPage("/crm/leads", LeadManagement),
+  "/crm/lifecycle": wrapCrmPage("/crm/lifecycle", PatientLifecycle),
+  "/crm/campaigns": wrapCrmPage("/crm/campaigns", Campaigns),
+  "/crm/drip-campaigns": wrapCrmPage("/crm/drip-campaigns", CrmDripCampaigns),
+  "/crm/experience": wrapCrmPage("/crm/experience", FeedbackSurveys),
+  "/crm/reports": wrapCrmPage("/crm/reports", CRMAnalytics),
+  "/admin/crm": wrapCrmPage("/admin/crm", CRMDashboard),
 };
 
 function AppRoutes() {

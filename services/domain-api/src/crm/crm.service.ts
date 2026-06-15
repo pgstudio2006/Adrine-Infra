@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventBusService } from '../events/event-bus.service';
+import { TwentyCrmSyncService } from './twenty-crm-sync.service';
 
 @Injectable()
 export class CrmService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly events: EventBusService,
+    private readonly twentySync: TwentyCrmSyncService,
   ) {}
 
   listLeads(tenantId: string, branchId: string, stage?: string, opdVisitId?: string) {
@@ -64,6 +66,17 @@ export class CrmService {
       include: { patient: true },
     });
     this.events.emit('adrine.crm.lead.created', tenantId, { leadId: lead.id });
+    void this.twentySync.syncLead({
+      fullName: body.fullName,
+      phone: body.phone,
+      email: body.email,
+      channel: body.channel,
+      specialty: body.specialty,
+      stage: body.stage,
+      notes: body.notes,
+      opdVisitId: body.opdVisitId,
+      patientId: body.patientId,
+    });
     return lead;
   }
 

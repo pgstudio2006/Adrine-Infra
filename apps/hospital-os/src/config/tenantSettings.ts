@@ -125,6 +125,16 @@ export interface NavProfile {
   allowedRoutePrefixes?: string[];
 }
 
+export interface TenantTwentyCrmIntegration {
+  enabled: boolean;
+  baseUrl?: string;
+  embedMode?: boolean;
+}
+
+export interface TenantIntegrations {
+  twentyCrm?: TenantTwentyCrmIntegration;
+}
+
 export interface TenantSettings {
   branding: TenantBranding;
   roles: Record<UserRole, TenantRoleConfig>;
@@ -134,6 +144,7 @@ export interface TenantSettings {
   forms: TenantFormTemplates;
   dynamicForms: TenantDynamicForms;
   navProfiles?: Record<string, NavProfile>;
+  integrations?: TenantIntegrations;
 }
 
 export const DEFAULT_ROLE_DESCRIPTIONS: Record<UserRole, string> = {
@@ -564,6 +575,12 @@ export const DEFAULT_TENANT_SETTINGS: TenantSettings = {
   },
   forms: DEFAULT_FORM_TEMPLATES,
   dynamicForms: DEFAULT_DYNAMIC_FORMS,
+  integrations: {
+    twentyCrm: {
+      enabled: false,
+      embedMode: true,
+    },
+  },
 };
 
 /** Primary mark in app chrome (navbar). Platform brand unless tenant white-labels. */
@@ -815,6 +832,16 @@ export function coerceTenantSettings(input: unknown): TenantSettings {
   const forms = coerceFormTemplates(formsSource, DEFAULT_TENANT_SETTINGS.forms);
   const dynamicForms = coerceDynamicForms(dynamicFormsSource, DEFAULT_TENANT_SETTINGS.dynamicForms);
   const navProfiles = coerceNavProfiles(source.navProfiles);
+  const integrationsSource = asRecord(source.integrations);
+  const twentySource = asRecord(integrationsSource.twentyCrm);
+  const defaultTwenty = DEFAULT_TENANT_SETTINGS.integrations?.twentyCrm;
+  const integrations: TenantIntegrations = {
+    twentyCrm: {
+      enabled: getBoolean(twentySource.enabled, defaultTwenty?.enabled ?? false),
+      baseUrl: getString(twentySource.baseUrl, defaultTwenty?.baseUrl ?? ''),
+      embedMode: getBoolean(twentySource.embedMode, defaultTwenty?.embedMode ?? true),
+    },
+  };
 
   return {
     branding: {
@@ -836,6 +863,7 @@ export function coerceTenantSettings(input: unknown): TenantSettings {
     forms,
     dynamicForms,
     navProfiles,
+    integrations,
   };
 }
 
