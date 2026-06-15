@@ -66,8 +66,28 @@ Without APIs, the UI still **builds and loads**, but live data needs `VITE_PLATF
    | `VITE_API_PROVIDER` | `nest` |
    | `VITE_PLATFORM_RUNTIME` | `true` |
    | `VITE_DEV_TENANT_ID` | your staging tenant id (until OIDC is live) |
+   | `VITE_TWENTY_CRM_URL` | `https://crm.adrine.in` (full Twenty CRM embed on `/crm`) |
 
 8. Deploy. `vercel.json` in this app enables **SPA routing** (all paths → `index.html`).
+
+---
+
+## Twenty CRM embed
+
+Hospital OS embeds the **full Twenty product** when `VITE_TWENTY_CRM_URL` is set at build time.
+
+1. Deploy Twenty on Coolify: [deploy/coolify/twenty-crm.md](../deploy/coolify/twenty-crm.md) → `https://crm.adrine.in`
+2. On Vercel → **Project** `adrine-hospital-os` → **Settings → Environment Variables**:
+
+   | Name | Production value |
+   |------|------------------|
+   | `VITE_TWENTY_CRM_URL` | `https://crm.adrine.in` |
+
+3. **Redeploy** (required — Vite env vars are baked at build).
+4. Ensure `crm.adrine.in` proxy sends `frame-ancestors` including `https://adrine-hospital-os.vercel.app` (see Twenty Coolify guide).
+5. On **domain-api** (Coolify `adrine-domain`), set `TWENTY_CRM_URL` + `TWENTY_API_KEY` for Navayu lead sync.
+
+Login as `crm_manager` or Navayu counsellor → single **CRM** tab → full Twenty workspace.
 
 ---
 

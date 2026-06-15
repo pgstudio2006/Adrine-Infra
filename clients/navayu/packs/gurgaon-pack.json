@@ -760,7 +760,7 @@
   "integrations": {
     "twentyCrm": {
       "enabled": true,
-      "baseUrl": "http://localhost:3000",
+      "baseUrl": "https://crm.adrine.in",
       "embedMode": true,
       "fullApp": true
     }
