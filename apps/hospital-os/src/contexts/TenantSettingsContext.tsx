@@ -17,6 +17,7 @@ import {
 } from '@/config/tenantSettings';
 import { TenantSettingsContext, TenantSettingsContextType } from '@/contexts/tenantSettingsStore';
 import { getCounsellorCrmTabs, getEffectiveTabVisibility, NavUserContext, resolveNavProfile } from '@/config/routeAccess';
+import { filterNavTabsForTwentyFullApp } from '@/lib/twenty/twenty-config';
 import { getNavayuRoleDisplayLabel } from '@/lib/navayu/navayu-forms';
 import { isNavRouteVisible } from '@/config/nav-visibility';
 import { getServerTenantSettings, loadBranchConfig } from '@/runtime/branch-config';
@@ -221,7 +222,7 @@ export function TenantSettingsProvider({ children }: { children: React.ReactNode
         : [];
 
     const seen = new Set<string>();
-    return [...visibleTabs, ...crmExtras].filter((tab) => {
+    const merged = [...visibleTabs, ...crmExtras].filter((tab) => {
       if (!isNavRouteVisible(tab.path)) {
         return false;
       }
@@ -231,6 +232,8 @@ export function TenantSettingsProvider({ children }: { children: React.ReactNode
       seen.add(tab.path);
       return true;
     });
+
+    return filterNavTabsForTwentyFullApp(merged, settings);
   }
 
   return (

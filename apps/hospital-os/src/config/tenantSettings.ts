@@ -129,6 +129,8 @@ export interface TenantTwentyCrmIntegration {
   enabled: boolean;
   baseUrl?: string;
   embedMode?: boolean;
+  /** Embed complete Twenty workspace (default true) — not hospital CRM sub-screens */
+  fullApp?: boolean;
 }
 
 export interface TenantIntegrations {
@@ -579,6 +581,7 @@ export const DEFAULT_TENANT_SETTINGS: TenantSettings = {
     twentyCrm: {
       enabled: false,
       embedMode: true,
+      fullApp: true,
     },
   },
 };
@@ -840,6 +843,7 @@ export function coerceTenantSettings(input: unknown): TenantSettings {
       enabled: getBoolean(twentySource.enabled, defaultTwenty?.enabled ?? false),
       baseUrl: getString(twentySource.baseUrl, defaultTwenty?.baseUrl ?? ''),
       embedMode: getBoolean(twentySource.embedMode, defaultTwenty?.embedMode ?? true),
+      fullApp: getBoolean(twentySource.fullApp, defaultTwenty?.fullApp ?? true),
     },
   };
 

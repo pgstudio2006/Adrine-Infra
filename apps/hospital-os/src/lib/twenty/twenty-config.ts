@@ -1,16 +1,20 @@
 /**
- * Twenty CRM integration config.
- * UI embeds https://github.com/twentyhq/twenty when baseUrl is set.
- * Lead sync uses domain-api TWENTY_* env (never expose API key to browser).
+ * Twenty CRM integration — full product embed (https://github.com/twentyhq/twenty).
+ * Not a hospital-limited CRM subset: the entire Twenty workspace loads in-frame
+ * with its own navigation (people, companies, opportunities, tasks, workflows,
+ * email, settings, etc.).
  */
 import type { TenantSettings } from '@/config/tenantSettings';
+import type { RoleTab } from '@/config/roleNavigation';
 
 export type TwentyCrmIntegration = {
   enabled: boolean;
   /** Twenty workspace URL, e.g. https://crm.hospital.in or http://localhost:3000 */
   baseUrl: string;
-  /** When true, all /crm/* routes render the Twenty iframe instead of legacy CRM UI */
+  /** When true, all /crm/* routes render Twenty instead of legacy Hospital OS CRM */
   embedMode: boolean;
+  /** When true (default), embed the full Twenty app — not hospital-mapped sub-screens */
+  fullApp: boolean;
 };
 
 const ENV_URL = (import.meta.env.VITE_TWENTY_CRM_URL as string | undefined)?.trim();
@@ -24,6 +28,7 @@ export function getTwentyCrmFromTenant(settings: TenantSettings): TwentyCrmInteg
     enabled: true,
     baseUrl,
     embedMode: twenty.embedMode !== false,
+    fullApp: twenty.fullApp !== false,
   };
 }
 
@@ -35,21 +40,42 @@ export function resolveTwentyCrmConfig(settings: TenantSettings): TwentyCrmInteg
     enabled: true,
     baseUrl: ENV_URL.replace(/\/$/, ''),
     embedMode: true,
+    fullApp: true,
   };
 }
 
-/** Hospital OS route → Twenty app path */
-export const TWENTY_ROUTE_MAP: Record<string, string> = {
-  '/crm': '/',
-  '/admin/crm': '/',
-  '/crm/leads': '/objects/people',
-  '/crm/lifecycle': '/objects/opportunities',
-  '/crm/campaigns': '/workflows',
-  '/crm/drip-campaigns': '/workflows',
-  '/crm/experience': '/objects/notes',
-  '/crm/reports': '/settings',
-};
+/** Full Twenty workspace entry — user navigates all features inside Twenty's own UI */
+export function getTwentyFullAppUrl(config: TwentyCrmIntegration): string {
+  return `${config.baseUrl}/`;
+}
 
-export function mapHospitalPathToTwenty(hospitalPath: string): string {
-  return TWENTY_ROUTE_MAP[hospitalPath] ?? '/';
+/**
+ * When Twenty full-app mode is on, hide hospital CRM sub-tabs (leads, lifecycle, …)
+ * and keep a single "CRM" entry that opens the complete Twenty product.
+ */
+export function filterNavTabsForTwentyFullApp(tabs: RoleTab[], settings: TenantSettings): RoleTab[] {
+  const twenty = resolveTwentyCrmConfig(settings);
+  if (!twenty?.enabled || !twenty.fullApp) return tabs;
+
+  let primaryCrmShown = false;
+
+  return tabs
+    .filter((tab) => {
+      const isCrmRoute =
+        tab.path === '/crm' || tab.path === '/admin/crm' || tab.path.startsWith('/crm/');
+      if (!isCrmRoute) return true;
+
+      if (tab.path === '/crm' || tab.path === '/admin/crm') {
+        if (primaryCrmShown) return false;
+        primaryCrmShown = true;
+        return true;
+      }
+      return false;
+    })
+    .map((tab) => {
+      if (tab.path === '/crm' || tab.path === '/admin/crm') {
+        return { ...tab, label: 'CRM' };
+      }
+      return tab;
+    });
 }

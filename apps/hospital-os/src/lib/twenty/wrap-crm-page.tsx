@@ -10,7 +10,7 @@ export function wrapCrmPage(hospitalPath: string, LegacyPage: ComponentType) {
   function CrmPageWithTwenty() {
     const twenty = useTwentyCrmConfig();
     if (twenty?.enabled && twenty.embedMode && twenty.baseUrl) {
-      return <TwentyCrmEmbed hospitalPath={hospitalPath} />;
+      return <TwentyCrmEmbed />;
     }
     return <LegacyPage />;
   }

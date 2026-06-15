@@ -2,6 +2,7 @@ import { ROLE_BASE_PATH, ROLE_TABS, RoleTab } from '@/config/roleNavigation';
 import { isNavRouteVisible } from '@/config/nav-visibility';
 import { NavProfile, NavProfileMatch, TenantSettings } from '@/config/tenantSettings';
 import { isNavayuTenant } from '@/lib/navayu/navayu-forms';
+import { filterNavTabsForTwentyFullApp } from '@/lib/twenty/twenty-config';
 import { UserRole } from '@/types/roles';
 
 export interface NavUserContext {
@@ -192,10 +193,13 @@ export function getCounsellorCrmTabs(settings: TenantSettings, ctx: NavUserConte
     return [];
   }
 
-  return ROLE_TABS.crm_manager.filter((tab) => {
-    if (settings.navigation.crm_manager[tab.key]?.visible === false) {
-      return false;
-    }
-    return !isFeatureBlocked(settings, 'crm_manager', tab);
-  });
+  return filterNavTabsForTwentyFullApp(
+    ROLE_TABS.crm_manager.filter((tab) => {
+      if (settings.navigation.crm_manager[tab.key]?.visible === false) {
+        return false;
+      }
+      return !isFeatureBlocked(settings, 'crm_manager', tab);
+    }),
+    settings,
+  );
 }

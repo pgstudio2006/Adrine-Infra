@@ -761,7 +761,8 @@
     "twentyCrm": {
       "enabled": true,
       "baseUrl": "http://localhost:3000",
-      "embedMode": true
+      "embedMode": true,
+      "fullApp": true
     }
   },
   "navProfiles": {
