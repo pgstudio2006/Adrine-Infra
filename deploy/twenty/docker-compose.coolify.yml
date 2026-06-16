@@ -29,7 +29,7 @@ services:
     restart: unless-stopped
 
   twenty-server:
-    image: twentycrm/twenty:${TAG:-latest}
+    image: twentycrm/twenty:latest
     expose:
       - '3000'
     environment:
@@ -46,7 +46,7 @@ services:
     restart: unless-stopped
 
   twenty-worker:
-    image: twentycrm/twenty:${TAG:-latest}
+    image: twentycrm/twenty:latest
     command: ['yarn', 'worker:prod']
     environment:
       PG_DATABASE_URL: postgres://${PG_DATABASE_USER:-postgres}:${PG_DATABASE_PASSWORD}@twenty-db:5432/default
