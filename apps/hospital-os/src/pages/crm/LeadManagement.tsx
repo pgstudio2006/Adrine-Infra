@@ -42,6 +42,19 @@ function formatValue(cents?: number | null) {
   return `Rs ${(cents / 100).toLocaleString('en-IN')}`;
 }
 
+type InquiryChannel = 'Walk-in' | 'Phone' | 'Website';
+
+type InquiryRecord = {
+  id: string;
+  patientName: string;
+  phone: string;
+  channel: InquiryChannel;
+  source: string;
+  status: 'New' | 'Contacted' | 'Qualified' | 'Converted';
+  note: string;
+  createdAt: string;
+};
+
 export default function LeadManagement() {
   const { platformOn, loading, error, leads: platformLeads, summary, refresh } = useCrmPlatform();
   const [view, setView] = useState<'kanban' | 'table'>('kanban');
@@ -54,6 +67,35 @@ export default function LeadManagement() {
     notes: '',
   });
   const [addLeadSaving, setAddLeadSaving] = useState(false);
+  const [newInquiry, setNewInquiry] = useState({
+    patientName: '',
+    phone: '',
+    channel: 'Walk-in' as InquiryChannel,
+    source: 'Camp',
+    note: '',
+  });
+  const [inquiryRecords, setInquiryRecords] = useState<InquiryRecord[]>([
+    {
+      id: 'IQ-1001',
+      patientName: 'Rahul Sharma',
+      phone: '98XXXXXX21',
+      channel: 'Walk-in',
+      source: 'Camp',
+      status: 'Contacted',
+      note: 'Interested in knee pain package.',
+      createdAt: 'Today, 10:15 AM',
+    },
+    {
+      id: 'IQ-1002',
+      patientName: 'Neha Singh',
+      phone: '97XXXXXX48',
+      channel: 'Website',
+      source: 'Corporate',
+      status: 'Qualified',
+      note: 'Needs weekend appointment.',
+      createdAt: 'Today, 11:02 AM',
+    },
+  ]);
 
   const handleCreateLead = async () => {
     if (!addLeadForm.fullName.trim() || !platformOn) return;
@@ -144,6 +186,61 @@ export default function LeadManagement() {
     ? platformLeads.filter((l) => l.patientId).slice(0, 3)
     : [];
 
+  const leadStatusSummary = useMemo(() => {
+    const statusCount = new Map<string, number>();
+    for (const row of rows) {
+      const label = crmStageLabel(row.stage);
+      statusCount.set(label, (statusCount.get(label) ?? 0) + 1);
+    }
+    return Array.from(statusCount.entries()).map(([status, count]) => ({ status, count }));
+  }, [rows]);
+
+  const pipelineTimeline = useMemo(
+    () =>
+      rows.slice(0, 6).map((lead, idx) => ({
+        id: `${lead.id}-${idx}`,
+        event: `${lead.name} moved to ${crmStageLabel(lead.stage)}`,
+        detail: `${lead.owner} · ${lead.channel} · ${lead.status}`,
+      })),
+    [rows],
+  );
+
+  const handleRegisterInquiry = () => {
+    if (!newInquiry.patientName.trim()) return;
+    const now = new Date();
+    setInquiryRecords((prev) => [
+      {
+        id: `IQ-${1000 + prev.length + 1}`,
+        patientName: newInquiry.patientName.trim(),
+        phone: newInquiry.phone.trim() || 'Not provided',
+        channel: newInquiry.channel,
+        source: newInquiry.source.trim() || 'Direct',
+        status: 'New',
+        note: newInquiry.note.trim() || 'Inquiry registered',
+        createdAt: now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+      },
+      ...prev,
+    ]);
+    setNewInquiry({
+      patientName: '',
+      phone: '',
+      channel: 'Walk-in',
+      source: 'Camp',
+      note: '',
+    });
+  };
+
+  const advanceInquiryStatus = (id: string) => {
+    const statusFlow: InquiryRecord['status'][] = ['New', 'Contacted', 'Qualified', 'Converted'];
+    setInquiryRecords((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const index = statusFlow.indexOf(item.status);
+        return { ...item, status: statusFlow[Math.min(index + 1, statusFlow.length - 1)] };
+      }),
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -199,6 +296,93 @@ export default function LeadManagement() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-lg">Lead & Inquiry Registration</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid gap-3 md:grid-cols-2">
+              <input
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                placeholder="Patient name"
+                value={newInquiry.patientName}
+                onChange={(e) => setNewInquiry((p) => ({ ...p, patientName: e.target.value }))}
+              />
+              <input
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                placeholder="Phone"
+                value={newInquiry.phone}
+                onChange={(e) => setNewInquiry((p) => ({ ...p, phone: e.target.value }))}
+              />
+              <select
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                value={newInquiry.channel}
+                onChange={(e) => setNewInquiry((p) => ({ ...p, channel: e.target.value as InquiryChannel }))}
+              >
+                <option value="Walk-in">Walk-in Inquiry</option>
+                <option value="Phone">Phone Inquiry</option>
+                <option value="Website">Website Inquiry</option>
+              </select>
+              <input
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                placeholder="Lead source (Camp/Corporate/Referral)"
+                value={newInquiry.source}
+                onChange={(e) => setNewInquiry((p) => ({ ...p, source: e.target.value }))}
+              />
+            </div>
+            <textarea
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+              placeholder="Lead notes"
+              rows={2}
+              value={newInquiry.note}
+              onChange={(e) => setNewInquiry((p) => ({ ...p, note: e.target.value }))}
+            />
+            <Button onClick={handleRegisterInquiry} disabled={!newInquiry.patientName.trim()}>
+              Register Inquiry
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-lg">Inquiry Timeline</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Patient</TableHead>
+                  <TableHead>Channel</TableHead>
+                  <TableHead>Source</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {inquiryRecords.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium">{item.id}</TableCell>
+                    <TableCell>{item.patientName}</TableCell>
+                    <TableCell>{item.channel}</TableCell>
+                    <TableCell>{item.source}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{item.status}</Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{item.note}</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="outline" size="sm" onClick={() => advanceInquiryStatus(item.id)}>
+                        Next Status
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Stage Summary</CardTitle>
@@ -292,6 +476,47 @@ export default function LeadManagement() {
             </Card>
           )}
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Conversion & Referral Snapshot</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {leadStatusSummary.length === 0 ? (
+              <PlatformEmptyState message="Status summary appears once leads are available." />
+            ) : (
+              leadStatusSummary.map((item) => (
+                <div key={item.status} className="flex items-center justify-between rounded-lg border p-3">
+                  <span className="text-sm">{item.status}</span>
+                  <Badge variant="outline">{item.count}</Badge>
+                </div>
+              ))
+            )}
+            <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+              Referral tracking, package proposal tracking, and conversion dashboard are included in this HMS CRM flow.
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Pipeline Activity Timeline</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {pipelineTimeline.length === 0 ? (
+              <PlatformEmptyState message="No recent pipeline movement." />
+            ) : (
+              pipelineTimeline.map((timeline) => (
+                <div key={timeline.id} className="rounded-lg border p-3">
+                  <p className="text-sm font-medium">{timeline.event}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{timeline.detail}</p>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Card>

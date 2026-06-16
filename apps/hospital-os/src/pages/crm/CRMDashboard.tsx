@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Activity, CalendarCheck2, HeartHandshake, MessageSquare, PhoneCall, TrendingUp, UserRoundCheck, Users } from 'lucide-react';
 import { allowDemoFallback, pickPlatformRows } from '@/lib/platform/demo-fallback';
 import { PlatformEmptyState } from '@/components/platform/PlatformEmptyState';
+import { IncludedCrmScope } from '@/components/crm/IncludedCrmScope';
 
 const statsDemo = [
   { label: 'Active Leads', value: '284', trend: '+18 this week', icon: Users },
@@ -276,6 +277,8 @@ export default function CRMDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <IncludedCrmScope />
     </div>
   );
 }

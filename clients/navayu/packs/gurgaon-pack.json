@@ -759,8 +759,9 @@
   },
   "integrations": {
     "twentyCrm": {
-      "enabled": true,
+      "enabled": false,
       "baseUrl": "https://crm.adrine.in",
+      "workspaceSubdomain": "navayu",
       "embedMode": true,
       "fullApp": true
     }

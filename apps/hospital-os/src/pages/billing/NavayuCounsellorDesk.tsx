@@ -8,6 +8,7 @@ import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { COUNSELLOR_SCOPE_SECTIONS, IncludedCrmScope } from '@/components/crm/IncludedCrmScope';
 import { useOpdLiveFinancial } from '@/hooks/useBillingDeptPlatform';
 import {
   hydrateNavayuProtocolCatalog,
@@ -54,6 +55,12 @@ export default function NavayuCounsellorDesk() {
   const [bundleLoading, setBundleLoading] = useState(false);
   const [protocolLabel, setProtocolLabel] = useState('');
   const [stageLabel, setStageLabel] = useState('');
+  const [taskDraft, setTaskDraft] = useState('');
+  const [tasksByVisit, setTasksByVisit] = useState<Record<string, { id: string; text: string; done: boolean }[]>>(
+    {},
+  );
+  const [followUpAlerts, setFollowUpAlerts] = useState<Record<string, { id: string; text: string; severity: 'low' | 'medium' | 'high' }[]>>({});
+  const [followUpNotes, setFollowUpNotes] = useState<Record<string, string[]>>({});
 
   const tiers = useMemo(() => listNavayuPackageTiers(), []);
   const selected =
@@ -160,6 +167,9 @@ export default function NavayuCounsellorDesk() {
   }, [selectedId, platformOn]);
 
   const tier = tiers.find((t) => t.id === tierId) ?? tiers[0];
+  const activeTasks = selected ? tasksByVisit[selected.visitId] ?? [] : [];
+  const activeAlerts = selected ? followUpAlerts[selected.visitId] ?? [] : [];
+  const activeFollowUpNotes = selected ? followUpNotes[selected.visitId] ?? [] : [];
 
   const syncBillingCharges = async (
     visitId: string,
@@ -271,10 +281,47 @@ export default function NavayuCounsellorDesk() {
   >[1]) => {
     if (!selected || !platformOn) return;
     await platformSaveNavayuFollowUp(selected.visitId, handoff);
+    setFollowUpAlerts((prev) => ({
+      ...prev,
+      [selected.visitId]: [
+        ...(prev[selected.visitId] ?? []),
+        {
+          id: `${Date.now()}`,
+          text: `Follow-up scheduled for ${handoff.followUpDate}. Reminder automation queued.`,
+          severity: 'medium',
+        },
+      ],
+    }));
     toast.success('MSK visit closed with follow-up');
     setSelectedId(null);
     setSearchParams({}, { replace: true });
     await refreshQueue();
+  };
+
+  const handleAddTask = () => {
+    if (!selected || !taskDraft.trim()) return;
+    const task = { id: `${Date.now()}`, text: taskDraft.trim(), done: false };
+    setTasksByVisit((prev) => ({ ...prev, [selected.visitId]: [task, ...(prev[selected.visitId] ?? [])] }));
+    setTaskDraft('');
+  };
+
+  const toggleTask = (taskId: string) => {
+    if (!selected) return;
+    setTasksByVisit((prev) => ({
+      ...prev,
+      [selected.visitId]: (prev[selected.visitId] ?? []).map((task) =>
+        task.id === taskId ? { ...task, done: !task.done } : task,
+      ),
+    }));
+  };
+
+  const addFollowUpNote = () => {
+    if (!selected || !notes.trim()) return;
+    setFollowUpNotes((prev) => ({
+      ...prev,
+      [selected.visitId]: [notes.trim(), ...(prev[selected.visitId] ?? [])],
+    }));
+    setNotes('');
   };
 
   return (
@@ -445,7 +492,77 @@ export default function NavayuCounsellorDesk() {
                   >
                     Plan package & sync billing
                   </Button>
+                  <Button variant="outline" disabled={saving || !platformOn} onClick={addFollowUpNote}>
+                    Save follow-up note
+                  </Button>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="rounded-xl border bg-card p-4 space-y-3">
+                  <p className="text-sm font-semibold">Task Management</p>
+                  <div className="flex gap-2">
+                    <input
+                      className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                      placeholder="Add counsellor task"
+                      value={taskDraft}
+                      onChange={(e) => setTaskDraft(e.target.value)}
+                    />
+                    <Button variant="outline" onClick={handleAddTask}>
+                      Add
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {activeTasks.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No tasks yet.</p>
+                    ) : (
+                      activeTasks.map((task) => (
+                        <button
+                          key={task.id}
+                          type="button"
+                          onClick={() => toggleTask(task.id)}
+                          className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${
+                            task.done ? 'bg-success/10 line-through text-muted-foreground' : ''
+                          }`}
+                        >
+                          {task.text}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border bg-card p-4 space-y-3">
+                  <p className="text-sm font-semibold">Follow-up Queue & Alerts</p>
+                  <div className="space-y-2">
+                    {activeAlerts.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No follow-up alerts for this visit.</p>
+                    ) : (
+                      activeAlerts.map((alert) => (
+                        <div key={alert.id} className="rounded-lg border px-3 py-2 text-xs">
+                          <p className="font-medium">{alert.text}</p>
+                          <p className="text-muted-foreground">Priority: {alert.severity}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
+                    Appointment/follow-up/treatment reminders and feedback/review request are part of CRM WhatsApp automation flow.
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border bg-card p-4 space-y-3">
+                <p className="text-sm font-semibold">Follow-up Notes Timeline</p>
+                {activeFollowUpNotes.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No notes captured yet.</p>
+                ) : (
+                  activeFollowUpNotes.map((note, idx) => (
+                    <div key={`${note}-${idx}`} className="rounded-lg border px-3 py-2 text-sm">
+                      {note}
+                    </div>
+                  ))
+                )}
               </div>
 
               {selected.mskLifecycleState === 'package_planned' ||
@@ -470,6 +587,12 @@ export default function NavayuCounsellorDesk() {
           )}
         </div>
       </div>
+
+      <IncludedCrmScope
+        title="Counsellor CRM Scope (Included in HMS)"
+        subtitle="Operational checklist for counsellor, follow-up, package conversion, and outcome tracking."
+        sections={COUNSELLOR_SCOPE_SECTIONS}
+      />
     </BillingDeptShell>
   );
 }
