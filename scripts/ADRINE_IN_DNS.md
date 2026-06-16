@@ -11,6 +11,7 @@ Add these **A records** at your DNS provider (Hostinger, Cloudflare, etc.):
 | `domain` | A | `187.127.129.209` | domain-api |
 | `hms` | A | `187.127.129.209` | Hospital OS (staff) |
 | `book` | A | `187.127.129.209` | Patient app + `/book/navayu` |
+| `crm` | A | `187.127.129.209` | Twenty CRM (embedded in Hospital OS `/crm`) |
 
 Optional:
 
@@ -31,6 +32,7 @@ Optional:
 | Domain API | https://domain.adrine.in |
 | Hospital OS (Navayu staff) | https://hms.adrine.in |
 | Online booking | https://book.adrine.in/book/navayu |
+| Twenty CRM | https://crm.adrine.in |
 
 **Until DNS propagates**, use IP: `http://187.127.129.209:3001` (kernel), `:3002`, `:8080`, `:3000`.
 
@@ -41,6 +43,7 @@ CORS_ORIGINS=https://hms.adrine.in,https://book.adrine.in
 VITE_KERNEL_API_URL=https://kernel.adrine.in
 VITE_DOMAIN_API_URL=https://domain.adrine.in
 VITE_PATIENT_APP_URL=https://book.adrine.in
+VITE_TWENTY_CRM_URL=https://crm.adrine.in
 NEXT_PUBLIC_KERNEL_API_URL=https://kernel.adrine.in
 NEXT_PUBLIC_DOMAIN_API_URL=https://domain.adrine.in
 ```

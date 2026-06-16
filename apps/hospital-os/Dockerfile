@@ -11,11 +11,13 @@ ARG VITE_API_PROVIDER=nest
 ARG VITE_KERNEL_API_URL=https://kernel.adrine.in
 ARG VITE_DOMAIN_API_URL=https://domain.adrine.in
 ARG VITE_PATIENT_APP_URL=https://book.adrine.in
+ARG VITE_TWENTY_CRM_URL=
 ENV VITE_PLATFORM_RUNTIME=$VITE_PLATFORM_RUNTIME \
     VITE_API_PROVIDER=$VITE_API_PROVIDER \
     VITE_KERNEL_API_URL=$VITE_KERNEL_API_URL \
     VITE_DOMAIN_API_URL=$VITE_DOMAIN_API_URL \
-    VITE_PATIENT_APP_URL=$VITE_PATIENT_APP_URL
+    VITE_PATIENT_APP_URL=$VITE_PATIENT_APP_URL \
+    VITE_TWENTY_CRM_URL=$VITE_TWENTY_CRM_URL
 RUN NODE_ENV=production pnpm --filter @adrine/hospital-os... --workspace-concurrency=1 run build \
   && test -f /repo/apps/hospital-os/dist/index.html
 
