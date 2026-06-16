@@ -606,12 +606,12 @@ const DIALYSIS_PAGES: Record<string, React.ComponentType> = {
 
 const CRM_PAGES: Record<string, React.ComponentType> = {
   "/crm": wrapCrmPage("/crm", CRMDashboard),
-  "/crm/leads": wrapCrmPage("/crm/leads", LeadManagement),
-  "/crm/lifecycle": wrapCrmPage("/crm/lifecycle", PatientLifecycle),
-  "/crm/campaigns": wrapCrmPage("/crm/campaigns", Campaigns),
-  "/crm/drip-campaigns": wrapCrmPage("/crm/drip-campaigns", CrmDripCampaigns),
-  "/crm/experience": wrapCrmPage("/crm/experience", FeedbackSurveys),
-  "/crm/reports": wrapCrmPage("/crm/reports", CRMAnalytics),
+  "/crm/leads": wrapCrmPage("/crm/leads", CRMDashboard),
+  "/crm/lifecycle": wrapCrmPage("/crm/lifecycle", CRMDashboard),
+  "/crm/campaigns": wrapCrmPage("/crm/campaigns", CRMDashboard),
+  "/crm/drip-campaigns": wrapCrmPage("/crm/drip-campaigns", CRMDashboard),
+  "/crm/experience": wrapCrmPage("/crm/experience", CRMDashboard),
+  "/crm/reports": wrapCrmPage("/crm/reports", CRMDashboard),
   "/admin/crm": wrapCrmPage("/admin/crm", CRMDashboard),
 };
 
