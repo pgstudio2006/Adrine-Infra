@@ -1,4 +1,5 @@
 import { ROLE_TABS } from '@/config/roleNavigation';
+import { coerceMasterData, DEFAULT_MASTER_DATA } from '@/lib/admin/master-data';
 import { ROLE_LABELS, UserRole } from '@/types/roles';
 
 export type TenantFeatureFlag =
@@ -127,7 +128,15 @@ export interface NavProfile {
 
 export interface TenantTwentyCrmIntegration {
   enabled: boolean;
+  /** Platform root, e.g. https://crm.adrine.in */
   baseUrl?: string;
+  /**
+   * Client workspace on shared Twenty (multi-workspace mode).
+   * Example: "navayu" → https://navayu.crm.adrine.in
+   */
+  workspaceSubdomain?: string;
+  /** Override when subdomain rules differ — full workspace URL */
+  workspaceUrl?: string;
   embedMode?: boolean;
   /** Embed complete Twenty workspace (default true) — not hospital CRM sub-screens */
   fullApp?: boolean;
@@ -135,6 +144,23 @@ export interface TenantTwentyCrmIntegration {
 
 export interface TenantIntegrations {
   twentyCrm?: TenantTwentyCrmIntegration;
+}
+
+export interface NavayuOpdDepartment {
+  id: string;
+  label: string;
+  clinicalDepartments: string[];
+}
+
+export interface TenantMasterData {
+  doctorDepartments: string[];
+  expenseCategories: string[];
+  roleDepartments: Record<string, string[]>;
+  adminDashboardSections: string[];
+  /** Navayu front-desk OPD categories (Spine & Joint Care, Wellness & Metabolic) */
+  opdDepartments?: NavayuOpdDepartment[];
+  /** Doctor roster keyed by OPD department id or label */
+  opdDepartmentDoctors?: Record<string, string[]>;
 }
 
 export interface TenantSettings {
@@ -145,6 +171,7 @@ export interface TenantSettings {
   registration: TenantRegistrationConfig;
   forms: TenantFormTemplates;
   dynamicForms: TenantDynamicForms;
+  masterData?: TenantMasterData;
   navProfiles?: Record<string, NavProfile>;
   integrations?: TenantIntegrations;
 }
@@ -577,6 +604,7 @@ export const DEFAULT_TENANT_SETTINGS: TenantSettings = {
   },
   forms: DEFAULT_FORM_TEMPLATES,
   dynamicForms: DEFAULT_DYNAMIC_FORMS,
+  masterData: DEFAULT_MASTER_DATA,
   integrations: {
     twentyCrm: {
       enabled: false,
@@ -835,6 +863,24 @@ export function coerceTenantSettings(input: unknown): TenantSettings {
   const forms = coerceFormTemplates(formsSource, DEFAULT_TENANT_SETTINGS.forms);
   const dynamicForms = coerceDynamicForms(dynamicFormsSource, DEFAULT_TENANT_SETTINGS.dynamicForms);
   const navProfiles = coerceNavProfiles(source.navProfiles);
+  const masterDataSource = asRecord(source.masterData);
+  const masterData = coerceMasterData({
+    doctorDepartments: getStringArray(
+      masterDataSource.doctorDepartments,
+      DEFAULT_TENANT_SETTINGS.masterData?.doctorDepartments ?? DEFAULT_MASTER_DATA.doctorDepartments,
+    ),
+    expenseCategories: getStringArray(
+      masterDataSource.expenseCategories,
+      DEFAULT_TENANT_SETTINGS.masterData?.expenseCategories ?? DEFAULT_MASTER_DATA.expenseCategories,
+    ),
+    roleDepartments: coerceRoleDepartments(masterDataSource.roleDepartments),
+    adminDashboardSections: getStringArray(
+      masterDataSource.adminDashboardSections,
+      DEFAULT_TENANT_SETTINGS.masterData?.adminDashboardSections ?? DEFAULT_MASTER_DATA.adminDashboardSections,
+    ),
+    opdDepartments: coerceMasterData({ opdDepartments: masterDataSource.opdDepartments }).opdDepartments,
+    opdDepartmentDoctors: coerceMasterData({ opdDepartmentDoctors: masterDataSource.opdDepartmentDoctors }).opdDepartmentDoctors,
+  });
   const integrationsSource = asRecord(source.integrations);
   const twentySource = asRecord(integrationsSource.twentyCrm);
   const defaultTwenty = DEFAULT_TENANT_SETTINGS.integrations?.twentyCrm;
@@ -842,6 +888,11 @@ export function coerceTenantSettings(input: unknown): TenantSettings {
     twentyCrm: {
       enabled: getBoolean(twentySource.enabled, defaultTwenty?.enabled ?? false),
       baseUrl: getString(twentySource.baseUrl, defaultTwenty?.baseUrl ?? ''),
+      workspaceSubdomain: getString(
+        twentySource.workspaceSubdomain,
+        defaultTwenty?.workspaceSubdomain ?? '',
+      ) || undefined,
+      workspaceUrl: getString(twentySource.workspaceUrl, defaultTwenty?.workspaceUrl ?? '') || undefined,
       embedMode: getBoolean(twentySource.embedMode, defaultTwenty?.embedMode ?? true),
       fullApp: getBoolean(twentySource.fullApp, defaultTwenty?.fullApp ?? true),
     },
@@ -866,9 +917,26 @@ export function coerceTenantSettings(input: unknown): TenantSettings {
     registration,
     forms,
     dynamicForms,
+    masterData,
     navProfiles,
     integrations,
   };
+}
+
+function coerceRoleDepartments(value: unknown): Record<string, string[]> {
+  const source = asRecord(value);
+  const result = { ...(DEFAULT_TENANT_SETTINGS.masterData?.roleDepartments ?? DEFAULT_MASTER_DATA.roleDepartments) };
+  Object.entries(source).forEach(([role, departments]) => {
+    if (Array.isArray(departments)) {
+      const normalized = departments
+        .map((item) => (typeof item === 'string' ? item.trim() : ''))
+        .filter(Boolean);
+      if (normalized.length > 0) {
+        result[role] = normalized;
+      }
+    }
+  });
+  return result;
 }
 
 function coerceNavProfiles(value: unknown): Record<string, NavProfile> | undefined {

@@ -9,6 +9,7 @@ import {
   TenantNavigationItemConfig,
   TenantRegistrationConfig,
   TenantRoleConfig,
+  TenantMasterData,
   TenantSettings,
 } from '@/config/tenantSettings';
 import { NavUserContext } from '@/config/routeAccess';
@@ -21,6 +22,7 @@ export interface TenantSettingsContextType {
   updateNavigation: (role: UserRole, tabKey: string, patch: Partial<TenantNavigationItemConfig>) => void;
   updateFeatureFlag: (flag: TenantFeatureFlag, value: boolean) => void;
   updateRegistration: (patch: Partial<TenantRegistrationConfig>) => void;
+  updateMasterData: (patch: Partial<TenantMasterData>) => void;
   updateFormTemplate: (templateKey: TenantFormTemplateKey, patch: Partial<TenantFormTemplateConfig>) => void;
   updateDynamicForm: (formKey: string, definition: TenantDynamicFormDefinition) => void;
   replaceSettings: (next: unknown) => void;

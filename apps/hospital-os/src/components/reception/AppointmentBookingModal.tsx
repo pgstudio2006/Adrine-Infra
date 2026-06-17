@@ -6,6 +6,12 @@ import type { HospitalAppointment } from '@/stores/hospitalStore';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { loadPatientPhone } from '@/lib/navayu/navayu-forms';
+import { isNavayuTenant } from '@/lib/navayu/navayu-forms';
+import {
+  getDoctorsForDepartment,
+  getOpdDepartmentLabel,
+  navayuOpdDepartmentOptions,
+} from '@/lib/navayu/navayu-opd-departments';
 import type { SeniorDoctor } from '@/lib/scheduling/senior-doctor-registry';
 import {
   buildTimeSlots,
@@ -61,6 +67,7 @@ export function AppointmentBookingModal({
   onSubmit,
 }: Props) {
   const navigate = useNavigate();
+  const navayuMode = isNavayuTenant();
   const [form, setForm] = useState<BookingFormState>(initialForm);
   const [patientQuery, setPatientQuery] = useState(initialForm.patientName);
 
@@ -225,32 +232,73 @@ export function AppointmentBookingModal({
             />
           </div>
           <div>
-            <label className="text-sm font-medium mb-1 block">Senior doctor *</label>
-            <AppSelect
-              value={form.doctor || undefined}
-              onValueChange={(value) => {
-                const doctor = seniorDoctors.find((item) => item.name === value);
-                setForm((prev) => ({
-                  ...prev,
-                  doctor: value,
-                  department: doctor?.department || prev.department,
-                }));
-              }}
-              options={seniorDoctors.map((doctor) => ({
-                value: doctor.name,
-                label: `${doctor.name} · ${doctor.department}`,
-              }))}
-              placeholder="Select senior doctor"
-              className="w-full"
-            />
+            {navayuMode ? (
+              <>
+                <label className="text-sm font-medium mb-1 block">Department *</label>
+                <AppSelect
+                  value={form.department || undefined}
+                  onValueChange={(value) => {
+                    const label = getOpdDepartmentLabel(value);
+                    const doctors = getDoctorsForDepartment(value);
+                    setForm((prev) => ({
+                      ...prev,
+                      department: label,
+                      doctor: doctors[0] ?? prev.doctor,
+                    }));
+                  }}
+                  options={navayuOpdDepartmentOptions()}
+                  placeholder="Select department"
+                  className="w-full"
+                />
+              </>
+            ) : (
+              <>
+                <label className="text-sm font-medium mb-1 block">Senior doctor *</label>
+                <AppSelect
+                  value={form.doctor || undefined}
+                  onValueChange={(value) => {
+                    const doctor = seniorDoctors.find((item) => item.name === value);
+                    setForm((prev) => ({
+                      ...prev,
+                      doctor: value,
+                      department: doctor?.department || prev.department,
+                    }));
+                  }}
+                  options={seniorDoctors.map((doctor) => ({
+                    value: doctor.name,
+                    label: `${doctor.name} · ${doctor.department}`,
+                  }))}
+                  placeholder="Select senior doctor"
+                  className="w-full"
+                />
+              </>
+            )}
           </div>
           <div>
-            <label className="text-sm font-medium mb-1 block">Department</label>
-            <input
-              value={form.department}
-              readOnly
-              className="w-full px-3 py-2 rounded-lg border bg-muted/30 text-sm"
-            />
+            {navayuMode ? (
+              <>
+                <label className="text-sm font-medium mb-1 block">Doctor *</label>
+                <AppSelect
+                  value={form.doctor || undefined}
+                  onValueChange={(value) => setForm((prev) => ({ ...prev, doctor: value }))}
+                  options={getDoctorsForDepartment(
+                    navayuOpdDepartmentOptions().find((item) => item.label === form.department)?.value
+                      ?? form.department,
+                  ).map((name) => ({ value: name, label: name }))}
+                  placeholder="Select doctor"
+                  className="w-full"
+                />
+              </>
+            ) : (
+              <>
+                <label className="text-sm font-medium mb-1 block">Department</label>
+                <input
+                  value={form.department}
+                  readOnly
+                  className="w-full px-3 py-2 rounded-lg border bg-muted/30 text-sm"
+                />
+              </>
+            )}
           </div>
           <div>
             <label className="text-sm font-medium mb-1 block">Type</label>

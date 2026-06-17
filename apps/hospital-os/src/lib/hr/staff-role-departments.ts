@@ -1,12 +1,13 @@
-import { isNavayuTenant, NAVAYU_CLINICAL_DEPARTMENTS } from '@/lib/navayu/navayu-forms';
+import { departmentsForRoleFromMasterData } from '@/lib/admin/master-data';
 
 export const STAFF_REGISTER_ROLES: Record<string, string> = {
   doctor: 'Doctor',
+  jr_doctor: 'Junior Doctor',
   nurse: 'Nurse',
   receptionist: 'Receptionist',
   lab_technician: 'Lab Technician',
   pharmacist: 'Pharmacist',
-  billing: 'Billing & Finance',
+  billing: 'Counsellor',
   radiologist: 'Radiologist',
   admin: 'Administrator',
 };
@@ -20,6 +21,7 @@ const ROLE_DEPARTMENTS: Record<string, string[]> = {
     'Cardiology',
     'Pediatrics',
   ],
+  jr_doctor: ['Spine & MSK', 'Orthopedics', 'Neurology'],
   nurse: ['Spine & MSK', 'ICU', 'Emergency', 'Ward', 'OT', 'Maternity'],
   lab_technician: ['Pathology', 'Laboratory', 'Microbiology', 'Biochemistry'],
   pharmacist: ['Pharmacy'],
@@ -30,19 +32,9 @@ const ROLE_DEPARTMENTS: Record<string, string[]> = {
 };
 
 export function departmentsForStaffRole(role: string): string[] {
-  if (isNavayuTenant()) {
-    if (role === 'doctor' || role === 'jr_doctor') {
-      return [...NAVAYU_CLINICAL_DEPARTMENTS];
-    }
-    if (role === 'nurse') {
-      return ['Spine & MSK', 'Physiotherapy', 'OPD', 'Procedure room'];
-    }
-    if (role === 'receptionist' || role === 'billing') {
-      return ['Front Desk', 'Counselling', 'Navayu', 'Pataudi'];
-    }
-    if (role === 'lab_technician') {
-      return ['Pataudi Laboratory'];
-    }
+  const fromMaster = departmentsForRoleFromMasterData(role);
+  if (fromMaster.length > 0) {
+    return fromMaster;
   }
   return ROLE_DEPARTMENTS[role] ?? [];
 }

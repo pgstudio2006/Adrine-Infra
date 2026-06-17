@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CalendarDays, Clock, Users, Plus, Sun, Moon, Sunset } from 'lucide-react';
+import { AdminSchedulingPanel } from '@/components/admin/AdminSchedulingPanel';
+import { isNavayuTenant } from '@/lib/navayu/navayu-forms';
 
 const SHIFT_ICONS: Record<string, React.ElementType> = { Morning: Sun, Evening: Sunset, Night: Moon };
 const SHIFT_TIMES: Record<string, string> = { Morning: '7:00 AM – 2:00 PM', Evening: '2:00 PM – 9:00 PM', Night: '9:00 PM – 7:00 AM' };
@@ -27,6 +29,7 @@ const onCallDoctors = [
 
 export default function HRScheduling() {
   const [shiftFilter, setShiftFilter] = useState('all');
+  const navayuMode = isNavayuTenant();
 
   const filtered = shiftFilter === 'all' ? todaySchedule : todaySchedule.filter(s => s.shift === shiftFilter);
 
@@ -35,12 +38,22 @@ export default function HRScheduling() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Staff Scheduling</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage shifts, duty rosters, and on-call assignments</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {navayuMode
+              ? 'Shift rosters, senior doctor calendar visibility, and doctor leave blocks'
+              : 'Manage shifts, duty rosters, and on-call assignments'}
+          </p>
         </div>
         <Button className="gap-2"><Plus className="w-4 h-4" />Create Shift</Button>
       </div>
 
-      {/* Summary */}
+      {navayuMode && (
+        <Card className="p-4">
+          <h2 className="text-sm font-semibold mb-3">Senior doctors & leave (appointment calendar)</h2>
+          <AdminSchedulingPanel />
+        </Card>
+      )}
+
       <div className="grid grid-cols-3 gap-4">
         {Object.entries(SHIFT_TIMES).map(([shift, time]) => {
           const Icon = SHIFT_ICONS[shift];

@@ -18,16 +18,19 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { ClipboardList, CalendarClock, FileText, LayoutTemplate, LockKeyhole, Palette, Settings2, SlidersHorizontal } from 'lucide-react';
+import { ClipboardList, CalendarClock, Database, FileText, LayoutTemplate, LockKeyhole, Palette, Settings2, SlidersHorizontal } from 'lucide-react';
 import { AdminSchedulingPanel } from '@/components/admin/AdminSchedulingPanel';
+import { AdminMasterDataPanel } from '@/components/admin/AdminMasterDataPanel';
+import { isNavayuTenant } from '@/lib/navayu/navayu-forms';
 
-type SettingsTab = 'branding' | 'roles' | 'navigation' | 'features' | 'registration' | 'scheduling' | 'forms' | 'advanced';
+type SettingsTab = 'branding' | 'roles' | 'navigation' | 'features' | 'registration' | 'scheduling' | 'master-data' | 'forms' | 'advanced';
 
 const TAB_OPTIONS: Array<{ key: SettingsTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { key: 'branding', label: 'Branding', icon: Palette },
   { key: 'roles', label: 'Roles', icon: LayoutTemplate },
   { key: 'navigation', label: 'Navigation', icon: SlidersHorizontal },
   { key: 'features', label: 'Feature Flags', icon: Settings2 },
+  { key: 'master-data', label: 'Master Data', icon: Database },
   { key: 'registration', label: 'Registration', icon: ClipboardList },
   { key: 'scheduling', label: 'Scheduling', icon: CalendarClock },
   { key: 'forms', label: 'Form Builder', icon: FileText },
@@ -70,6 +73,8 @@ function buildFormTemplateDrafts(forms: Record<TenantFormTemplateKey, { label: s
 }
 
 export default function AdminSettings() {
+  const navayuMode = isNavayuTenant();
+  const visibleTabs = TAB_OPTIONS.filter((option) => !(navayuMode && option.key === 'scheduling'));
   const {
     settings,
     updateBranding,
@@ -82,7 +87,7 @@ export default function AdminSettings() {
     replaceSettings,
     resetSettings,
   } = useTenantSettings();
-  const [tab, setTab] = useState<SettingsTab>('branding');
+  const [tab, setTab] = useState<SettingsTab>(() => (isNavayuTenant() ? 'master-data' : 'branding'));
   const [selectedRole, setSelectedRole] = useState<UserRole>('admin');
   const [jsonText, setJsonText] = useState(() => JSON.stringify(settings, null, 2));
   const [departmentText, setDepartmentText] = useState(() => settings.registration.departments.join('\n'));
@@ -204,7 +209,9 @@ export default function AdminSettings() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Customization Studio</h1>
-          <p className="text-sm text-muted-foreground">Tenant branding, role presentation, navigation labels and feature controls</p>
+          <p className="text-sm text-muted-foreground">
+            Centralized master data, branding, navigation and feature controls for Navayu HMS
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <Badge variant="outline">Live persisted</Badge>
@@ -213,7 +220,7 @@ export default function AdminSettings() {
       </div>
 
       <div className="flex gap-1 overflow-x-auto border-b pb-1">
-        {TAB_OPTIONS.map((option) => (
+        {visibleTabs.map((option) => (
           <Button
             key={option.key}
             size="sm"
@@ -371,7 +378,9 @@ export default function AdminSettings() {
         </Card>
       )}
 
-      {tab === 'scheduling' && (
+      {tab === 'master-data' && <AdminMasterDataPanel />}
+
+      {tab === 'scheduling' && !navayuMode && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Senior Doctors & Leave</CardTitle>

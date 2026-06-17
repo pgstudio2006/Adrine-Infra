@@ -1,4 +1,5 @@
 import { NAVAYU_CLINICAL_DEPARTMENTS, isNavayuTenant } from '@/lib/navayu/navayu-forms';
+import { getClinicalDepartmentsFromMasterData } from '@/lib/admin/master-data';
 
 export const NAVAYU_MSK_JUNIOR = 'Dr. Junior MSK Associate';
 export const NAVAYU_MSK_SENIOR = 'Dr. Senior MSK Consultant';
@@ -57,7 +58,8 @@ export function getDefaultAssignedDoctor(dept?: string): string {
 
 export function getClinicalDepartments(): string[] {
   if (isNavayuTenant()) {
-    return [...NAVAYU_CLINICAL_DEPARTMENTS];
+    const fromMaster = getClinicalDepartmentsFromMasterData();
+    return fromMaster.length > 0 ? fromMaster : [...NAVAYU_CLINICAL_DEPARTMENTS];
   }
   return Object.keys(DEFAULT_DEPARTMENT_DOCTORS);
 }

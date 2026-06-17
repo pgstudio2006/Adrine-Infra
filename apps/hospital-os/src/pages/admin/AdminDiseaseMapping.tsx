@@ -10,6 +10,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { toast } from 'sonner';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { isNavayuTenant } from '@/lib/navayu/navayu-forms';
+import { downloadCsv } from '@/lib/export';
 
 const fadeIn = (i: number) => ({
   initial: { opacity: 0, y: 12 },
@@ -17,7 +19,7 @@ const fadeIn = (i: number) => ({
   transition: { delay: i * 0.04, duration: 0.3 },
 });
 
-const CENTER: [number, number] = [23.0225, 72.5714];
+const CENTER: [number, number] = isNavayuTenant() ? [28.4595, 77.0266] : [23.0225, 72.5714];
 
 interface DiseaseCluster {
   name: string;
@@ -27,7 +29,20 @@ interface DiseaseCluster {
   density: 'high' | 'medium' | 'low';
 }
 
-const clusters: DiseaseCluster[] = [
+const navayuClusters: DiseaseCluster[] = [
+  { name: 'DLF Phase 3', coords: [28.4934, 77.0956], totalCases: 186, density: 'high',
+    diseases: [{ name: 'Lumbar pain', cases: 72, trend: '+14%' }, { name: 'Knee OA', cases: 58, trend: '+9%' }, { name: 'Shoulder impingement', cases: 31, trend: '+6%' }] },
+  { name: 'Sector 14', coords: [28.4595, 77.0266], totalCases: 142, density: 'high',
+    diseases: [{ name: 'Cervical spondylosis', cases: 49, trend: '+11%' }, { name: 'Sports injury', cases: 44, trend: '+18%' }, { name: 'Sciatica', cases: 28, trend: '+4%' }] },
+  { name: 'Sohna Road', coords: [28.4225, 77.0378], totalCases: 96, density: 'medium',
+    diseases: [{ name: 'Knee pain', cases: 38, trend: '+7%' }, { name: 'Frozen shoulder', cases: 22, trend: '+3%' }, { name: 'Back strain', cases: 19, trend: '+5%' }] },
+  { name: 'Golf Course Road', coords: [28.4431, 77.1025], totalCases: 78, density: 'medium',
+    diseases: [{ name: 'Corporate MSK screening', cases: 34, trend: '+22%' }, { name: 'Neck pain', cases: 24, trend: '+8%' }, { name: 'Plantar fasciitis', cases: 12, trend: '+2%' }] },
+  { name: 'Pataudi corridor', coords: [28.3256, 76.7775], totalCases: 41, density: 'low',
+    diseases: [{ name: 'Chronic back pain', cases: 18, trend: '+1%' }, { name: 'Knee injury', cases: 14, trend: '-2%' }, { name: 'Shoulder pain', cases: 9, trend: '+3%' }] },
+];
+
+const defaultClusters: DiseaseCluster[] = [
   { name: 'Satellite', coords: [23.0275, 72.5170], totalCases: 342, density: 'high',
     diseases: [{ name: 'Diabetes', cases: 89, trend: '+12%' }, { name: 'Hypertension', cases: 112, trend: '+8%' }, { name: 'COPD', cases: 34, trend: '-2%' }] },
   { name: 'Navrangpura', coords: [23.0370, 72.5610], totalCases: 289, density: 'high',
@@ -42,7 +57,20 @@ const clusters: DiseaseCluster[] = [
     diseases: [{ name: 'Gastro', cases: 45, trend: '+10%' }, { name: 'Hepatitis', cases: 22, trend: '-3%' }, { name: 'Typhoid', cases: 18, trend: '+5%' }] },
 ];
 
-const seasonalData = [
+const clusters = isNavayuTenant() ? navayuClusters : defaultClusters;
+
+const navayuSeasonalData = [
+  { month: 'Jan', spine: 42, knee: 38, shoulder: 22, sports: 18 },
+  { month: 'Feb', spine: 45, knee: 35, shoulder: 24, sports: 20 },
+  { month: 'Mar', spine: 48, knee: 40, shoulder: 26, sports: 28 },
+  { month: 'Apr', spine: 52, knee: 44, shoulder: 29, sports: 32 },
+  { month: 'May', spine: 55, knee: 47, shoulder: 31, sports: 35 },
+  { month: 'Jun', spine: 58, knee: 51, shoulder: 34, sports: 38 },
+];
+
+const seasonalData = isNavayuTenant()
+  ? navayuSeasonalData
+  : [
   { month: 'Jan', dengue: 5, malaria: 3, respiratory: 45, gastro: 20 },
   { month: 'Feb', dengue: 3, malaria: 2, respiratory: 38, gastro: 18 },
   { month: 'Mar', dengue: 8, malaria: 5, respiratory: 30, gastro: 22 },
@@ -112,11 +140,35 @@ export default function AdminDiseaseMapping() {
       <motion.div {...fadeIn(0)} className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
-            <Activity className="w-5 h-5 text-destructive" /> Disease Cluster Mapping
+            <Activity className="w-5 h-5 text-destructive" />
+            {isNavayuTenant() ? 'MSK Disease & Catchment Mapping' : 'Disease Cluster Mapping'}
           </h1>
-          <p className="text-sm text-muted-foreground">Geospatial disease prevalence visualization & seasonal pattern analysis</p>
+          <p className="text-sm text-muted-foreground">
+            {isNavayuTenant()
+              ? 'Spine, knee, shoulder lead zones across Gurgaon with camp and corporate clustering'
+              : 'Geospatial disease prevalence visualization & seasonal pattern analysis'}
+          </p>
         </div>
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => toast.success('Disease map report exported')}>
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1.5"
+          onClick={() => {
+            downloadCsv(
+              clusters.flatMap((cluster) =>
+                cluster.diseases.map((disease) => ({
+                  zone: cluster.name,
+                  condition: disease.name,
+                  cases: disease.cases,
+                  trend: disease.trend,
+                  density: cluster.density,
+                })),
+              ),
+              `disease-mapping-${new Date().toISOString().slice(0, 10)}.csv`,
+            );
+            toast.success('Disease mapping report exported');
+          }}
+        >
           <Download className="w-3.5 h-3.5" /> Export
         </Button>
       </motion.div>
@@ -127,8 +179,14 @@ export default function AdminDiseaseMapping() {
           <CardContent className="p-3 flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
             <div>
-              <p className="text-xs font-medium text-destructive">Active Outbreak Alert</p>
-              <p className="text-[10px] text-destructive/80">Dengue cases up 65% in Navrangpura zone. Seasonal surge detected in 3 localities.</p>
+              <p className="text-xs font-medium text-destructive">
+                {isNavayuTenant() ? 'MSK surge alert' : 'Active Outbreak Alert'}
+              </p>
+              <p className="text-[10px] text-destructive/80">
+                {isNavayuTenant()
+                  ? 'Corporate screening leads up 22% on Golf Course Road. Knee and sports injury cases rising in Sector 14.'
+                  : 'Dengue cases up 65% in Navrangpura zone. Seasonal surge detected in 3 localities.'}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -194,18 +252,33 @@ export default function AdminDiseaseMapping() {
       <motion.div {...fadeIn(4)}>
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Seasonal Disease Pattern (Cases/Month)</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+              {isNavayuTenant() ? 'MSK condition trend (cases/month)' : 'Seasonal Disease Pattern (Cases/Month)'}
+            </p>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={seasonalData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="month" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-                <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-                <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))' }} />
-                <Bar dataKey="dengue" fill="hsl(var(--destructive))" name="Dengue" radius={[2, 2, 0, 0]} />
-                <Bar dataKey="malaria" fill="hsl(var(--primary))" name="Malaria" radius={[2, 2, 0, 0]} />
-                <Bar dataKey="respiratory" fill="hsl(var(--muted-foreground))" name="Respiratory" radius={[2, 2, 0, 0]} />
-                <Bar dataKey="gastro" fill="#f59e0b" name="Gastro" radius={[2, 2, 0, 0]} />
-              </BarChart>
+              {isNavayuTenant() ? (
+                <BarChart data={seasonalData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))' }} />
+                  <Bar dataKey="spine" fill="hsl(var(--primary))" name="Spine" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="knee" fill="#f59e0b" name="Knee" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="shoulder" fill="hsl(var(--destructive))" name="Shoulder" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="sports" fill="#22c55e" name="Sports injury" radius={[2, 2, 0, 0]} />
+                </BarChart>
+              ) : (
+                <BarChart data={seasonalData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))' }} />
+                  <Bar dataKey="dengue" fill="hsl(var(--destructive))" name="Dengue" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="malaria" fill="hsl(var(--primary))" name="Malaria" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="respiratory" fill="hsl(var(--muted-foreground))" name="Respiratory" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="gastro" fill="#f59e0b" name="Gastro" radius={[2, 2, 0, 0]} />
+                </BarChart>
+              )}
             </ResponsiveContainer>
           </CardContent>
         </Card>

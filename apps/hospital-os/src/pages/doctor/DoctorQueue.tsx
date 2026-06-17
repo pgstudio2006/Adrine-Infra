@@ -31,6 +31,7 @@ import {
 } from '@/lib/navayu/navayu-runtime';
 import type { NavayuRegistrationMetadata } from '@/lib/navayu/navayu-forms';
 import { getPlatformSession } from '@/runtime/platform-session';
+import { getOpdExamStatus } from '@/lib/navayu/navayu-opd-journey';
 
 const fadeIn = (i: number) => ({
   initial: { opacity: 0, y: 12 },
@@ -333,9 +334,14 @@ export default function DoctorQueue() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-semibold truncate">{p.patientName}</p>
                     <span className="text-[10px] font-mono text-muted-foreground">{p.uhid}</span>
-                    {p.waitMinutes != null && (p.status === 'waiting' || p.status === 'called') ? (
-                      <Badge variant="outline" className="text-[9px]">
-                        {formatWaitMinutes(p.waitMinutes)}
+                    {navayuMode ? (
+                      <Badge
+                        variant={
+                          (p.examStatus ?? getOpdExamStatus(p.uhid)) === 'done' ? 'default' : 'secondary'
+                        }
+                        className="text-[9px]"
+                      >
+                        Exam: {(p.examStatus ?? getOpdExamStatus(p.uhid)).replace('_', ' ')}
                       </Badge>
                     ) : null}
                   </div>

@@ -37,6 +37,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { platformSaveNavayuRegistration } from '@/lib/navayu/navayu-runtime';
 import { maybeCreateNavayuCrmLead } from '@/lib/navayu/navayu-crm';
 import {
+  isNavayuTenant,
   migratePatientPhone,
   savePatientPhone,
   type NavayuRegistrationMetadata,
@@ -172,6 +173,10 @@ export interface HospitalPatient {
   mlcReportingAuthority?: string;
   mlcIncidentDescription?: string;
   welcomeSmsSentAt?: string;
+  /** Navayu OPD billing gate — billing_pending until paid or deferred */
+  opdPaymentStatus?: 'billing_pending' | 'payment_deferred' | 'paid';
+  /** Navayu front-desk OPD category id */
+  opdDepartment?: string;
   /** Tenant-specific visit metadata (Navayu MSK registration, etc.) */
   visitMetadata?: Record<string, unknown>;
 }
@@ -424,6 +429,14 @@ export interface QueueEntry {
   platformPatientId?: string;
   /** Navayu MSK lifecycle state from visit metadata */
   mskLifecycleState?: string;
+  /** Navayu billing gate for queue visibility */
+  opdPaymentStatus?: 'billing_pending' | 'payment_deferred' | 'paid';
+  /** Jr doctor / nurse examination status */
+  examStatus?: 'pending' | 'in_progress' | 'done';
+  /** True when patient had a scheduled appointment */
+  isAppointmentPatient?: boolean;
+  /** ISO sort key for strict FIFO */
+  checkedInAtIso?: string;
 }
 
 export interface LabOrder {
@@ -1078,6 +1091,10 @@ interface HospitalStore {
     notes?: string;
     visitMetadata?: Record<string, unknown>;
     initialBillingItems?: { description: string; amount: number }[];
+    /** Navayu: create invoice but defer doctor queue until payment or skip */
+    billingFirst?: boolean;
+    /** When true with billingFirst, patient stays off queue until paid */
+    deferQueueUntilPaid?: boolean;
   }) => {
     uhid: string;
     appointmentId: string | null;
@@ -1310,6 +1327,10 @@ interface HospitalStore {
   // Billing actions
   collectPayment: (invoiceId: string, amount: number, mode: PaymentMode, reference?: string) => Promise<void>;
   refundPayment: (invoiceId: string, amount: number, mode: PaymentMode, reason?: string, reference?: string) => void;
+  /** Navayu OPD: defer payment, release patient to doctor queue */
+  skipOpdPayment: (uhid: string) => void;
+  /** Navayu OPD: after full payment, move patient from billing hold to doctor queue */
+  releaseOpdToDoctorQueue: (uhid: string) => void;
   createInvoice: (data: Omit<BillingInvoice, 'id'>) => string;
   createEstimate: (data: Omit<BillingEstimate, 'id' | 'status'>) => string;
   convertEstimateToInvoice: (estimateId: string) => string | null;
@@ -1812,6 +1833,8 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     notes?: string;
     visitMetadata?: Record<string, unknown>;
     initialBillingItems?: { description: string; amount: number }[];
+    billingFirst?: boolean;
+    deferQueueUntilPaid?: boolean;
   }) => {
     const registeredOn = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
     const appointmentDate = data.appointmentDate ?? new Date().toISOString().split('T')[0];
@@ -1822,8 +1845,10 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     });
 
     const uhid = allocateNextUhid(patientsRef.current.map((patient) => patient.uhid));
-    const appointmentId = data.patient.department && data.patient.assignedDoctor ? `APT-${appointmentCounter++}` : null;
-    const tokenNo = appointmentId ? tokenCounter++ : null;
+    const hasRouting = Boolean(data.patient.department && data.patient.assignedDoctor);
+    const deferQueue = Boolean(data.deferQueueUntilPaid && data.billingFirst);
+    const appointmentId = hasRouting ? `APT-${appointmentCounter++}` : null;
+    const tokenNo = hasRouting && !deferQueue ? tokenCounter++ : null;
     const invoiceId = data.initialBillingItems && data.initialBillingItems.length > 0 ? `INV-${invoiceCounter++}` : null;
 
     const patient: HospitalPatient = {
@@ -1831,6 +1856,11 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
       uhid,
       registeredOn,
       visitMetadata: data.visitMetadata ?? data.patient.visitMetadata,
+      opdPaymentStatus: data.billingFirst
+        ? deferQueue
+          ? 'billing_pending'
+          : 'paid'
+        : data.patient.opdPaymentStatus,
     };
 
     setPatients(prev => [patient, ...prev]);
@@ -1894,20 +1924,23 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
         notes: data.notes ?? 'Walk-in registration from reception',
       };
 
-      const queueEntry: QueueEntry = {
-        tokenNo: tokenNo || 0,
-        uhid,
-        patientName: patient.name,
-        doctor: appointment.doctor,
-        department: appointment.department,
-        status: 'waiting',
-        appointmentId,
-        checkedInAt: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
-        complaint: appointment.notes,
-      };
-
       setAppointments(prev => [appointment, ...prev]);
-      if (!isPlatformAuthoritative()) {
+      if (!deferQueue && !isPlatformAuthoritative()) {
+        const queueEntry: QueueEntry = {
+          tokenNo: tokenNo || 0,
+          uhid,
+          patientName: patient.name,
+          doctor: appointment.doctor,
+          department: appointment.department,
+          status: 'waiting',
+          appointmentId,
+          checkedInAt: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
+          checkedInAtIso: new Date().toISOString(),
+          complaint: appointment.notes,
+          opdPaymentStatus: patient.opdPaymentStatus,
+          examStatus: 'pending',
+        };
+
         setQueue(prev => {
           const withoutDuplicate = prev.filter((entry) => entry.appointmentId !== appointmentId && entry.uhid !== uhid);
           return [...withoutDuplicate, queueEntry].sort((a, b) => a.tokenNo - b.tokenNo);
@@ -2710,6 +2743,54 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     }
 
     const token = tokenCounter++;
+    const navayuBillingFirst = isNavayuTenant();
+    const existingOpdInvoice = invoices.find(
+      (inv) => inv.uhid === appt.uhid && inv.category === 'OPD' && inv.status === 'paid',
+    );
+
+    if (navayuBillingFirst && !existingOpdInvoice) {
+      const hasPending = invoices.some(
+        (inv) =>
+          inv.uhid === appt.uhid &&
+          inv.category === 'OPD' &&
+          (inv.status === 'pending' || inv.status === 'partial'),
+      );
+      if (!hasPending) {
+        const invoiceId = `INV-${invoiceCounter++}`;
+        setInvoices((prev) => [
+          {
+            id: invoiceId,
+            uhid: appt.uhid,
+            patientName: appt.patientName,
+            date: new Date().toLocaleDateString('en-IN', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            }),
+            category: 'OPD',
+            items: [
+              { description: 'OPD registration fee', amount: 250 },
+              { description: 'OPD consultation fee', amount: 500 },
+            ],
+            total: 750,
+            paid: 0,
+            status: 'pending',
+          },
+          ...prev,
+        ]);
+      }
+      setPatients((prev) =>
+        prev.map((row) =>
+          row.uhid === appt.uhid ? { ...row, opdPaymentStatus: 'billing_pending' } : row,
+        ),
+      );
+      updateAppointmentStatus(appointmentId, 'checked-in');
+      toast.success(`Checked in: ${appt.patientName}`, {
+        description: 'OPD charges added — collect payment at billing desk first',
+      });
+      return 0;
+    }
+
     const entry: QueueEntry = {
       tokenNo: token,
       uhid: appt.uhid,
@@ -2719,8 +2800,11 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
       status: 'waiting',
       appointmentId,
       checkedInAt: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
+      checkedInAtIso: new Date().toISOString(),
       complaint: complaint || appt.notes,
       platformOpdVisitId: patient?.platformOpdVisitId,
+      isAppointmentPatient: true,
+      examStatus: 'pending',
     };
     const platformAuthoritative = isPlatformAuthoritative();
     if (!platformAuthoritative) {
@@ -2832,7 +2916,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     }
 
     return token;
-  }, [appointments, patients, pushWorkflowEvent, updateAppointmentStatus]);
+  }, [appointments, patients, invoices, pushWorkflowEvent, updateAppointmentStatus]);
 
   const refreshQueueFromPlatform = useCallback(async () => {
     if (!canUseOpdRuntime()) return;
@@ -5605,6 +5689,84 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     return activeInvoice.id;
   }, [admissions, invoices, pushWorkflowEvent]);
 
+  const releaseOpdToDoctorQueue = useCallback((uhid: string, paymentStatus?: HospitalPatient['opdPaymentStatus']) => {
+    const patient = patients.find((item) => item.uhid === uhid);
+    if (!patient?.department || !patient.assignedDoctor) return;
+    const resolvedPayment = paymentStatus ?? patient.opdPaymentStatus ?? 'paid';
+
+    const existing = queue.find((entry) => entry.uhid === uhid && entry.status !== 'completed');
+    if (existing) {
+      setQueue((prev) =>
+        prev.map((entry) =>
+          entry.uhid === uhid
+            ? { ...entry, opdPaymentStatus: resolvedPayment }
+            : entry,
+        ),
+      );
+      return;
+    }
+
+    const appointment = appointments.find((item) => item.uhid === uhid && item.status !== 'completed');
+    const appointmentId = appointment?.id ?? `APT-${appointmentCounter++}`;
+    const token = tokenCounter++;
+    const queueEntry: QueueEntry = {
+      tokenNo: token,
+      uhid,
+      patientName: patient.name,
+      doctor: patient.assignedDoctor,
+      department: patient.department,
+      status: 'waiting',
+      appointmentId,
+      checkedInAt: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
+      checkedInAtIso: new Date().toISOString(),
+      complaint: appointment?.notes,
+      opdPaymentStatus: resolvedPayment,
+      examStatus: 'pending',
+      isAppointmentPatient: Boolean(appointment),
+    };
+
+    if (!appointment) {
+      const newAppointment: HospitalAppointment = {
+        id: appointmentId,
+        uhid,
+        patientName: patient.name,
+        phone: patient.phone,
+        doctor: patient.assignedDoctor,
+        department: patient.department,
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        duration: 20,
+        status: 'checked-in',
+        type: 'new',
+        notes: 'Released from billing to doctor queue',
+      };
+      setAppointments((prev) => [newAppointment, ...prev]);
+    }
+
+    if (!isPlatformAuthoritative()) {
+      setQueue((prev) => [...prev, queueEntry].sort((a, b) => a.tokenNo - b.tokenNo));
+    }
+
+    pushWorkflowEvent({
+      module: 'reception',
+      action: 'opd_released_to_doctor_queue',
+      uhid,
+      patientName: patient.name,
+      refId: appointmentId,
+      details: `Token #${token} — ${resolvedPayment}`,
+    });
+  }, [appointments, patients, pushWorkflowEvent, queue]);
+
+  const skipOpdPayment = useCallback((uhid: string) => {
+    setPatients((prev) =>
+      prev.map((item) =>
+        item.uhid === uhid ? { ...item, opdPaymentStatus: 'payment_deferred' } : item,
+      ),
+    );
+    releaseOpdToDoctorQueue(uhid, 'payment_deferred');
+    toast.success('Payment deferred — patient sent to doctor queue');
+  }, [releaseOpdToDoctorQueue]);
+
   const collectPayment = useCallback(async (invoiceId: string, amount: number, mode: PaymentMode, reference?: string) => {
     const invoice = invoices.find(item => item.id === invoiceId);
     if (!invoice) return;
@@ -5678,6 +5840,18 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
       details: `Received ₹${collected.toLocaleString('en-IN')} via ${mode}${reference ? ` · ref ${reference}` : ''}`,
     });
     toast.success(`Payment ₹${collected.toLocaleString('en-IN')} collected`, { description: `Invoice: ${invoiceId}` });
+
+    if (newStatus === 'paid' && invoice.category === 'OPD') {
+      const patient = patients.find((p) => p.uhid === invoice.uhid);
+      if (patient?.opdPaymentStatus === 'billing_pending') {
+        setPatients((prev) =>
+          prev.map((item) =>
+            item.uhid === invoice.uhid ? { ...item, opdPaymentStatus: 'paid' } : item,
+          ),
+        );
+        releaseOpdToDoctorQueue(invoice.uhid, 'paid');
+      }
+    }
 
     if (canUseBillingRuntime() && invoice.category === 'OPD') {
       void (async () => {
@@ -5975,7 +6149,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
       applyDischargeSummaryTemplate, saveAdmissionDischargeSummary,
       updateAdmissionStatus, unlockAdmissionEditLock, assignAdmissionBed,
       generateInterimBill, finalizeAdmissionBill, applyFinalBillDiscount,
-      collectPayment, refundPayment, createInvoice, createEstimate, convertEstimateToInvoice, getPatientWorkflowTimeline,
+      collectPayment, refundPayment, skipOpdPayment, releaseOpdToDoctorQueue, createInvoice, createEstimate, convertEstimateToInvoice, getPatientWorkflowTimeline,
     }}>
       {children}
     </HospitalContext.Provider>

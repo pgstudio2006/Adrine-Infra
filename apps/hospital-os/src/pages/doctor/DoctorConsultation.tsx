@@ -59,7 +59,8 @@ import {
   type NavayuVisitBundle,
 } from '@/lib/navayu/navayu-runtime';
 import { getPlatformSession } from '@/runtime/platform-session';
-import { useClinicalBasePath } from '@/hooks/useClinicalBasePath';
+import { NavayuConsultCounsellorPanel, seedDefaultDoctorTemplates } from '@/components/navayu/NavayuConsultCounsellorPanel';
+import { getOpdExamStatus } from '@/lib/navayu/navayu-opd-journey';
 
 const fadeIn = (i: number) => ({
   initial: { opacity: 0, y: 12 },
@@ -282,6 +283,12 @@ export default function DoctorConsultation() {
     protocolId: '',
     stageId: '',
   });
+
+  useEffect(() => {
+    if (navayuMode && user?.name) {
+      seedDefaultDoctorTemplates(user.name);
+    }
+  }, [navayuMode, user?.name]);
 
   useEffect(() => {
     if (!patientId) return;
@@ -707,7 +714,7 @@ export default function DoctorConsultation() {
       </motion.div>
 
       {/* 3-column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr_280px] gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(380px,1.25fr)_minmax(260px,0.75fr)_minmax(240px,0.65fr)] gap-4">
         {/* Left Column */}
         <motion.div {...fadeIn(1)} className="space-y-1">
           {/* Sub-tabs */}
@@ -765,14 +772,32 @@ export default function DoctorConsultation() {
               {navayuMode && navayuSenior ? (
                 <ConsultationDiagnosis diagnoses={diagnoses} onChange={setDiagnoses} />
               ) : null}
+              {navayuMode ? (
+                <div className="rounded-xl border bg-card p-3 space-y-2">
+                  <h3 className="text-sm font-semibold">Treatment plan</h3>
+                  <textarea
+                    value={treatmentPlan}
+                    onChange={(event) => setTreatmentPlan(event.target.value)}
+                    rows={4}
+                    className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
+                    placeholder="Procedures, physiotherapy, follow-up investigations…"
+                  />
+                </div>
+              ) : null}
+              {navayuMode && patientId ? (
+                <div className="rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
+                  Staff exam status: <strong>{getOpdExamStatus(patientId).replace('_', ' ')}</strong>
+                  — jr doctor / nurse data editable above
+                </div>
+              ) : null}
             </div>
           ) : (
             <DoctorPhotoViewer patientId={patientId || ''} />
           )}
         </motion.div>
 
-        {/* Center — Medications (senior / general OPD only) */}
-        <motion.div {...fadeIn(2)}>
+        {/* Center — Medications (compact) */}
+        <motion.div {...fadeIn(2)} className="max-h-[calc(100vh-180px)] overflow-y-auto">
           <ConsultationMedications medications={medications} onChange={setMedications} allergies={patientAllergies} />
         </motion.div>
 
@@ -817,6 +842,20 @@ export default function DoctorConsultation() {
                     </Button>
                   ) : null}
                 </>
+              ) : null}
+              {navayuMode && navayuSenior && patientId ? (
+                <NavayuConsultCounsellorPanel
+                  uhid={patientId}
+                  patientName={patientName}
+                  phone={patient?.phone}
+                  doctorName={user?.name ?? 'Doctor'}
+                  department={patient?.department ?? queueEntry?.department ?? ''}
+                  diagnoses={diagnoses}
+                  treatmentPlan={treatmentPlan}
+                  advice={advice}
+                  medications={medications}
+                  onSkipCounsellor={() => toast.info('Counsellor skipped — patient may exit after billing')}
+                />
               ) : null}
             </>
           ) : null}

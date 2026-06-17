@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import {
   CalendarDays,
@@ -74,6 +75,7 @@ function compareByDateTime(
 }
 
 export default function ReceptionAppointments() {
+  const navigate = useNavigate();
   const {
     appointments,
     patients,
@@ -392,12 +394,20 @@ export default function ReceptionAppointments() {
             workflow
           </p>
         </div>
-        <button
-          onClick={() => openBookingModal()}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-        >
-          <Plus className="w-4 h-4" /> Book Appointment
-        </button>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => navigate('/reception/registration')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent transition-colors"
+          >
+            <UserCheck className="w-4 h-4" /> New Registration
+          </button>
+          <button
+            onClick={() => openBookingModal()}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Book Appointment
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

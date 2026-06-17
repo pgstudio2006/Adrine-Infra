@@ -1,14 +1,19 @@
 import { AppSelect } from '@/components/ui/app-select';
 import { Switch } from '@/components/ui/switch';
 import {
+  districtsForState,
+  INDIA_COUNTRIES,
+  statesForCountry,
+} from '@/lib/geo/india-locations';
+import {
+  getDoctorsForDepartment,
+  navayuOpdDepartmentOptions,
+} from '@/lib/navayu/navayu-opd-departments';
+import {
   NAVAYU_APPOINTMENT_CENTRES,
   NAVAYU_COUNSELLORS,
-  NAVAYU_COUNTRIES,
-  NAVAYU_DISTRICTS,
   NAVAYU_REFERRAL_SOURCES,
   NAVAYU_REGISTRATION_BRANCHES,
-  NAVAYU_SERVICE_CATEGORIES,
-  NAVAYU_STATES,
 } from '@/lib/navayu/navayu-registration-intake';
 import { normalizeNavayuReferralValue } from '@/lib/navayu/navayu-forms';
 import type { TenantPatientTypeOption } from '@/config/tenantSettings';
@@ -21,9 +26,10 @@ export type NavayuPageOneForm = {
   gender: string;
   dob: string;
   age: string;
-  serviceCategory: string;
+  opdDepartment: string;
+  assignedDoctor: string;
+  opdMode: boolean;
   appointmentCentre: string;
-  appointmentDateTime: string;
   country: string;
   state: string;
   district: string;
@@ -43,11 +49,24 @@ interface Props {
   patientTypes: TenantPatientTypeOption[];
   errors: Record<string, string>;
   onChange: (patch: Partial<NavayuPageOneForm>) => void;
+  onOpdStart?: () => void;
+  opdStartDisabled?: boolean;
 }
 
-export function NavayuRegistrationPageOne({ form, patientTypes, errors, onChange }: Props) {
-  const stateOptions = NAVAYU_STATES[form.country] ?? NAVAYU_STATES.India;
-  const districtOptions = NAVAYU_DISTRICTS[form.state] ?? [];
+export function NavayuRegistrationPageOne({
+  form,
+  patientTypes,
+  errors,
+  onChange,
+  onOpdStart,
+  opdStartDisabled,
+}: Props) {
+  const stateOptions = statesForCountry(form.country);
+  const districtOptions = districtsForState(form.state);
+  const departmentOptions = navayuOpdDepartmentOptions();
+  const doctorOptions = form.opdDepartment
+    ? getDoctorsForDepartment(form.opdDepartment)
+    : [];
 
   return (
     <div className="space-y-5">
@@ -111,14 +130,13 @@ export function NavayuRegistrationPageOne({ form, patientTypes, errors, onChange
           </div>
         </div>
         <div>
-          <label className="text-sm font-medium mb-1 block">Date of Birth *</label>
+          <label className="text-sm font-medium mb-1 block">Date of Birth</label>
           <input
             type="date"
             value={form.dob}
             onChange={(event) => onChange({ dob: event.target.value })}
-            className={`w-full px-3 py-2 rounded-lg border bg-background text-sm ${errors.dob ? 'border-destructive' : ''}`}
+            className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
           />
-          {errors.dob ? <p className="text-xs text-destructive mt-1">{errors.dob}</p> : null}
         </div>
         <div>
           <label className="text-sm font-medium mb-1 block">Age *</label>
@@ -134,87 +152,63 @@ export function NavayuRegistrationPageOne({ form, patientTypes, errors, onChange
         </div>
 
         <div>
-          <label className="text-sm font-medium mb-1 block">Service Category *</label>
-          <AppSelect
-            value={form.serviceCategory || undefined}
-            onValueChange={(value) => onChange({ serviceCategory: value })}
-            options={NAVAYU_SERVICE_CATEGORIES.map((item) => ({ value: item.value, label: item.label }))}
-            placeholder="Select service category"
-            className={`w-full ${errors.serviceCategory ? 'border-destructive' : ''}`}
-          />
-          {errors.serviceCategory ? <p className="text-xs text-destructive mt-1">{errors.serviceCategory}</p> : null}
-        </div>
-        <div>
-          <label className="text-sm font-medium mb-1 block">Appointment Centre *</label>
+          <label className="text-sm font-medium mb-1 block">Appointment Centre</label>
           <AppSelect
             value={form.appointmentCentre || undefined}
             onValueChange={(value) => onChange({ appointmentCentre: value })}
             options={NAVAYU_APPOINTMENT_CENTRES.map((item) => ({ value: item.value, label: item.label }))}
             placeholder="Select centre"
-            className={`w-full ${errors.appointmentCentre ? 'border-destructive' : ''}`}
-          />
-          {errors.appointmentCentre ? <p className="text-xs text-destructive mt-1">{errors.appointmentCentre}</p> : null}
-        </div>
-        <div>
-          <label className="text-sm font-medium mb-1 block">Appointment Date and Time</label>
-          <input
-            type="datetime-local"
-            value={form.appointmentDateTime}
-            onChange={(event) => onChange({ appointmentDateTime: event.target.value })}
-            className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
+            className="w-full"
           />
         </div>
 
         <div>
-          <label className="text-sm font-medium mb-1 block">Country *</label>
+          <label className="text-sm font-medium mb-1 block">Country</label>
           <AppSelect
             value={form.country}
             onValueChange={(value) =>
               onChange({
                 country: value,
-                state: NAVAYU_STATES[value]?.[0]?.value ?? '',
+                state: statesForCountry(value)[0]?.value ?? '',
                 district: '',
               })
             }
-            options={NAVAYU_COUNTRIES.map((item) => ({ value: item.value, label: item.label }))}
+            options={INDIA_COUNTRIES.map((item) => ({ value: item.value, label: item.label }))}
             className="w-full"
           />
         </div>
         <div>
-          <label className="text-sm font-medium mb-1 block">State *</label>
+          <label className="text-sm font-medium mb-1 block">State</label>
           <AppSelect
             value={form.state || undefined}
             onValueChange={(value) =>
               onChange({
                 state: value,
-                district: NAVAYU_DISTRICTS[value]?.[0]?.value ?? '',
+                district: districtsForState(value)[0]?.value ?? '',
               })
             }
             options={stateOptions.map((item) => ({ value: item.value, label: item.label }))}
             placeholder="Select state"
-            className={`w-full ${errors.state ? 'border-destructive' : ''}`}
+            className="w-full"
           />
-          {errors.state ? <p className="text-xs text-destructive mt-1">{errors.state}</p> : null}
         </div>
         <div>
-          <label className="text-sm font-medium mb-1 block">District *</label>
+          <label className="text-sm font-medium mb-1 block">District</label>
           <AppSelect
             value={form.district || undefined}
             onValueChange={(value) => onChange({ district: value })}
             options={districtOptions.map((item) => ({ value: item.value, label: item.label }))}
             placeholder="Select district"
-            className={`w-full ${errors.district ? 'border-destructive' : ''}`}
+            className="w-full"
           />
-          {errors.district ? <p className="text-xs text-destructive mt-1">{errors.district}</p> : null}
         </div>
         <div>
-          <label className="text-sm font-medium mb-1 block">City *</label>
+          <label className="text-sm font-medium mb-1 block">City</label>
           <input
             value={form.city}
             onChange={(event) => onChange({ city: event.target.value })}
-            className={`w-full px-3 py-2 rounded-lg border bg-background text-sm ${errors.city ? 'border-destructive' : ''}`}
+            className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
           />
-          {errors.city ? <p className="text-xs text-destructive mt-1">{errors.city}</p> : null}
         </div>
         <div className="sm:col-span-2">
           <label className="text-sm font-medium mb-1 block">Address</label>
@@ -267,7 +261,7 @@ export function NavayuRegistrationPageOne({ form, patientTypes, errors, onChange
 
       <div className="border-t pt-4 space-y-4">
         <div>
-          <label className="text-sm font-medium mb-1 block">How did you hear about us? *</label>
+          <label className="text-sm font-medium mb-1 block">How did you hear about us?</label>
           <AppSelect
             value={form.hearAboutNavayu || undefined}
             onValueChange={(value) =>
@@ -285,7 +279,7 @@ export function NavayuRegistrationPageOne({ form, patientTypes, errors, onChange
         </div>
         {form.hearAboutNavayu === 'doctor_referral' ? (
           <div>
-            <label className="text-sm font-medium mb-1 block">Referring doctor name *</label>
+            <label className="text-sm font-medium mb-1 block">Referring doctor name</label>
             <input
               value={form.referringDoctor}
               onChange={(event) => onChange({ referringDoctor: event.target.value })}
@@ -329,6 +323,75 @@ export function NavayuRegistrationPageOne({ form, patientTypes, errors, onChange
               onCheckedChange={(checked) => onChange({ autoAssignCounsellor: checked })}
             />
           </div>
+        </div>
+
+        <div className="rounded-lg border p-4 space-y-4 bg-muted/20">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold">OPD visit</p>
+              <p className="text-xs text-muted-foreground">
+                Enable to register for same-day OPD — routes to billing queue first
+              </p>
+            </div>
+            <Switch
+              checked={form.opdMode}
+              onCheckedChange={(checked) =>
+                onChange({
+                  opdMode: checked,
+                  opdDepartment: checked ? form.opdDepartment : '',
+                  assignedDoctor: checked ? form.assignedDoctor : '',
+                })
+              }
+            />
+          </div>
+
+          {form.opdMode ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Department *</label>
+                <AppSelect
+                  value={form.opdDepartment || undefined}
+                  onValueChange={(value) =>
+                    onChange({
+                      opdDepartment: value,
+                      assignedDoctor: getDoctorsForDepartment(value)[0] ?? '',
+                    })
+                  }
+                  options={departmentOptions}
+                  placeholder="Select department"
+                  className={`w-full ${errors.opdDepartment ? 'border-destructive' : ''}`}
+                />
+                {errors.opdDepartment ? (
+                  <p className="text-xs text-destructive mt-1">{errors.opdDepartment}</p>
+                ) : null}
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Doctor *</label>
+                <AppSelect
+                  value={form.assignedDoctor || undefined}
+                  onValueChange={(value) => onChange({ assignedDoctor: value })}
+                  options={doctorOptions.map((name) => ({ value: name, label: name }))}
+                  placeholder="Select doctor"
+                  disabled={!form.opdDepartment}
+                  className={`w-full ${errors.assignedDoctor ? 'border-destructive' : ''}`}
+                />
+                {errors.assignedDoctor ? (
+                  <p className="text-xs text-destructive mt-1">{errors.assignedDoctor}</p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {form.opdMode && onOpdStart ? (
+            <button
+              type="button"
+              disabled={opdStartDisabled}
+              onClick={onOpdStart}
+              className="w-full sm:w-auto px-6 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-40 transition-colors"
+            >
+              OPD Start → Billing queue
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

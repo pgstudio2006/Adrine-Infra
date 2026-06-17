@@ -14,6 +14,12 @@ export interface NavUserContext {
 
 const PUBLIC_PATHS = new Set(['/', '/dashboard']);
 
+const ADMIN_HR_ROUTE_TAB: Record<string, string> = {
+  '/hr/staff': 'hr-staff',
+  '/hr/scheduling': 'hr-scheduling',
+  '/hr/leave': 'hr-leave',
+};
+
 function normalizePath(path: string): string {
   if (path.length > 1 && path.endsWith('/')) {
     return path.slice(0, -1);
@@ -138,12 +144,14 @@ export function canAccessRoute(
     return false;
   }
 
-  if (
-    isNavayuTenant() &&
-    (normalized === '/hr/staff' || normalized.startsWith('/hr/staff/')) &&
-    ctx.role === 'admin'
-  ) {
-    return settings.roles.admin?.enabled ?? false;
+  if (isNavayuTenant() && ctx.role === 'admin') {
+    const hrTabKey = ADMIN_HR_ROUTE_TAB[normalized];
+    if (hrTabKey) {
+      return getEffectiveTabVisibility(settings, 'admin', hrTabKey, ctx);
+    }
+    if (normalized.startsWith('/hr/staff/')) {
+      return getEffectiveTabVisibility(settings, 'admin', 'hr-staff', ctx);
+    }
   }
 
   if (!settings.roles[ctx.role]?.enabled) {

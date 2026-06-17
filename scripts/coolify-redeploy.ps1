@@ -4,7 +4,7 @@
 #   $env:COOLIFY_WRITE_TOKEN="..." ; .\scripts\coolify-redeploy.ps1 -Uuid lm0z1tqxf5xm6mzme3veytnd -Force
 
 param(
-    [ValidateSet('hospital-os', 'kernel', 'domain', 'patient-app')]
+    [ValidateSet('hospital-os', 'kernel', 'domain', 'patient-app', 'twenty-crm')]
     [string]$App = 'hospital-os',
     [string]$Uuid,
     [switch]$Force,
@@ -16,6 +16,7 @@ $uuids = @{
     'hospital-os' = 'lm0z1tqxf5xm6mzme3veytnd'
     'kernel'      = 't36wqfoh1hj88qrizvbr0q9h'
     'domain'      = 'fxq9vh2765921yv0y6gvqs2z'
+    'twenty-crm'  = 'dwc1emkvamwhheauhepekf7n'
 }
 
 if (-not $Uuid) {

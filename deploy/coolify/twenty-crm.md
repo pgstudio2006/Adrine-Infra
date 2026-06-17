@@ -1,22 +1,41 @@
 # Twenty CRM on Coolify (Navayu VPS)
 
 **Coolify:** http://187.127.129.209:8000  
-**Target URL:** `https://crm.adrine.in`  
-**Compose file:** `deploy/twenty/docker-compose.coolify.yml`
+**Platform URL:** `https://crm.adrine.in`  
+**Navayu workspace:** `https://navayu.crm.adrine.in` (multi-workspace)
 
-Twenty runs on your Hostinger VPS (same as kernel/domain). Hospital OS on **Vercel** embeds it via iframe.
-
----
-
-## Prerequisites
-
-1. DNS **A record:** `crm` → `187.127.129.209`
-2. Traefik proxy **running** in Coolify (Server → Proxy → Start)
-3. Coolify API token with **write** scope: http://187.127.129.209:8000/security/api-tokens
+**Post-deploy connection steps:** [TWENTY_CONNECT_CHECKLIST.md](./TWENTY_CONNECT_CHECKLIST.md)
 
 ---
 
-## Option A — Coolify UI (recommended, ~10 min)
+## Model
+
+- **One Twenty** at `crm.adrine.in` (you deploy from [twentyhq/twenty](https://github.com/twentyhq/twenty) public repo)
+- **Per-client workspace** (Navayu first) — separate CRM data/profile per hospital chain
+- **HMS tenant** (`tenant_navayu`) embeds the Navayu workspace at `/crm` via branch pack config
+
+---
+
+## Option A — Deploy from Twenty public repo (your approach)
+
+1. Coolify → **+ New** → **Docker Compose**
+2. Repository: `https://github.com/twentyhq/twenty`
+3. Compose file: `packages/twenty-docker/docker-compose.yml` (check repo for current path)
+4. Set env vars — see [TWENTY_CONNECT_CHECKLIST.md](./TWENTY_CONNECT_CHECKLIST.md)
+5. After **Running**, complete connection checklist (domain, CSP, API keys)
+
+## Option B — Deploy from Adrine-Infra compose (alternative)
+
+Compose file: `deploy/twenty/docker-compose.coolify.yml`
+
+```powershell
+$env:COOLIFY_WRITE_TOKEN = "your-token-from-coolify"
+.\scripts\coolify-deploy-twenty.ps1
+```
+
+---
+
+## Legacy UI steps (if using Adrine compose)
 
 ### 1. Create Docker Compose service
 
@@ -82,8 +101,8 @@ curl -sI https://crm.adrine.in | findstr /i content-security-policy
 On Coolify app **adrine-domain** (`fxq9vh2765921yv0y6gvqs2z`), add runtime env:
 
 ```env
-TWENTY_CRM_URL=https://crm.adrine.in
-TWENTY_API_KEY=<paste from Twenty settings>
+TWENTY_CRM_URL=https://navayu.crm.adrine.in
+TWENTY_API_KEY=<Navayu workspace API key from Twenty settings>
 ```
 
 Redeploy domain-api.
@@ -101,9 +120,21 @@ Then complete domain + CSP steps in UI (steps 3–4 above).
 
 ---
 
-## Gurgaon pack (already in repo)
+## Gurgaon pack (Navayu tenant → Navayu workspace)
 
-`clients/navayu/packs/gurgaon-pack.json` points Twenty to `https://crm.adrine.in` when enabled. After domain-api is live, Navayu counsellor/CRM roles see full Twenty at `/crm`.
+`clients/navayu/packs/gurgaon-pack.json`:
+
+```json
+"twentyCrm": {
+  "enabled": true,
+  "baseUrl": "https://crm.adrine.in",
+  "workspaceSubdomain": "navayu",
+  "embedMode": true,
+  "fullApp": true
+}
+```
+
+HMS embeds `https://navayu.crm.adrine.in` for Navayu staff. Future clients add their own `workspaceSubdomain` in their branch pack.
 
 ---
 

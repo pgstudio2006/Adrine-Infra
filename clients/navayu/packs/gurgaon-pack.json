@@ -87,19 +87,19 @@
         "visible": true
       },
       "morning-briefing": {
-        "visible": true
+        "visible": false
       },
       "command-center": {
-        "visible": true
+        "visible": false
       },
       "mortality": {
         "visible": false
       },
       "ai-workflow": {
-        "visible": true
+        "visible": false
       },
       "disease-mapping": {
-        "visible": false
+        "visible": true
       },
       "data-mining": {
         "visible": false
@@ -108,10 +108,26 @@
         "visible": false
       },
       "revenue-cycle": {
-        "visible": true
+        "visible": false
+      },
+      "finance-hub": {
+        "visible": true,
+        "label": "Finance & Expenses"
       },
       "treatment-success": {
         "visible": false
+      },
+      "hr-staff": {
+        "visible": true,
+        "label": "Staff"
+      },
+      "hr-scheduling": {
+        "visible": true,
+        "label": "Scheduling"
+      },
+      "hr-leave": {
+        "visible": true,
+        "label": "Leave"
       },
       "staff": {
         "visible": false
@@ -141,7 +157,7 @@
         "visible": true
       },
       "audit": {
-        "visible": true
+        "visible": false
       },
       "phonebook": {
         "visible": false
@@ -756,6 +772,117 @@
     "customFieldsEnabled": true,
     "workflowDesignerEnabled": false,
     "apiAccessEnabled": false
+  },
+  "masterData": {
+    "doctorDepartments": [
+      "Spine & MSK",
+      "Joint/Knee",
+      "Sports Injury",
+      "Shoulder",
+      "Neck Pain",
+      "Back Pain",
+      "Physiotherapy"
+    ],
+    "expenseCategories": [
+      "Rent",
+      "Electricity",
+      "Water",
+      "Medical Equipment",
+      "Pharmacy Purchase",
+      "Maintenance",
+      "Staff Training",
+      "IT Services",
+      "Marketing",
+      "Utilities",
+      "Other"
+    ],
+    "roleDepartments": {
+      "doctor": [
+        "Spine & MSK",
+        "Joint/Knee",
+        "Sports Injury",
+        "Shoulder",
+        "Neck Pain",
+        "Back Pain",
+        "Physiotherapy"
+      ],
+      "jr_doctor": [
+        "Spine & MSK",
+        "Joint/Knee",
+        "Sports Injury",
+        "Shoulder",
+        "Neck Pain",
+        "Back Pain",
+        "Physiotherapy"
+      ],
+      "nurse": [
+        "Spine & MSK",
+        "Physiotherapy",
+        "OPD",
+        "Procedure room"
+      ],
+      "receptionist": [
+        "Front Desk",
+        "Counselling",
+        "Navayu",
+        "Pataudi"
+      ],
+      "billing": [
+        "Front Desk",
+        "Counselling",
+        "Navayu",
+        "Pataudi"
+      ],
+      "lab_technician": [
+        "Pataudi Laboratory"
+      ],
+      "pharmacist": [
+        "Pharmacy"
+      ],
+      "admin": [
+        "Administration",
+        "Operations",
+        "Navayu"
+      ]
+    },
+    "adminDashboardSections": [
+      "msk_pipeline",
+      "expense_pulse",
+      "approval_queue",
+      "staff_snapshot",
+      "mis_quick_access",
+      "disease_mapping"
+    ],
+    "opdDepartments": [
+      {
+        "id": "spine_joint",
+        "label": "Spine & Joint Care",
+        "clinicalDepartments": [
+          "Spine & MSK",
+          "Joint/Knee",
+          "Sports Injury",
+          "Shoulder",
+          "Neck Pain",
+          "Back Pain"
+        ]
+      },
+      {
+        "id": "wellness_metabolic",
+        "label": "Wellness & Metabolic",
+        "clinicalDepartments": [
+          "Physiotherapy"
+        ]
+      }
+    ],
+    "opdDepartmentDoctors": {
+      "spine_joint": [
+        "Dr. Senior MSK Consultant",
+        "Dr. Junior MSK Associate"
+      ],
+      "wellness_metabolic": [
+        "Dr. Junior MSK Associate"
+      ]
+    }
   },
   "integrations": {
     "twentyCrm": {

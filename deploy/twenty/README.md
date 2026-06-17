@@ -21,7 +21,17 @@ Open http://localhost:3000 → create workspace → **Settings → API & Webhook
 VITE_TWENTY_CRM_URL=http://localhost:3000
 ```
 
-Or per-tenant in branch pack (`integrations.twentyCrm.fullApp: true`) — see `clients/navayu/packs/gurgaon-pack.json`.
+Or per-tenant in branch pack — see `clients/navayu/packs/gurgaon-pack.json`:
+
+```json
+"twentyCrm": {
+  "enabled": true,
+  "baseUrl": "https://crm.adrine.in",
+  "workspaceSubdomain": "navayu"
+}
+```
+
+Embeds `https://navayu.crm.adrine.in` for the Navayu HMS tenant (requires Twenty multi-workspace + `*.crm.adrine.in` DNS).
 
 When Twenty is enabled:
 

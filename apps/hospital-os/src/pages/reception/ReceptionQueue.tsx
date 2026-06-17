@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from 'framer-motion';
-import { Monitor, Users, Clock, AlertTriangle, SkipForward, Phone, Play, Megaphone, RefreshCw } from 'lucide-react';
+import { Monitor, Users, Clock, AlertTriangle, SkipForward, Phone, Play, Megaphone, RefreshCw, ClipboardList } from 'lucide-react';
 import { OPDTVDisplay } from '@/components/reception/OPDTVDisplay';
 import { useHospital } from '@/stores/hospitalStore';
 import { InlinePlatformError } from '@/components/opd/InlinePlatformError';
@@ -8,6 +8,9 @@ import { useReceptionPlatform } from '@/hooks/useReceptionPlatform';
 import { averageWaitMinutes, formatWaitMinutes, queueEntryKey } from '@/lib/opd/queue-presenters';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { isNavayuTenant } from '@/lib/navayu/navayu-forms';
+import { getOpdExamStatus, setOpdExamStatus } from '@/lib/navayu/navayu-opd-journey';
+import { toast } from 'sonner';
 
 type QueueGroup = Record<string, ReturnType<typeof useHospital>['queue']>;
 
@@ -27,13 +30,25 @@ const statusLabels: Record<string, string> = {
   skipped: 'Skipped',
 };
 
+function fifoSort<T extends { tokenNo: number; checkedInAtIso?: string; isAppointmentPatient?: boolean }>(
+  entries: T[],
+): T[] {
+  return [...entries].sort((left, right) => {
+    if (left.tokenNo !== right.tokenNo) return left.tokenNo - right.tokenNo;
+    const leftIso = left.checkedInAtIso ?? '';
+    const rightIso = right.checkedInAtIso ?? '';
+    return leftIso.localeCompare(rightIso);
+  });
+}
+
 export default function ReceptionQueue() {
   const { queue, updateQueueStatus, clearCompletedFromQueue } = useHospital();
+  const navayuMode = isNavayuTenant();
   const { error: platformError, loading } = useReceptionPlatform({
     queue: true,
     appointments: false,
   });
-  const [selectedDept, setSelectedDept] = useState<string>('all');
+  const [selectedDoctor, setSelectedDoctor] = useState<string>('all');
   const [tvMode, setTvMode] = useState(false);
   const [errorDismissed, setErrorDismissed] = useState(false);
 
@@ -41,36 +56,56 @@ export default function ReceptionQueue() {
     setErrorDismissed(false);
   }, [platformError]);
 
-  const queuesByDepartment = useMemo<QueueGroup>(() => {
-    return queue.reduce<QueueGroup>((groups, entry) => {
-      if (!groups[entry.department]) {
-        groups[entry.department] = [];
+  const visibleQueue = useMemo(
+    () =>
+      queue.filter(
+        (entry) =>
+          entry.opdPaymentStatus !== 'billing_pending' &&
+          entry.status !== 'completed' &&
+          entry.status !== 'skipped',
+      ),
+    [queue],
+  );
+
+  const groupKey = navayuMode ? 'doctor' : 'department';
+
+  const queuesByGroup = useMemo<QueueGroup>(() => {
+    return visibleQueue.reduce<QueueGroup>((groups, entry) => {
+      const key = groupKey === 'doctor' ? entry.doctor || 'Unassigned' : entry.department;
+      if (!groups[key]) {
+        groups[key] = [];
       }
-      groups[entry.department] = [...groups[entry.department], entry].sort(
-        (left, right) => left.tokenNo - right.tokenNo,
-      );
+      groups[key] = fifoSort([...groups[key], entry]);
       return groups;
     }, {});
-  }, [queue]);
+  }, [visibleQueue, groupKey]);
 
-  const departments = Object.keys(queuesByDepartment);
-  const activeQueue = queue.filter((e) => e.status !== 'completed' && e.status !== 'skipped');
-  const totalWaiting = queue.filter((e) => e.status === 'waiting' || e.status === 'called').length;
-  const totalInConsultation = queue.filter((e) => e.status === 'in-consultation').length;
+  const groups = Object.keys(queuesByGroup).sort();
+  const activeQueue = visibleQueue.filter((e) => e.status !== 'completed' && e.status !== 'skipped');
+  const totalWaiting = visibleQueue.filter((e) => e.status === 'waiting' || e.status === 'called').length;
+  const totalInConsultation = visibleQueue.filter((e) => e.status === 'in-consultation').length;
   const totalSkipped = queue.filter((e) => e.status === 'skipped').length;
   const avgWaitMin = averageWaitMinutes(
     activeQueue.filter((e) => e.status === 'waiting' || e.status === 'called').map((e) => e.waitMinutes),
   );
   const avgWait = formatWaitMinutes(avgWaitMin);
 
-  const calledPatient = queue.find((e) => e.status === 'called');
+  const calledPatient = visibleQueue.find((e) => e.status === 'called');
+
+  const startExamWorkflow = (uhid: string) => {
+    setOpdExamStatus(uhid, 'in_progress');
+    toast.success('Examination & history started', {
+      description: 'Jr doctor / nurse can complete intake before senior consult.',
+    });
+  };
 
   if (tvMode) {
     return (
       <OPDTVDisplay
-        queues={queuesByDepartment}
+        queues={queuesByGroup}
         avgWait={avgWait}
         onClose={() => setTvMode(false)}
+        groupLabel={navayuMode ? 'doctor' : 'department'}
       />
     );
   }
@@ -89,7 +124,7 @@ export default function ReceptionQueue() {
             Now calling: {calledPatient.patientName} · Token #{calledPatient.tokenNo}
           </p>
           <Badge variant="default" className="font-mono">
-            {calledPatient.department} · {calledPatient.doctor}
+            {calledPatient.doctor} · {calledPatient.department}
           </Badge>
         </div>
       ) : null}
@@ -98,7 +133,9 @@ export default function ReceptionQueue() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">OPD Queue</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Token issue and handoff to clinical queue — one primary action per patient
+            {navayuMode
+              ? 'Grouped by doctor — strict FIFO by token / check-in time'
+              : 'Token issue and handoff to clinical queue — one primary action per patient'}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => setTvMode(true)} className="gap-2">
@@ -143,30 +180,30 @@ export default function ReceptionQueue() {
       <div className="flex gap-2 overflow-x-auto">
         <button
           type="button"
-          onClick={() => setSelectedDept('all')}
+          onClick={() => setSelectedDoctor('all')}
           className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-            selectedDept === 'all'
+            selectedDoctor === 'all'
               ? 'bg-primary text-primary-foreground'
               : 'bg-muted text-muted-foreground hover:text-foreground'
           }`}
         >
-          All Departments
+          All {navayuMode ? 'Doctors' : 'Departments'}
         </button>
-        {departments.map((department) => (
+        {groups.map((group) => (
           <button
-            key={department}
+            key={group}
             type="button"
-            onClick={() => setSelectedDept(department)}
+            onClick={() => setSelectedDoctor(group)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-              selectedDept === department
+              selectedDoctor === group
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-muted text-muted-foreground hover:text-foreground'
             }`}
           >
-            {department}
+            {group}
             <span className="ml-1 text-xs opacity-70">
               {
-                queuesByDepartment[department].filter(
+                queuesByGroup[group].filter(
                   (e) => e.status === 'waiting' || e.status === 'called',
                 ).length
               }
@@ -176,37 +213,38 @@ export default function ReceptionQueue() {
       </div>
 
       <div className="space-y-6">
-        {departments.length === 0 && !loading && (
+        {groups.length === 0 && !loading && (
           <div className="rounded-xl border bg-card p-12 text-center text-sm text-muted-foreground space-y-2">
             {platformError ? (
               <p>Queue board could not be loaded. Fix the error above and refresh.</p>
             ) : (
               <>
                 <p>No patients in queue.</p>
-                <p className="text-xs">Complete check-in from Check-In to issue tokens — they appear here automatically.</p>
+                <p className="text-xs">Complete check-in from Check-In or OPD Start from Registration.</p>
               </>
             )}
           </div>
         )}
 
-        {departments
-          .filter((department) => selectedDept === 'all' || selectedDept === department)
-          .map((department) => (
-            <div key={department}>
+        {groups
+          .filter((group) => selectedDoctor === 'all' || selectedDoctor === group)
+          .map((group) => (
+            <div key={group}>
               <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold">{department}</h2>
+                <h2 className="font-semibold">{group}</h2>
                 <span className="text-xs text-muted-foreground">
-                  {queuesByDepartment[department].filter((e) => e.status !== 'completed').length}{' '}
+                  {queuesByGroup[group].filter((e) => e.status !== 'completed').length}{' '}
                   active
                 </span>
               </div>
 
               <div className="space-y-2">
-                {queuesByDepartment[department].map((entry, index) => {
+                {queuesByGroup[group].map((entry, index) => {
                   const isCalled = entry.status === 'called';
                   const primaryWaiting = entry.status === 'waiting';
                   const primaryCalled = entry.status === 'called';
                   const primaryInConsult = entry.status === 'in-consultation';
+                  const examStatus = entry.examStatus ?? getOpdExamStatus(entry.uhid);
 
                   return (
                     <motion.div
@@ -225,12 +263,22 @@ export default function ReceptionQueue() {
                           {entry.tokenNo}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold truncate">{entry.patientName}</p>
+                          <p className="text-sm font-semibold truncate flex items-center gap-2">
+                            {entry.patientName}
+                            {entry.isAppointmentPatient ? (
+                              <Badge variant="secondary" className="text-[10px]">Appointment</Badge>
+                            ) : null}
+                          </p>
                           <p className="text-xs opacity-70">
                             {entry.uhid} · {entry.doctor} · Checked in {entry.checkedInAt}
                           </p>
                           {entry.complaint ? (
                             <p className="text-xs opacity-70 mt-1 truncate">{entry.complaint}</p>
+                          ) : null}
+                          {navayuMode ? (
+                            <Badge variant="outline" className="text-[10px] mt-1">
+                              Exam: {examStatus.replace('_', ' ')}
+                            </Badge>
                           ) : null}
                         </div>
                       </div>
@@ -247,6 +295,24 @@ export default function ReceptionQueue() {
                             <p className="text-xs opacity-70">Token #{entry.tokenNo}</p>
                           )}
                         </div>
+
+                        {navayuMode && (primaryWaiting || primaryCalled) ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5"
+                            onClick={() => {
+                              startExamWorkflow(entry.uhid);
+                              if (examStatus === 'in_progress') {
+                                setOpdExamStatus(entry.uhid, 'done');
+                                toast.success('Examination marked complete');
+                              }
+                            }}
+                          >
+                            <ClipboardList className="w-3.5 h-3.5" />
+                            {examStatus === 'done' ? 'Exam done' : 'Examination & History'}
+                          </Button>
+                        ) : null}
 
                         {primaryWaiting ? (
                           <Button

@@ -11,6 +11,7 @@ import {
   TenantNavigationItemConfig,
   TenantRegistrationConfig,
   TenantRoleConfig,
+  TenantMasterData,
   TenantSettings,
   coerceTenantSettings,
   getDocumentTitle,
@@ -24,6 +25,7 @@ import { getServerTenantSettings, loadBranchConfig } from '@/runtime/branch-conf
 import { getPlatformSession, isPlatformRuntimeEnabled } from '@/runtime/platform-session';
 import { UserRole } from '@/types/roles';
 import { listEnabledRoles } from '@engines/packs';
+import { coerceMasterData, DEFAULT_MASTER_DATA } from '@/lib/admin/master-data';
 
 const STORAGE_KEY = 'adrine_tenant_settings';
 
@@ -110,6 +112,20 @@ export function TenantSettingsProvider({ children }: { children: React.ReactNode
         ...current.registration,
         ...patch,
       },
+    }));
+  }
+
+  function updateMasterData(patch: Partial<TenantMasterData>) {
+    setSettings((current) => ({
+      ...current,
+      masterData: coerceMasterData({
+        ...(current.masterData ?? DEFAULT_MASTER_DATA),
+        ...patch,
+        roleDepartments: {
+          ...(current.masterData?.roleDepartments ?? DEFAULT_MASTER_DATA.roleDepartments),
+          ...(patch.roleDepartments ?? {}),
+        },
+      }),
     }));
   }
 
@@ -245,6 +261,7 @@ export function TenantSettingsProvider({ children }: { children: React.ReactNode
         updateNavigation,
         updateFeatureFlag,
         updateRegistration,
+        updateMasterData,
         updateFormTemplate,
         updateDynamicForm,
         replaceSettings,

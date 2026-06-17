@@ -179,6 +179,7 @@ import {
 
 // Admin pages
 import AdminStaffRoute from "@/components/admin/AdminStaffRoute";
+import { navayuOrLegacy } from "@/components/admin/AdminLegacyRedirect";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminDepartments from "@/pages/admin/AdminDepartments";
 import AdminFinance from "@/pages/admin/AdminFinance";
@@ -203,6 +204,7 @@ import AdminKaizen from "@/pages/admin/AdminKaizen";
 import AdminRevenueCycle from "@/pages/admin/AdminRevenueCycle";
 import AdminTreatmentSuccess from "@/pages/admin/AdminTreatmentSuccess";
 import AdminMorningBriefing from "@/pages/admin/AdminMorningBriefing";
+import AdminFinanceHub from "@/pages/admin/AdminFinanceHub";
 
 // Billing pages
 import BillingDashboard from "@/pages/billing/BillingDashboard";
@@ -316,24 +318,25 @@ const queryClient = new QueryClient();
 
 const ADMIN_PAGES: Record<string, React.ComponentType> = {
   "/admin": AdminDashboard,
-  "/admin/command-center": AdminCommandCenter,
+  "/admin/command-center": navayuOrLegacy(AdminCommandCenter, "/admin"),
   "/admin/mortality": AdminMortalityAnalytics,
-  "/admin/ai-workflow": AdminAIWorkflow,
+  "/admin/ai-workflow": navayuOrLegacy(AdminAIWorkflow, "/admin"),
   "/admin/disease-mapping": AdminDiseaseMapping,
   "/admin/geo-intelligence": AdminGeoIntelligence,
   "/admin/data-mining": AdminDataMining,
   "/admin/kaizen": AdminKaizen,
-  "/admin/revenue-cycle": AdminRevenueCycle,
+  "/admin/revenue-cycle": navayuOrLegacy(AdminRevenueCycle, "/admin/finance-hub"),
+  "/admin/finance-hub": AdminFinanceHub,
   "/admin/treatment-success": AdminTreatmentSuccess,
-  "/admin/morning-briefing": AdminMorningBriefing,
+  "/admin/morning-briefing": navayuOrLegacy(AdminMorningBriefing, "/admin"),
   "/admin/departments": AdminDepartments,
   "/admin/finance": AdminFinance,
-  "/admin/expenses": AdminExpenses,
-  "/admin/approvals": AdminApprovals,
+  "/admin/expenses": navayuOrLegacy(AdminExpenses, "/admin/finance-hub"),
+  "/admin/approvals": navayuOrLegacy(AdminApprovals, "/admin/finance-hub"),
   "/admin/claims": AdminClaims,
   "/admin/mrd": AdminMRD,
   "/admin/mis": AdminMIS,
-  "/admin/audit": AdminAudit,
+  "/admin/audit": navayuOrLegacy(AdminAudit, "/admin"),
   "/admin/settings": AdminSettings,
   "/admin/platform": PlatformAdminHub,
   "/admin/onboarding": OnboardingWizard,
@@ -612,7 +615,7 @@ const CRM_PAGES: Record<string, React.ComponentType> = {
   "/crm/drip-campaigns": wrapCrmPage("/crm/drip-campaigns", CRMDashboard),
   "/crm/experience": wrapCrmPage("/crm/experience", CRMDashboard),
   "/crm/reports": wrapCrmPage("/crm/reports", CRMDashboard),
-  "/admin/crm": wrapCrmPage("/admin/crm", CRMDashboard),
+  "/admin/crm": navayuOrLegacy(wrapCrmPage("/admin/crm", CRMDashboard), "/crm"),
 };
 
 function AppRoutes() {

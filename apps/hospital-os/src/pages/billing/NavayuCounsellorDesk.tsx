@@ -33,6 +33,7 @@ import {
 import { platformEnsureOpdDraft, platformSyncCharge } from '@/runtime/billing-runtime';
 import { getPlatformSession } from '@/runtime/platform-session';
 import { useHospital } from '@/stores/hospitalStore';
+import { loadCounsellorHandoff } from '@/lib/navayu/navayu-opd-journey';
 
 const COUNSELLOR_MSK_STATES: NavayuMskLifecycleState[] = [
   'protocol_mapped',
@@ -61,6 +62,7 @@ export default function NavayuCounsellorDesk() {
   );
   const [followUpAlerts, setFollowUpAlerts] = useState<Record<string, { id: string; text: string; severity: 'low' | 'medium' | 'high' }[]>>({});
   const [followUpNotes, setFollowUpNotes] = useState<Record<string, string[]>>({});
+  const [packageDiscountPercent, setPackageDiscountPercent] = useState('0');
 
   const tiers = useMemo(() => listNavayuPackageTiers(), []);
   const selected =
@@ -167,6 +169,15 @@ export default function NavayuCounsellorDesk() {
   }, [selectedId, platformOn]);
 
   const tier = tiers.find((t) => t.id === tierId) ?? tiers[0];
+  const localPatient = selected
+    ? patients.find((p) => p.platformPatientId === selected.patientId)
+    : undefined;
+  const doctorHandoff = localPatient ? loadCounsellorHandoff(localPatient.uhid) : null;
+  const discountedAmount = useMemo(() => {
+    const base = tier?.priceInr ?? 0;
+    const pct = Math.min(30, Math.max(0, Number(packageDiscountPercent) || 0));
+    return Math.round(base * (1 - pct / 100));
+  }, [tier?.priceInr, packageDiscountPercent]);
   const activeTasks = selected ? tasksByVisit[selected.visitId] ?? [] : [];
   const activeAlerts = selected ? followUpAlerts[selected.visitId] ?? [] : [];
   const activeFollowUpNotes = selected ? followUpNotes[selected.visitId] ?? [] : [];
@@ -451,6 +462,49 @@ export default function NavayuCounsellorDesk() {
                 )}
               </div>
 
+              {doctorHandoff ? (
+                <div className="rounded-xl border bg-card p-4 space-y-3">
+                  <h3 className="text-sm font-semibold">Doctor handoff (full payload)</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                    <p>
+                      <span className="text-muted-foreground">Diagnosis: </span>
+                      {doctorHandoff.diagnoses.map((d) => d.text).join('; ') || '—'}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Treatment: </span>
+                      {doctorHandoff.treatmentPlan || '—'}
+                    </p>
+                    <p className="sm:col-span-2">
+                      <span className="text-muted-foreground">Advice: </span>
+                      {doctorHandoff.advice || '—'}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Next procedure: </span>
+                      {doctorHandoff.nextProcedure || '—'}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Care mode: </span>
+                      {doctorHandoff.careMode}
+                    </p>
+                  </div>
+                  {doctorHandoff.medications.length > 0 ? (
+                    <ul className="text-xs text-muted-foreground list-disc pl-4">
+                      {doctorHandoff.medications.map((med) => (
+                        <li key={med.id ?? med.name}>
+                          {med.name} {med.dosage} — {med.frequency}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {doctorHandoff.counselNotes ? (
+                    <p className="text-xs border-t pt-2">
+                      <span className="font-medium">Doctor counsel notes: </span>
+                      {doctorHandoff.counselNotes}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
               <div className="rounded-xl border bg-card p-4 space-y-4">
                 <p className="text-sm font-semibold flex items-center gap-2">
                   <Package className="w-4 h-4" />
@@ -469,8 +523,26 @@ export default function NavayuCounsellorDesk() {
                   <span className="text-muted-foreground">Proposed amount</span>
                   <span className="font-bold flex items-center">
                     <IndianRupee className="w-4 h-4" />
-                    {tier?.priceInr.toLocaleString('en-IN')}
+                    {discountedAmount.toLocaleString('en-IN')}
+                    {Number(packageDiscountPercent) > 0 ? (
+                      <span className="text-xs text-muted-foreground ml-2 line-through">
+                        {tier?.priceInr.toLocaleString('en-IN')}
+                      </span>
+                    ) : null}
                   </span>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                    Counsellor discount authority (max 30%)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={30}
+                    value={packageDiscountPercent}
+                    onChange={(event) => setPackageDiscountPercent(event.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
+                  />
                 </div>
                 <Textarea
                   value={notes}
@@ -492,9 +564,12 @@ export default function NavayuCounsellorDesk() {
                   >
                     Plan package & sync billing
                   </Button>
-                  <Button variant="outline" disabled={saving || !platformOn} onClick={addFollowUpNote}>
-                    Save follow-up note
+                  <Button variant="outline" onClick={() => navigate('/reception/billing')}>
+                    Send to reception billing
                   </Button>
+                  <div className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+                    Nursing consent placeholder — print consent per treatment type from reception after package selection.
+                  </div>
                 </div>
               </div>
 

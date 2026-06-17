@@ -15,9 +15,10 @@ interface OPDTVDisplayProps {
   queues: Record<string, QueueEntry[]>;
   avgWait: string;
   onClose: () => void;
+  groupLabel?: 'doctor' | 'department';
 }
 
-export const OPDTVDisplay: React.FC<OPDTVDisplayProps> = ({ queues, avgWait, onClose }) => {
+export const OPDTVDisplay: React.FC<OPDTVDisplayProps> = ({ queues, avgWait, onClose, groupLabel = 'department' }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -73,14 +74,14 @@ export const OPDTVDisplay: React.FC<OPDTVDisplayProps> = ({ queues, avgWait, onC
       {/* Main Grid */}
       <main className="p-10 h-[calc(100vh-160px)] overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 h-full">
-          {Object.entries(queues).map(([dept, entries], idx) => {
+          {Object.entries(queues).map(([groupName, entries], idx) => {
             const serving = entries.find(q => q.status === 'in-consultation');
             const next = entries.find(q => q.status === 'called');
             const waiting = entries.filter(q => q.status === 'waiting');
 
             return (
               <motion.div 
-                key={dept}
+                key={groupName}
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: idx * 0.1 }}
@@ -88,9 +89,11 @@ export const OPDTVDisplay: React.FC<OPDTVDisplayProps> = ({ queues, avgWait, onC
               >
                 {/* Dept Header */}
                 <div className="p-6 border-b border-white/5 bg-white/5">
-                   <h2 className="text-xl font-black uppercase tracking-tighter text-white/90 truncate">{dept}</h2>
+                   <h2 className="text-xl font-black uppercase tracking-tighter text-white/90 truncate">{groupName}</h2>
                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Active Queue</span>
+                      <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
+                        {groupLabel === 'doctor' ? 'Doctor queue' : 'Department queue'}
+                      </span>
                       <span className="px-2 py-0.5 rounded-full bg-white/10 text-[9px] font-black">{entries.length}</span>
                    </div>
                 </div>

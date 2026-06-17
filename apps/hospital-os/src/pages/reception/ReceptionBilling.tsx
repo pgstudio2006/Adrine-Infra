@@ -13,6 +13,8 @@ import {
   Smartphone,
   Undo2,
   X,
+  SkipForward,
+  Stethoscope,
 } from "lucide-react";
 import { useHospital, type BillingInvoice } from "@/stores/hospitalStore";
 import { useClinicalPlatformListSync } from "@/hooks/useClinicalPlatformListSync";
@@ -23,7 +25,11 @@ import {
 } from "@/runtime/billing-runtime";
 import { getPlatformSession } from "@/runtime/platform-session";
 import { AppSelect } from "@/components/ui/app-select";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
+import { isNavayuTenant } from "@/lib/navayu/navayu-forms";
+import { getOpdPaymentStatus } from "@/lib/navayu/navayu-opd-journey";
 
 const statusStyles: Record<BillingInvoice["status"], string> = {
   paid: "bg-success/10 text-success",
@@ -90,6 +96,7 @@ function inferServiceType(description: string) {
 
 export default function ReceptionBilling() {
   const navigate = useNavigate();
+  const navayuMode = isNavayuTenant();
   const {
     patients,
     invoices,
@@ -99,7 +106,9 @@ export default function ReceptionBilling() {
     convertEstimateToInvoice,
     collectPayment,
     refundPayment,
+    skipOpdPayment,
     queue,
+    convertOpdToIPDByUHID,
   } = useHospital();
   useClinicalPlatformListSync({ queue: true, departmentWorklists: false });
 
@@ -274,6 +283,25 @@ export default function ReceptionBilling() {
     );
   }, [queue, invoices]);
 
+  const opdBillingQueue = useMemo(() => {
+    if (!navayuMode) return [];
+    return patients
+      .map((patient) => {
+        const paymentStatus =
+          patient.opdPaymentStatus ?? getOpdPaymentStatus(patient.uhid);
+        const invoice = invoices.find(
+          (inv) =>
+            inv.uhid === patient.uhid &&
+            inv.category === "OPD" &&
+            (inv.status === "pending" || inv.status === "partial"),
+        );
+        if (!invoice && paymentStatus !== "billing_pending") return null;
+        if (paymentStatus === "paid") return null;
+        return { patient, invoice, paymentStatus: paymentStatus ?? "billing_pending" };
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null);
+  }, [navayuMode, patients, invoices]);
+
   const applyDeskChargePackage = (
     item: (typeof DESK_CHARGE_PACKAGES)[number],
   ) => {
@@ -387,6 +415,68 @@ export default function ReceptionBilling() {
           </div>
         </div>
       )}
+
+      {navayuMode && opdBillingQueue.length > 0 ? (
+        <div className="rounded-xl border bg-card p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h2 className="font-semibold flex items-center gap-2">
+                <Stethoscope className="w-4 h-4 text-primary" />
+                OPD billing queue
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Collect payment before doctor queue — or skip for post-consult collection
+              </p>
+            </div>
+            <Badge variant="secondary">{opdBillingQueue.length} waiting</Badge>
+          </div>
+          <div className="space-y-2">
+            {opdBillingQueue.map(({ patient, invoice, paymentStatus }) => (
+              <div
+                key={patient.uhid}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"
+              >
+                <div>
+                  <p className="text-sm font-medium">{patient.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {patient.uhid} · {patient.assignedDoctor ?? "—"} ·{" "}
+                    <Badge variant="outline" className="text-[10px] ml-1">
+                      {paymentStatus.replace("_", " ")}
+                    </Badge>
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {invoice ? (
+                    <Button size="sm" onClick={() => openPaymentModal(invoice.id)}>
+                      Collect Rs{" "}
+                      {Math.max(0, invoice.total - invoice.paid).toLocaleString("en-IN")}
+                    </Button>
+                  ) : null}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1"
+                    onClick={() => skipOpdPayment(patient.uhid)}
+                  >
+                    <SkipForward className="w-3.5 h-3.5" />
+                    Skip payment
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      convertOpdToIPDByUHID(patient.uhid);
+                      toast.success("OPD → IPD conversion initiated");
+                    }}
+                  >
+                    OPD → IPD
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <div className="rounded-xl border bg-card p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>

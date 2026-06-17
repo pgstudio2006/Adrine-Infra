@@ -12,6 +12,7 @@ Add these **A records** at your DNS provider (Hostinger, Cloudflare, etc.):
 | `hms` | A | `187.127.129.209` | Hospital OS (staff) |
 | `book` | A | `187.127.129.209` | Patient app + `/book/navayu` |
 | `crm` | A | `187.127.129.209` | Twenty CRM (embedded in Hospital OS `/crm`) |
+| `*.crm` | A | `187.127.129.209` | Twenty client workspaces (e.g. `navayu.crm.adrine.in`) — only if multi-workspace |
 
 Optional:
 
@@ -32,7 +33,8 @@ Optional:
 | Domain API | https://domain.adrine.in |
 | Hospital OS (Navayu staff) | https://hms.adrine.in |
 | Online booking | https://book.adrine.in/book/navayu |
-| Twenty CRM | https://crm.adrine.in |
+| Twenty CRM (platform) | https://crm.adrine.in |
+| Navayu Twenty workspace | https://navayu.crm.adrine.in (multi-workspace) |
 
 **Until DNS propagates**, use IP: `http://187.127.129.209:3001` (kernel), `:3002`, `:8080`, `:3000`.
 

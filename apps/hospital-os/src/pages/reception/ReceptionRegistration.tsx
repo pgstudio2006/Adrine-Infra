@@ -23,10 +23,15 @@ import {
 import {
   NAVAYU_REGISTRATION_BRANCHES,
   counsellorNameById,
-  defaultAppointmentDateTimeLocal,
   pickAutoCounsellorId,
   splitFullName,
 } from '@/lib/navayu/navayu-registration-intake';
+import {
+  getDoctorsForDepartment,
+  getOpdDepartmentLabel,
+  mapOpdDepartmentToClinical,
+} from '@/lib/navayu/navayu-opd-departments';
+import { setOpdPaymentStatus } from '@/lib/navayu/navayu-opd-journey';
 import {
   NavayuRegistrationFields,
   createDefaultNavayuRegistrationState,
@@ -119,7 +124,7 @@ export default function ReceptionRegistration() {
   const [search, setSearch] = useState('');
   const [step, setStep] = useState(0);
   const [searchBy, setSearchBy] = useState<'all' | 'uhid' | 'phone' | 'name' | 'aadhaar' | 'abha'>('all');
-  const [selectedBranch, setSelectedBranch] = useState(navayuMode ? 'Navayu' : 'Main Hospital');
+  const [selectedBranch, setSelectedBranch] = useState(navayuMode ? 'Gurgaon' : 'Main Hospital');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [allowDuplicateRegistration, setAllowDuplicateRegistration] = useState(false);
   const [editingUhid, setEditingUhid] = useState<string | null>(null);
@@ -160,13 +165,13 @@ export default function ReceptionRegistration() {
     hasPhoto: false,
     photoDataUrl: '',
     // Branch
-    branch: navayuMode ? 'Navayu' : 'Main Hospital',
+    branch: navayuMode ? 'Gurgaon' : 'Main Hospital',
     // Navayu page-one intake
     fullName: '',
     ageYears: '',
-    serviceCategory: '',
+    opdDepartment: '',
+    opdMode: false,
     appointmentCentre: 'navayu_gurgaon',
-    appointmentDateTime: defaultAppointmentDateTimeLocal(),
     country: 'India',
     district: 'Gurugram',
     counsellorId: '',
@@ -210,9 +215,10 @@ export default function ReceptionRegistration() {
     gender: formData.gender,
     dob: formData.dob,
     age: formData.ageYears,
-    serviceCategory: formData.serviceCategory,
+    opdDepartment: formData.opdDepartment,
+    assignedDoctor: formData.assignedDoctor,
+    opdMode: formData.opdMode,
     appointmentCentre: formData.appointmentCentre,
-    appointmentDateTime: formData.appointmentDateTime,
     country: formData.country,
     state: formData.state,
     district: formData.district,
@@ -247,9 +253,14 @@ export default function ReceptionRegistration() {
       }
     }
     if (patch.age !== undefined) formPatch.ageYears = patch.age;
-    if (patch.serviceCategory !== undefined) formPatch.serviceCategory = patch.serviceCategory;
+    if (patch.opdDepartment !== undefined) {
+      formPatch.opdDepartment = patch.opdDepartment;
+      const clinical = mapOpdDepartmentToClinical(patch.opdDepartment);
+      formPatch.department = clinical;
+    }
+    if (patch.assignedDoctor !== undefined) formPatch.assignedDoctor = patch.assignedDoctor;
+    if (patch.opdMode !== undefined) formPatch.opdMode = patch.opdMode;
     if (patch.appointmentCentre !== undefined) formPatch.appointmentCentre = patch.appointmentCentre;
-    if (patch.appointmentDateTime !== undefined) formPatch.appointmentDateTime = patch.appointmentDateTime;
     if (patch.country !== undefined) formPatch.country = patch.country;
     if (patch.state !== undefined) formPatch.state = patch.state;
     if (patch.district !== undefined) formPatch.district = patch.district;
@@ -461,14 +472,10 @@ export default function ReceptionRegistration() {
         if (formData.altPhone && !validatePhone(formData.altPhone)) errors.altPhone = 'Invalid alternate phone';
         if (!formData.gender) errors.gender = 'Gender is required';
         if (!formData.ageYears.trim()) errors.age = 'Age is required';
-        if (!formData.serviceCategory) errors.serviceCategory = 'Select a service category';
-        if (!formData.appointmentCentre) errors.appointmentCentre = 'Select an appointment centre';
-        if (!formData.country) errors.country = 'Country is required';
-        if (!formData.state) errors.state = 'State is required';
-        if (!formData.district) errors.district = 'District is required';
-        if (!formData.city.trim()) errors.city = 'City is required';
-        if (!formData.patientType.trim()) errors.patientType = 'Patient type is required';
-        if (!navayuFields.hearAboutNavayu) errors.hearAboutNavayu = 'Select how the patient heard about us';
+        if (formData.opdMode) {
+          if (!formData.opdDepartment) errors.opdDepartment = 'Select a department';
+          if (!formData.assignedDoctor) errors.assignedDoctor = 'Select a doctor';
+        }
         if (navayuFields.hearAboutNavayu === 'doctor_referral' && !formData.referringDoctor.trim()) {
           errors.referringDoctor = 'Referring doctor name is required';
         }
@@ -484,7 +491,7 @@ export default function ReceptionRegistration() {
       else if (!validatePhone(formData.phone)) errors.phone = 'Invalid phone format (10 digits, starting 6-9)';
       if (formData.altPhone && !validatePhone(formData.altPhone)) errors.altPhone = 'Invalid phone format';
     }
-    if (stepIdx === 3) {
+    if (stepIdx === 3 && !navayuMode) {
       if (!formData.department.trim()) errors.department = 'Select department to route the patient';
     }
     if (stepIdx === 4) {
@@ -539,20 +546,24 @@ export default function ReceptionRegistration() {
     if (!navayuMode) return '';
     const counsellorId = formData.autoAssignCounsellor ? pickAutoCounsellorId() : formData.counsellorId;
     const parts = [
-      formData.serviceCategory ? `Service: ${formData.serviceCategory}` : null,
+      formData.opdDepartment ? `Department: ${getOpdDepartmentLabel(formData.opdDepartment)}` : null,
       formData.appointmentCentre ? `Centre: ${formData.appointmentCentre}` : null,
-      formData.appointmentDateTime ? `Appointment: ${formData.appointmentDateTime}` : null,
       counsellorId ? `Counsellor: ${counsellorNameById(counsellorId)}` : null,
       formData.referringDoctor ? `Referring doctor: ${formData.referringDoctor}` : null,
     ].filter(Boolean);
     return parts.join(' · ');
   };
 
-  const submitRegistration = useCallback(async (opts?: { pageOneOnly?: boolean }) => {
+  const submitRegistration = useCallback(async (opts?: { pageOneOnly?: boolean; opdStart?: boolean }) => {
     const pageOneOnly = opts?.pageOneOnly ?? false;
+    const opdStart = opts?.opdStart ?? false;
     if (!validateStep(0)) {
       setStep(0);
       toast.error('Complete required fields on page 1 before registering');
+      return;
+    }
+    if (opdStart && (!formData.opdMode || !formData.opdDepartment || !formData.assignedDoctor)) {
+      toast.error('Enable OPD and select department + doctor before OPD Start');
       return;
     }
     if (!pageOneOnly && !navayuMode) {
@@ -622,12 +633,27 @@ export default function ReceptionRegistration() {
       const registrationNotes = [navayuNotes, intakeNotes].filter(Boolean).join(' · ')
         || `Front-desk visit for ${registrationPatientType} (journey: ${journeyPatientType})`;
 
-      const appointmentDate = formData.appointmentDateTime
-        ? formData.appointmentDateTime.split('T')[0]
-        : new Date().toISOString().split('T')[0];
-      const appointmentTime = formData.appointmentDateTime
-        ? formData.appointmentDateTime.split('T')[1]?.slice(0, 5)
-        : new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
+      const clinicalDepartment = formData.opdDepartment
+        ? mapOpdDepartmentToClinical(formData.opdDepartment)
+        : formData.department || routingDepartments[0] || 'General Medicine';
+      const assignedDoctor = formData.opdMode
+        ? formData.assignedDoctor
+        : formData.assignedDoctor || getDefaultAssignedDoctor(clinicalDepartment);
+
+      const appointmentDate = new Date().toISOString().split('T')[0];
+      const appointmentTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+      const opdBillingItems = opdStart
+        ? [
+            { description: 'OPD registration fee', amount: 250 },
+            { description: 'OPD consultation fee', amount: 500 },
+          ]
+        : [
+            {
+              description: `${registrationPatientType} registration and front-desk processing`,
+              amount: isEmergencyJourney ? 500 : isAdmissionJourney ? 350 : 250,
+            },
+          ];
 
       const result = startFrontDeskVisit({
         patient: {
@@ -647,10 +673,11 @@ export default function ReceptionRegistration() {
           abhaId: formData.abhaId || undefined,
           aadhaar: formData.aadhaar || undefined,
           category: formData.category,
-          patientType: journeyPatientType,
+          patientType: opdStart ? 'OPD' : journeyPatientType,
           registrationPatientType,
-          department: formData.department || routingDepartments[0] || 'General Medicine',
-          assignedDoctor: formData.assignedDoctor || getDefaultAssignedDoctor(formData.department || routingDepartments[0]),
+          department: opdStart || formData.opdMode ? clinicalDepartment : formData.department || clinicalDepartment,
+          assignedDoctor: opdStart || formData.opdMode ? assignedDoctor : assignedDoctor,
+          opdDepartment: formData.opdDepartment || undefined,
           allergies: formData.allergies || undefined,
           chronicDiseases: formData.chronicDiseases || undefined,
           branch: formData.branch,
@@ -669,18 +696,28 @@ export default function ReceptionRegistration() {
           mlcIncidentDescription: formData.mlcIncidentDescription || undefined,
           visitMetadata,
         },
-        appointmentDate,
-        appointmentTime,
+        appointmentDate: opdStart || formData.opdMode ? appointmentDate : undefined,
+        appointmentTime: opdStart || formData.opdMode ? appointmentTime : undefined,
         notes: registrationNotes,
         visitMetadata,
-        initialBillingItems: [
-          {
-            description: `${registrationPatientType} registration and front-desk processing`,
-            amount: isEmergencyJourney ? 500 : isAdmissionJourney ? 350 : 250,
-          },
-        ],
+        initialBillingItems: opdStart ? opdBillingItems : pageOneOnly && !formData.opdMode ? undefined : opdBillingItems,
+        billingFirst: opdStart,
+        deferQueueUntilPaid: opdStart,
       });
       void afterNavayuRegistration(result.uhid, patientName, formData.phone);
+      if (opdStart) {
+        setOpdPaymentStatus(result.uhid, 'billing_pending');
+      }
+      setDemoResult({ patientName, ...result });
+      setNavayuFields(createDefaultNavayuRegistrationState());
+      setAllowDuplicateRegistration(false);
+      if (opdStart) {
+        toast.success('Patient registered — proceed to billing', {
+          description: `${patientName} is in the billing queue with OPD charges.`,
+        });
+        navigate('/reception/billing');
+        return;
+      }
       setDemoResult({ patientName, ...result });
       setNavayuFields(createDefaultNavayuRegistrationState());
       setAllowDuplicateRegistration(false);
@@ -1252,6 +1289,8 @@ export default function ReceptionRegistration() {
                 patientTypes={settings.registration.patientTypes}
                 errors={validationErrors}
                 onChange={handlePageOneChange}
+                onOpdStart={() => void submitRegistration({ pageOneOnly: true, opdStart: true })}
+                opdStartDisabled={!formData.opdMode || !formData.opdDepartment || !formData.assignedDoctor}
               />
             </div>
           )}
@@ -1649,18 +1688,22 @@ export default function ReceptionRegistration() {
                     className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
                   />
                 </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Department to Route Patient *</label>
-                  <AppSelect
-                    value={formData.department}
-                    onValueChange={(value) => updateField('department', value)}
-                    options={[
-                      { value: '', label: 'Select department' },
-                      ...routingDepartments.map((department) => ({ value: department, label: department })),
-                    ]}
-                    className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
-                  />
-                  <FieldError field="department" />
+                <div className="sm:col-span-2 lg:col-span-3">
+                  {!navayuMode ? (
+                    <>
+                      <label className="text-sm font-medium mb-1 block">Department to Route Patient *</label>
+                      <AppSelect
+                        value={formData.department}
+                        onValueChange={(value) => updateField('department', value)}
+                        options={[
+                          { value: '', label: 'Select department' },
+                          ...routingDepartments.map((department) => ({ value: department, label: department })),
+                        ]}
+                        className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
+                      />
+                      <FieldError field="department" />
+                    </>
+                  ) : null}
                 </div>
                 <div className="sm:col-span-2 lg:col-span-3">
                   <label className="text-sm font-medium mb-1 block">Known Allergies</label>
