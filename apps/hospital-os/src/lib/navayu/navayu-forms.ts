@@ -10,6 +10,9 @@ export type NavayuFormFieldType =
   | 'multiselect'
   | 'number'
   | 'text'
+  | 'email'
+  | 'date'
+  | 'time'
   | 'calculator'
   | 'pain_map'
   | 'file';

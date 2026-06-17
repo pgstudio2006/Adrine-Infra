@@ -73,6 +73,9 @@ export type TenantFormTemplates = Record<TenantFormTemplateKey, TenantFormTempla
 export type TenantDynamicFormFieldType =
   | 'text'
   | 'number'
+  | 'email'
+  | 'date'
+  | 'time'
   | 'select'
   | 'multiselect'
   | 'boolean'
@@ -745,6 +748,9 @@ function coerceFormTemplates(value: unknown, fallback: TenantFormTemplates): Ten
 const DYNAMIC_FIELD_TYPES: TenantDynamicFormFieldType[] = [
   'text',
   'number',
+  'email',
+  'date',
+  'time',
   'select',
   'multiselect',
   'boolean',
@@ -878,8 +884,12 @@ export function coerceTenantSettings(input: unknown): TenantSettings {
       masterDataSource.adminDashboardSections,
       DEFAULT_TENANT_SETTINGS.masterData?.adminDashboardSections ?? DEFAULT_MASTER_DATA.adminDashboardSections,
     ),
-    opdDepartments: coerceMasterData({ opdDepartments: masterDataSource.opdDepartments }).opdDepartments,
-    opdDepartmentDoctors: coerceMasterData({ opdDepartmentDoctors: masterDataSource.opdDepartmentDoctors }).opdDepartmentDoctors,
+    opdDepartments: coerceMasterData({
+      opdDepartments: masterDataSource.opdDepartments,
+    } as Partial<TenantMasterData>).opdDepartments,
+    opdDepartmentDoctors: coerceMasterData({
+      opdDepartmentDoctors: masterDataSource.opdDepartmentDoctors,
+    } as Partial<TenantMasterData>).opdDepartmentDoctors,
   });
   const integrationsSource = asRecord(source.integrations);
   const twentySource = asRecord(integrationsSource.twentyCrm);

@@ -1,9 +1,10 @@
 export type LocationOption = { value: string; label: string };
 
+import { WORLD_COUNTRIES } from '@/lib/geo/world-countries';
+
 export const INDIA_COUNTRIES: LocationOption[] = [
   { value: 'India', label: 'India' },
-  { value: 'Nepal', label: 'Nepal' },
-  { value: 'Other', label: 'Other' },
+  ...WORLD_COUNTRIES.filter((country) => country.value !== 'India'),
 ];
 
 /** Indian states and union territories */

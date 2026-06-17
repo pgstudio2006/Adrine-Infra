@@ -3,6 +3,7 @@ export const NAVAYU_REGISTRATION_BRANCHES = ['Gurgaon', 'Pataudi'] as const;
 export const NAVAYU_APPOINTMENT_CENTRES = [
   { value: 'navayu_gurgaon', label: 'Navayu Gurgaon' },
   { value: 'ghtc_pataudi', label: 'GHTC Pataudi' },
+  { value: 'ayush_hospital_pune', label: 'Ayush Hospital Pune' },
 ] as const;
 
 export const NAVAYU_REFERRAL_SOURCES = [

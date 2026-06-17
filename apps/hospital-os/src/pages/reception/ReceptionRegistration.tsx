@@ -471,7 +471,6 @@ export default function ReceptionRegistration() {
         else if (!validatePhone(formData.phone)) errors.phone = 'Invalid phone (10 digits, starting 6-9)';
         if (formData.altPhone && !validatePhone(formData.altPhone)) errors.altPhone = 'Invalid alternate phone';
         if (!formData.gender) errors.gender = 'Gender is required';
-        if (!formData.ageYears.trim()) errors.age = 'Age is required';
         if (formData.opdMode) {
           if (!formData.opdDepartment) errors.opdDepartment = 'Select a department';
           if (!formData.assignedDoctor) errors.assignedDoctor = 'Select a doctor';
@@ -1203,7 +1202,7 @@ export default function ReceptionRegistration() {
 
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{editingUhid ? 'Edit Patient Information' : 'New Patient Registration'}</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{editingUhid ? 'Edit Patient Information' : navayuMode ? 'Front Desk Registration' : 'New Patient Registration'}</h1>
             <p className="text-sm text-muted-foreground mt-1">UHID: <span className="font-mono font-semibold text-foreground">{editingUhid ?? newUHID}</span> · Branch: {formData.branch}</p>
           </div>
           <button onClick={() => { setMode('list'); setStep(0); setEditingUhid(null); }} className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"><X className="w-4 h-4" /> Cancel</button>
@@ -1240,7 +1239,7 @@ export default function ReceptionRegistration() {
                     onClick={() => {
                       setAllowDuplicateRegistration(true);
                       toast.warning('Duplicate override enabled', {
-                        description: 'Reception can continue, but this will create another patient record.',
+                        description: 'Front Desk can continue, but this will create another patient record.',
                       });
                     }}
                     className="text-xs px-2 py-1 rounded bg-accent hover:bg-accent/80"
@@ -1280,7 +1279,7 @@ export default function ReceptionRegistration() {
           {/* Step 0: Patient Info */}
           {step === 0 && navayuMode && (
             <div className="space-y-4">
-              <h2 className="font-semibold flex items-center gap-2"><User className="w-4 h-4" /> Patient Information</h2>
+              <h2 className="font-semibold flex items-center gap-2"><User className="w-4 h-4" /> Front Desk Information</h2>
               <p className="text-sm text-muted-foreground">
                 Complete all required fields below to register the patient. Optional steps can be skipped.
               </p>

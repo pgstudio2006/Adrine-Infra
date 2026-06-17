@@ -465,7 +465,7 @@ export default function ReceptionBilling() {
                     size="sm"
                     variant="ghost"
                     onClick={() => {
-                      convertOpdToIPDByUHID(patient.uhid);
+                      convertOpdToIPDByUHID({ uhid: patient.uhid });
                       toast.success("OPD → IPD conversion initiated");
                     }}
                   >

@@ -139,7 +139,7 @@ export function NavayuRegistrationPageOne({
           />
         </div>
         <div>
-          <label className="text-sm font-medium mb-1 block">Age *</label>
+          <label className="text-sm font-medium mb-1 block">Age</label>
           <input
             type="number"
             min={0}
@@ -147,6 +147,7 @@ export function NavayuRegistrationPageOne({
             value={form.age}
             onChange={(event) => onChange({ age: event.target.value })}
             className={`w-full px-3 py-2 rounded-lg border bg-background text-sm ${errors.age ? 'border-destructive' : ''}`}
+            placeholder="Optional"
           />
           {errors.age ? <p className="text-xs text-destructive mt-1">{errors.age}</p> : null}
         </div>
@@ -348,7 +349,7 @@ export function NavayuRegistrationPageOne({
           {form.opdMode ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium mb-1 block">Department *</label>
+                <label className="text-sm font-medium mb-1 block">Department / Service Category *</label>
                 <AppSelect
                   value={form.opdDepartment || undefined}
                   onValueChange={(value) =>
