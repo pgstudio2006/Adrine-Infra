@@ -312,6 +312,12 @@ import Campaigns from "@/pages/crm/Campaigns";
 import FeedbackSurveys from "@/pages/crm/FeedbackSurveys";
 import PatientLifecycle from "@/pages/crm/PatientLifecycle";
 import CRMAnalytics from "@/pages/crm/CRMAnalytics";
+import FollowUps from "@/pages/crm/FollowUps";
+import CounsellorModule from "@/pages/crm/CounsellorModule";
+import PackageManager from "@/pages/crm/PackageManager";
+import WhatsAppAutomation from "@/pages/crm/WhatsAppAutomation";
+import ReferralManagement from "@/pages/crm/ReferralManagement";
+import NavayuCrm from "@/pages/crm/NavayuCrm";
 import { wrapCrmPage } from "@/lib/twenty/wrap-crm-page";
 
 const queryClient = new QueryClient();
@@ -609,12 +615,18 @@ const DIALYSIS_PAGES: Record<string, React.ComponentType> = {
 
 const CRM_PAGES: Record<string, React.ComponentType> = {
   "/crm": wrapCrmPage("/crm", CRMDashboard),
-  "/crm/leads": wrapCrmPage("/crm/leads", CRMDashboard),
-  "/crm/lifecycle": wrapCrmPage("/crm/lifecycle", CRMDashboard),
-  "/crm/campaigns": wrapCrmPage("/crm/campaigns", CRMDashboard),
-  "/crm/drip-campaigns": wrapCrmPage("/crm/drip-campaigns", CRMDashboard),
-  "/crm/experience": wrapCrmPage("/crm/experience", CRMDashboard),
-  "/crm/reports": wrapCrmPage("/crm/reports", CRMDashboard),
+  "/crm/leads": wrapCrmPage("/crm/leads", LeadManagement),
+  "/crm/lifecycle": wrapCrmPage("/crm/lifecycle", PatientLifecycle),
+  "/crm/campaigns": wrapCrmPage("/crm/campaigns", Campaigns),
+  "/crm/drip-campaigns": wrapCrmPage("/crm/drip-campaigns", CrmDripCampaigns),
+  "/crm/follow-ups": wrapCrmPage("/crm/follow-ups", FollowUps),
+  "/crm/counsellors": wrapCrmPage("/crm/counsellors", CounsellorModule),
+  "/crm/packages": wrapCrmPage("/crm/packages", PackageManager),
+  "/crm/whatsapp": wrapCrmPage("/crm/whatsapp", WhatsAppAutomation),
+  "/crm/referrals": wrapCrmPage("/crm/referrals", ReferralManagement),
+  "/crm/navayu": wrapCrmPage("/crm/navayu", NavayuCrm),
+  "/crm/experience": wrapCrmPage("/crm/experience", FeedbackSurveys),
+  "/crm/reports": wrapCrmPage("/crm/reports", CRMAnalytics),
   "/admin/crm": navayuOrLegacy(wrapCrmPage("/admin/crm", CRMDashboard), "/crm"),
 };
 

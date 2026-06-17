@@ -374,6 +374,10 @@ export const ROLE_TABS: Record<UserRole, RoleTab[]> = {
   crm_manager: [
     { key: "dashboard", label: "Dashboard", path: "/crm" },
     { key: "leads", label: "Lead Pipeline", path: "/crm/leads" },
+    { key: "follow-ups", label: "Follow-ups", path: "/crm/follow-ups" },
+    { key: "counsellors", label: "Counsellor", path: "/crm/counsellors" },
+    { key: "packages", label: "Packages", path: "/crm/packages" },
+    { key: "referrals", label: "Referrals", path: "/crm/referrals" },
     { key: "lifecycle", label: "Patient Lifecycle", path: "/crm/lifecycle" },
     { key: "campaigns", label: "Care Journeys", path: "/crm/campaigns" },
     {
@@ -381,6 +385,8 @@ export const ROLE_TABS: Record<UserRole, RoleTab[]> = {
       label: "Drip Campaigns",
       path: "/crm/drip-campaigns",
     },
+    { key: "whatsapp", label: "WhatsApp Auto", path: "/crm/whatsapp" },
+    { key: "navayu", label: "Navayu MSK", path: "/crm/navayu" },
     { key: "experience", label: "Patient Experience", path: "/crm/experience" },
     { key: "reports", label: "Analytics", path: "/crm/reports" },
   ],

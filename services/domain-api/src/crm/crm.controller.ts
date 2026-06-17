@@ -137,4 +137,117 @@ export class CrmController {
   ) {
     return this.crm.recordLifecycle(this.tenant(req), this.branch(req, branchId), body);
   }
+
+  // ── Follow-ups ──
+
+  @Get('follow-ups')
+  listFollowUps(@Req() req: Request, @Query('branchId') branchId?: string, @Query('status') status?: string) {
+    return this.crm.listFollowUps(this.tenant(req), this.branch(req, branchId), status);
+  }
+
+  @Post('follow-ups')
+  createFollowUp(
+    @Req() req: Request, @Query('branchId') branchId: string | undefined,
+    @Body() body: { leadId?: string; patientId?: string; patientName: string; phone?: string; assignedTo?: string; followUpType?: string; scheduledAt: string; notes?: string; priority?: string },
+  ) {
+    return this.crm.createFollowUp(this.tenant(req), this.branch(req, branchId), body);
+  }
+
+  @Patch('follow-ups/:id')
+  updateFollowUp(
+    @Req() req: Request, @Param('id') id: string,
+    @Body() body: Partial<{ status: string; outcome: string; notes: string; completedAt: string; missedAt: string }>,
+  ) {
+    return this.crm.updateFollowUp(this.tenant(req), id, body);
+  }
+
+  // ── Packages ──
+
+  @Get('packages')
+  listPackages(@Req() req: Request, @Query('branchId') branchId?: string) {
+    return this.crm.listPackages(this.tenant(req), this.branch(req, branchId));
+  }
+
+  @Post('packages')
+  createPackage(
+    @Req() req: Request, @Query('branchId') branchId: string | undefined,
+    @Body() body: { name: string; category?: string; description?: string; basePriceCents?: number; components?: unknown },
+  ) {
+    return this.crm.createPackage(this.tenant(req), this.branch(req, branchId), body);
+  }
+
+  @Patch('packages/:id')
+  updatePackage(
+    @Req() req: Request, @Param('id') id: string,
+    @Body() body: Partial<{ name: string; isActive: boolean; basePriceCents: number; description: string }>,
+  ) {
+    return this.crm.updatePackage(this.tenant(req), id, body);
+  }
+
+  @Get('proposals')
+  listProposals(@Req() req: Request, @Query('branchId') branchId?: string, @Query('status') status?: string) {
+    return this.crm.listProposals(this.tenant(req), this.branch(req, branchId), status);
+  }
+
+  @Post('proposals')
+  createProposal(
+    @Req() req: Request, @Query('branchId') branchId: string | undefined,
+    @Body() body: { leadId?: string; patientId?: string; patientName: string; packageId?: string; packageName: string; proposedPriceCents?: number; counsellorLabel?: string; notes?: string },
+  ) {
+    return this.crm.createProposal(this.tenant(req), this.branch(req, branchId), body);
+  }
+
+  @Patch('proposals/:id')
+  updateProposal(
+    @Req() req: Request, @Param('id') id: string,
+    @Body() body: Partial<{ status: string; notes: string; convertedAt: string }>,
+  ) {
+    return this.crm.updateProposal(this.tenant(req), id, body);
+  }
+
+  // ── Referrals ──
+
+  @Get('referrals')
+  listReferrals(@Req() req: Request, @Query('branchId') branchId?: string, @Query('referralType') referralType?: string) {
+    return this.crm.listReferrals(this.tenant(req), this.branch(req, branchId), referralType);
+  }
+
+  @Post('referrals')
+  createReferral(
+    @Req() req: Request, @Query('branchId') branchId: string | undefined,
+    @Body() body: { patientId?: string; patientName: string; referralType?: string; referringDoctor?: string; referringHospital?: string; referralSource?: string; specialty?: string; notes?: string },
+  ) {
+    return this.crm.createReferral(this.tenant(req), this.branch(req, branchId), body);
+  }
+
+  @Patch('referrals/:id')
+  updateReferral(
+    @Req() req: Request, @Param('id') id: string,
+    @Body() body: Partial<{ status: string; convertedToLead: boolean; leadId: string; notes: string }>,
+  ) {
+    return this.crm.updateReferral(this.tenant(req), id, body);
+  }
+
+  // ── Tasks ──
+
+  @Get('tasks')
+  listTasks(@Req() req: Request, @Query('branchId') branchId?: string, @Query('status') status?: string, @Query('assignedTo') assignedTo?: string) {
+    return this.crm.listTasks(this.tenant(req), this.branch(req, branchId), status, assignedTo);
+  }
+
+  @Post('tasks')
+  createTask(
+    @Req() req: Request, @Query('branchId') branchId: string | undefined,
+    @Body() body: { leadId?: string; patientName?: string; assignedTo?: string; taskType?: string; title: string; description?: string; priority?: string; dueAt?: string },
+  ) {
+    return this.crm.createTask(this.tenant(req), this.branch(req, branchId), body);
+  }
+
+  @Patch('tasks/:id')
+  updateTask(
+    @Req() req: Request, @Param('id') id: string,
+    @Body() body: Partial<{ status: string; completedAt: string; notes: string }>,
+  ) {
+    return this.crm.updateTask(this.tenant(req), id, body);
+  }
 }

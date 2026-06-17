@@ -74,6 +74,12 @@ const C1_LEANING_EXACT: readonly string[] = [
   "/crm/campaigns",
   "/crm/lifecycle",
   "/crm/drip-campaigns",
+  "/crm/follow-ups",
+  "/crm/counsellors",
+  "/crm/packages",
+  "/crm/whatsapp",
+  "/crm/referrals",
+  "/crm/navayu",
   "/admin/crm",
 ];
 
@@ -235,7 +241,6 @@ const RADIOLOGY_PREVIEW_EXACT = new Set([
 
 const CRM_PREVIEW_EXACT = new Set([
   "/crm/experience",
-  "/crm/reports",
 ]);
 
 function matchesPrefix(pathname: string, prefixes: readonly string[]): boolean {
@@ -400,8 +405,26 @@ export function getRoutePreviewMessage(pathname: string): string {
   if (pathname === "/crm/experience") {
     return "Patient experience surveys are preview-only. Leads, campaigns (with appointment booking), and lifecycle use domain /crm/* when runtime is on.";
   }
+  if (pathname === "/crm/follow-ups") {
+    return "Follow-up scheduling, completion, and missed tracking use domain /crm/follow-ups when runtime is on. Local fallback for demo mode.";
+  }
+  if (pathname === "/crm/counsellors") {
+    return "Counsellor dashboard, task management, and package proposals use domain /crm/tasks and /crm/proposals when runtime is on.";
+  }
+  if (pathname === "/crm/packages") {
+    return "Package catalog and proposal tracking use domain /crm/packages and /crm/proposals when runtime is on.";
+  }
+  if (pathname === "/crm/whatsapp") {
+    return "WhatsApp automation rules and message templates are managed locally. Integration with WhatsApp Business API is configured here.";
+  }
+  if (pathname === "/crm/referrals") {
+    return "Doctor, patient, and source referral tracking with conversion analytics. Uses domain /crm/referrals when runtime is on.";
+  }
+  if (pathname === "/crm/navayu") {
+    return "Navayu-specific CRM: camp lead tracking, body region analytics, treatment journey monitoring, and MSK outcome tracking.";
+  }
   if (pathname.startsWith("/crm") || pathname === "/admin/crm") {
-    return "CRM leads (kanban), campaigns, and lifecycle persist to domain-api when runtime is on. Experience surveys remain preview.";
+    return "CRM leads (kanban), campaigns, follow-ups, counsellor, packages, referrals, and lifecycle persist to domain-api when runtime is on. Experience surveys remain preview.";
   }
   if (pathname.startsWith("/nurse/medications")) {
     return "MAR schedules load from domain-api when runtime is on.";
