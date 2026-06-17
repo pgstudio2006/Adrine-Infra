@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { useHospital } from '@/stores/hospitalStore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDoctorScope } from '@/hooks/useDoctorScope';
+import { useClinicalBasePath } from '@/hooks/useClinicalBasePath';
 import { PatientContextBar } from '@/components/opd/PatientContextBar';
 import { ConsultationBlockerStrip } from '@/components/opd/ConsultationBlockerStrip';
 import { useConsultationBlockers } from '@/hooks/useConsultationBlockers';
