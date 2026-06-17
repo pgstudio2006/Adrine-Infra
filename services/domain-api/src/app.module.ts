@@ -43,6 +43,7 @@ import { InventoryModule } from './inventory/inventory.module';
 import { DialysisModule } from './dialysis/dialysis.module';
 import { PublicBookingModule } from './public-booking/public-booking.module';
 import { NavayuModule } from './navayu/navayu.module';
+import { RisModule } from './ris/ris.module';
 
 @Module({
   imports: [

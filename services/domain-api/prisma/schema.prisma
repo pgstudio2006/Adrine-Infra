@@ -1421,3 +1421,352 @@ model AITenantQuota {
 
   @@map("ai_tenant_quotas")
 }
+
+// ═══════════════════════════════════════════
+// ADRINE RIS — Radiology Information System
+// ═══════════════════════════════════════════
+
+/// RIS imaging modality catalog (MRI, CT, X-Ray, USG, etc.)
+model RisModality {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  code        String
+  label       String
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  machines RisMachine[]
+  procedures RisProcedure[]
+
+  @@unique([tenantId, code])
+  @@map("ris_modalities")
+}
+
+/// RIS imaging machine / equipment registry
+model RisMachine {
+  id              String    @id @default(cuid())
+  tenantId        String    @map("tenant_id")
+  branchId        String    @map("branch_id")
+  modalityId      String    @map("modality_id")
+  code            String
+  label           String
+  manufacturer    String?
+  model           String?
+  room            String?
+  dicomAe         String?   @map("dicom_ae")
+  status          String    @default("available")
+  installedAt     DateTime? @map("installed_at")
+  lastMaintenance DateTime? @map("last_maintenance")
+  nextMaintenance DateTime? @map("next_maintenance")
+  metadata        Json?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  modality RisModality   @relation(fields: [modalityId], references: [id])
+  studies  RisStudy[]
+
+  @@unique([tenantId, branchId, code])
+  @@index([tenantId, branchId, status])
+  @@map("ris_machines")
+}
+
+/// RIS imaging procedure catalog with pricing
+model RisProcedure {
+  id                String   @id @default(cuid())
+  tenantId          String   @map("tenant_id")
+  modalityId        String   @map("modality_id")
+  code              String
+  name              String
+  bodyRegion        String   @map("body_region")
+  category          String   @default("General")
+  durationMinutes   Int      @default(30) @map("duration_minutes")
+  basePriceCents    Int      @default(0) @map("base_price_cents")
+  requiresContrast  Boolean  @default(false) @map("requires_contrast")
+  hasRadiation      Boolean  @default(false) @map("has_radiation")
+  prepInstructions  String?  @map("prep_instructions")
+  isActive          Boolean  @default(true) @map("is_active")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  modality RisModality @relation(fields: [modalityId], references: [id])
+  studies  RisStudy[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, modalityId, isActive])
+  @@map("ris_procedures")
+}
+
+/// RIS patient registration (extends core Patient)
+model RisPatient {
+  id              String    @id @default(cuid())
+  tenantId        String    @map("tenant_id")
+  branchId        String    @map("branch_id")
+  uhid            String    @unique @map("uhid")
+  fullName        String    @map("full_name")
+  age             Int?
+  gender          String?
+  dob             DateTime? @map("dob")
+  mobile          String?
+  email           String?
+  address         String?
+  referringDoctor String?   @map("referring_doctor")
+  department      String?
+  clinicalNotes   String?   @map("clinical_notes")
+  symptoms        String?
+  metadata        Json?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  studies       RisStudy[]
+  appointments  RisAppointment[]
+  invoices      RisInvoice[]
+  reports       RisReport[]
+  auditLogs     RisAuditLog[]
+
+  @@index([tenantId, branchId, fullName])
+  @@index([tenantId, mobile])
+  @@map("ris_patients")
+}
+
+/// RIS imaging study — the core work unit
+model RisStudy {
+  id                String    @id @default(cuid())
+  tenantId          String    @map("tenant_id")
+  branchId          String    @map("branch_id")
+  patientId         String    @map("patient_id")
+  orderId           String    @unique @map("order_id")
+  procedureId       String?   @map("procedure_id")
+  modalityId        String    @map("modality_id")
+  machineId         String?   @map("machine_id")
+  modality          String
+  study             String
+  bodyPart          String?   @map("body_part")
+  priority          String    @default("Routine")
+  clinicalHistory   String?   @map("clinical_history")
+  referringDoctor   String?   @map("referring_doctor")
+  studyUid          String?   @map("study_uid")
+  state             String    @default("ordered")
+  previousState     String?   @map("previous_state")
+  isCritical        Boolean   @default(false) @map("is_critical")
+  criticalAckAt     DateTime? @map("critical_ack_at")
+  amountCents       Int       @default(0) @map("amount_cents")
+  version           Int       @default(0)
+  scheduledAt       DateTime? @map("scheduled_at")
+  arrivedAt         DateTime? @map("arrived_at")
+  imagingStartedAt  DateTime? @map("imaging_started_at")
+  imagingCompletedAt DateTime? @map("imaging_completed_at")
+  reportStartedAt   DateTime? @map("report_started_at")
+  reportCompletedAt DateTime? @map("report_completed_at")
+  finalizedAt       DateTime? @map("finalized_at")
+  dispatchedAt      DateTime? @map("dispatched_at")
+  technicianNotes   String?   @map("technician_notes")
+  metadata          Json?
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  patient    RisPatient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  procedure  RisProcedure?         @relation(fields: [procedureId], references: [id])
+  modalityR  RisModality           @relation(fields: [modalityId], references: [id])
+  machine    RisMachine?           @relation(fields: [machineId], references: [id])
+  transitions RisStudyTransition[]
+  reports    RisReport[]
+  invoice    RisInvoice?           @relation(fields: [invoiceId], references: [id])
+  auditLogs  RisAuditLog[]
+
+  invoiceId String? @map("invoice_id")
+
+  @@index([tenantId, branchId, state])
+  @@index([tenantId, patientId, createdAt])
+  @@index([tenantId, branchId, modality, state])
+  @@map("ris_studies")
+}
+
+/// RIS study state transition audit trail
+model RisStudyTransition {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  studyId     String   @map("study_id")
+  action      String
+  fromState   String   @map("from_state")
+  toState     String   @map("to_state")
+  actorId     String?  @map("actor_id")
+  actorRole   String?  @map("actor_role")
+  reason      String?
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  study RisStudy @relation(fields: [studyId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, studyId, createdAt])
+  @@map("ris_study_transitions")
+}
+
+/// RIS appointment scheduling
+model RisAppointment {
+  id            String    @id @default(cuid())
+  tenantId      String    @map("tenant_id")
+  branchId      String    @map("branch_id")
+  patientId     String    @map("patient_id")
+  studyId       String?   @map("study_id")
+  modality      String
+  study         String
+  scheduledAt   DateTime  @map("scheduled_at")
+  endTime       DateTime? @map("end_time")
+  machineId     String?   @map("machine_id")
+  room          String?
+  technician    String?
+  status        String    @default("scheduled")
+  notes         String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  patient RisPatient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, branchId, scheduledAt, status])
+  @@index([tenantId, modality, scheduledAt])
+  @@map("ris_appointments")
+}
+
+/// RIS report — radiologist findings
+model RisReport {
+  id               String    @id @default(cuid())
+  tenantId         String    @map("tenant_id")
+  studyId          String    @map("study_id")
+  patientId        String    @map("patient_id")
+  templateId       String?   @map("template_id")
+  radiologist      String?
+  status           String    @default("draft")
+  technique        String?
+  clinicalHistory  String?   @map("clinical_history")
+  comparison       String?
+  contrastUsed     String?   @map("contrast_used")
+  findings         String?
+  impression       String?
+  conclusion       String?
+  recommendation   String?
+  isCritical       Boolean   @default(false) @map("is_critical")
+  version          Int       @default(0)
+  signedAt         DateTime? @map("signed_at")
+  signedBy         String?   @map("signed_by")
+  lockedAt         DateTime? @map("locked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  study    RisStudy    @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  patient  RisPatient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  auditLogs RisAuditLog[]
+
+  @@index([tenantId, studyId, status])
+  @@index([tenantId, patientId, createdAt])
+  @@map("ris_reports")
+}
+
+/// RIS report template library
+model RisReportTemplate {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  name        String
+  modality    String
+  bodyRegion  String   @map("body_region")
+  category    String   @default("General")
+  sections    Json
+  tags        String[]
+  author      String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId, modality, bodyRegion])
+  @@map("ris_report_templates")
+}
+
+/// RIS invoice / billing
+model RisInvoice {
+  id             String    @id @default(cuid())
+  tenantId       String    @map("tenant_id")
+  branchId       String    @map("branch_id")
+  patientId      String    @map("patient_id")
+  invoiceNumber  String    @unique @map("invoice_number")
+  lineItems      Json      @default("[]") @map("line_items")
+  subtotalCents  Int       @default(0) @map("subtotal_cents")
+  discountCents  Int       @default(0) @map("discount_cents")
+  taxCents       Int       @default(0) @map("tax_cents")
+  totalCents     Int       @default(0) @map("total_cents")
+  paidCents      Int       @default(0) @map("paid_cents")
+  paymentMethod  String?   @map("payment_method")
+  status         String    @default("draft")
+  receiptNumber  String?   @map("receipt_number")
+  notes          String?
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  patient RisPatient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  studies RisStudy[]
+  payments RisPayment[]
+
+  @@index([tenantId, branchId, status])
+  @@index([tenantId, patientId, createdAt])
+  @@map("ris_invoices")
+}
+
+/// RIS payment records
+model RisPayment {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  invoiceId   String   @map("invoice_id")
+  method      String
+  amountCents Int      @map("amount_cents")
+  reference   String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  invoice RisInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, invoiceId])
+  @@map("ris_payments")
+}
+
+/// RIS WhatsApp dispatch log
+model RisDispatchLog {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  studyId     String   @map("study_id")
+  patientName String   @map("patient_name")
+  mobile      String
+  channel     String   @default("whatsapp")
+  status      String   @default("queued")
+  reportUrl   String?  @map("report_url")
+  sentAt      DateTime? @map("sent_at")
+  deliveredAt DateTime? @map("delivered_at")
+  failedAt    DateTime? @map("failed_at")
+  error       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, studyId, status])
+  @@map("ris_dispatch_logs")
+}
+
+/// RIS audit trail for compliance
+model RisAuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String   @map("tenant_id")
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  action     String
+  actorId    String?  @map("actor_id")
+  actorRole  String?  @map("actor_role")
+  details    Json?
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  patient  RisPatient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  study    RisStudy?   @relation(fields: [studyId], references: [id], onDelete: SetNull)
+  report   RisReport?  @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  patientId String? @map("patient_id")
+  studyId   String? @map("study_id")
+  reportId  String? @map("report_id")
+
+  @@index([tenantId, entityType, entityId, createdAt])
+  @@map("ris_audit_logs")
+}

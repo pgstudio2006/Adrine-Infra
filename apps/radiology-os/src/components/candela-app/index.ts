@@ -1,0 +1,12 @@
+export { default as AppShell } from './AppShell';
+export { Shell, ShellProvider, useShell } from './shell';
+export { WorkspaceNav, ModuleTabs } from './shell/WorkspaceNav';
+export { PatientDrawer, PatientBar } from './patient';
+export { CommandPalette } from './action';
+export { ActivityFeed, CommandCenterBriefing, DataTable, StatusPill, MetricGrid, FilterBar, QueueSplit } from './patterns';
+export { FormRenderer } from './schema';
+export { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+export { useActivity } from './hooks/useActivity';
+export type { ColumnDef } from './patterns';
+export type { MetricCard } from './patterns';
+export type { FilterOption } from './patterns';

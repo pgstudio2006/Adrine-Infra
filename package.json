@@ -20,7 +20,9 @@
   "pnpm": {
     "overrides": {
       "@adrine/hospital-os>@types/react": "18.3.28",
-      "@adrine/hospital-os>@types/react-dom": "18.3.7"
+      "@adrine/hospital-os>@types/react-dom": "18.3.7",
+      "@adrine/radiology-os>@types/react": "18.3.28",
+      "@adrine/radiology-os>@types/react-dom": "18.3.7"
     }
   }
 }

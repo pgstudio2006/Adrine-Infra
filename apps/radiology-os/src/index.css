@@ -1,0 +1,44 @@
+@import './design-system/candela/tokens.css';
+@import './design-system/candela/utilities.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    border-color: var(--c-border);
+  }
+
+  body {
+    background: var(--c-canvas);
+    color: var(--c-text);
+    font-family: var(--c-font-sans);
+    font-size: var(--c-text-base);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Default data-mode if not set */
+  :root {
+    color-scheme: dark;
+  }
+
+  [data-mode='light'] {
+    color-scheme: light;
+  }
+
+  [data-mode='dark'] {
+    color-scheme: dark;
+  }
+
+  /* Override Tailwind preflight for inputs */
+  input,
+  select,
+  textarea,
+  button {
+    font-family: inherit;
+  }
+}
