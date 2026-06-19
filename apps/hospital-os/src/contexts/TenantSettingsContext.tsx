@@ -169,6 +169,15 @@ export function TenantSettingsProvider({ children }: { children: React.ReactNode
   }
 
   function getAvailableRoles() {
+    if (settings.featureFlags.fullHospitalDemo) {
+      return (Object.keys(ROLE_TABS) as UserRole[]).filter((role) => {
+        if (role === 'crm_manager' && !settings.featureFlags.patientRelationsEnabled) {
+          return false;
+        }
+        return true;
+      });
+    }
+
     const enabled = listEnabledRoles(settings) as UserRole[];
     return enabled.filter((role) => {
       if (role === 'crm_manager' && !settings.featureFlags.patientRelationsEnabled) {
@@ -210,15 +219,17 @@ export function TenantSettingsProvider({ children }: { children: React.ReactNode
           return false;
         }
 
-        if (tab.key === 'teleconsult' && !settings.featureFlags.telemedicineEnabled) {
-          return false;
-        }
+        if (!settings.featureFlags.fullHospitalDemo) {
+          if (tab.key === 'teleconsult' && !settings.featureFlags.telemedicineEnabled) {
+            return false;
+          }
 
-        if (
-          (role === 'crm_manager' || tab.path.startsWith('/crm') || tab.path === '/admin/crm') &&
-          !settings.featureFlags.patientRelationsEnabled
-        ) {
-          return false;
+          if (
+            (role === 'crm_manager' || tab.path.startsWith('/crm') || tab.path === '/admin/crm') &&
+            !settings.featureFlags.patientRelationsEnabled
+          ) {
+            return false;
+          }
         }
 
         return true;

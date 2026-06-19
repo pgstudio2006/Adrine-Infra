@@ -37,6 +37,7 @@ import {
   type PortalBranch,
 } from '@/runtime/auth-portal';
 import { getNavayuRoleDisplayLabel } from '@/lib/navayu/navayu-forms';
+import { isFullHospitalDemoEnabled } from '@/lib/platform/full-hospital-demo';
 
 const ROLE_ICONS: Record<string, React.ReactNode> = {
   admin: <Shield className="w-6 h-6" />,
@@ -77,9 +78,10 @@ type Props = {
 };
 
 export function HospitalLoginWizard({ onRaiseTicket }: Props) {
-  const { loginWithCredentials } = useAuth();
+  const { loginWithCredentials, login } = useAuth();
   const { settings } = useTenantSettings();
   const navigate = useNavigate();
+  const showDemoModules = isFullHospitalDemoEnabled(settings);
 
   const [step, setStep] = useState<WizardStep>('hospital');
   const [submitting, setSubmitting] = useState(false);
@@ -132,9 +134,6 @@ export function HospitalLoginWizard({ onRaiseTicket }: Props) {
 
   const goBack = () => {
     if (step === 'hospital') return;
-    if (step === 'hospital') {
-      return;
-    }
     if (step === 'branch') {
       setStep('hospital');
       return;
@@ -194,6 +193,16 @@ export function HospitalLoginWizard({ onRaiseTicket }: Props) {
     setStaffEmail('');
     setStaffPassword('');
     setStep('staff');
+  };
+
+  const launchDemoModule = (module: 'lis' | 'blood-bank' | 'ris') => {
+    if (module === 'ris') {
+      login('radiologist', 'RIS Demo');
+      navigate('/radiology');
+      return;
+    }
+    login('lab_technician', module === 'lis' ? 'LIS Demo' : 'Blood Bank Demo');
+    navigate(module === 'lis' ? '/lab/analyzers' : '/blood-bank');
   };
 
   const handleStaffSubmit = async () => {
@@ -380,6 +389,44 @@ export function HospitalLoginWizard({ onRaiseTicket }: Props) {
               <p className="text-sm font-semibold text-zinc-950">{selectedBranch.name}</p>
               <p className="text-xs text-zinc-500 mt-1">Choose your module</p>
             </div>
+
+            {showDemoModules ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-w-4xl mx-auto">
+                <button
+                  type="button"
+                  onClick={() => launchDemoModule('lis')}
+                  className="rounded-2xl border border-primary/30 bg-primary/5 p-4 text-left hover:border-primary transition-all"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <FlaskConical className="w-4 h-4 text-primary" />
+                    <p className="font-bold text-xs">LIS Demo</p>
+                  </div>
+                  <p className="text-[10px] text-zinc-500 leading-relaxed">Lab orders, analysers, HL7 middleware</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => launchDemoModule('ris')}
+                  className="rounded-2xl border border-violet-300/50 bg-violet-50/80 p-4 text-left hover:border-violet-400 transition-all"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <ScanLine className="w-4 h-4 text-violet-700" />
+                    <p className="font-bold text-xs">RIS Demo</p>
+                  </div>
+                  <p className="text-[10px] text-zinc-500 leading-relaxed">Radiology orders, worklist, PACS & reports</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => launchDemoModule('blood-bank')}
+                  className="rounded-2xl border border-rose-300/50 bg-rose-50/80 p-4 text-left hover:border-rose-400 transition-all"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <Droplets className="w-4 h-4 text-rose-700" />
+                    <p className="font-bold text-xs">Blood Bank</p>
+                  </div>
+                  <p className="text-[10px] text-zinc-500 leading-relaxed">Donor to transfusion lifecycle</p>
+                </button>
+              </div>
+            ) : null}
 
             {loadingRoles ? (
               <div className="flex justify-center py-16 text-muted-foreground">

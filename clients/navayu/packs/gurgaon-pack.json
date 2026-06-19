@@ -771,7 +771,8 @@
     "formBuilderEnabled": true,
     "customFieldsEnabled": true,
     "workflowDesignerEnabled": false,
-    "apiAccessEnabled": false
+    "apiAccessEnabled": false,
+    "fullHospitalDemo": false
   },
   "masterData": {
     "doctorDepartments": [

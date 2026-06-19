@@ -8,6 +8,11 @@ import ConsultationComplaints, { type Complaint } from './consultation/Consultat
 import ConsultationDiagnosis, { type Diagnosis } from './consultation/ConsultationDiagnosis';
 import ConsultationExamination, { type ExamFindings } from './consultation/ConsultationExamination';
 import ConsultationMedications, { type Medication } from './consultation/ConsultationMedications';
+import ConsultationOrders, {
+  type LabTest,
+  type ProcedureOrder,
+  type RadiologyOrder,
+} from './consultation/ConsultationOrders';
 import ConsultationRightPanel, { type AdmissionRecommendationPayload } from './consultation/ConsultationRightPanel';
 import PrescriptionPreview from './consultation/PrescriptionPreview';
 import ConsultationAIScribe from './consultation/ConsultationAIScribe';
@@ -250,6 +255,9 @@ export default function DoctorConsultation() {
   const [examFindings, setExamFindings] = useState<ExamFindings>({ general: '', cardiovascular: '', respiratory: '', neurological: '', abdominal: '', musculoskeletal: '', ent: '', dermatological: '' });
   const [diagnoses, setDiagnoses] = useState<Diagnosis[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
+  const [labTests, setLabTests] = useState<LabTest[]>([]);
+  const [radiologyOrders, setRadiologyOrders] = useState<RadiologyOrder[]>([]);
+  const [procedures, setProcedures] = useState<ProcedureOrder[]>([]);
   const [treatmentPlan, setTreatmentPlan] = useState('');
   const [advice, setAdvice] = useState('');
   const [privateNotes, setPrivateNotes] = useState('');
@@ -484,6 +492,8 @@ export default function DoctorConsultation() {
     if (result.complaints.length > 0) setComplaints(result.complaints);
     if (result.diagnoses.length > 0) setDiagnoses(result.diagnoses);
     if (result.medications.length > 0) setMedications(result.medications);
+    if (result.labTests?.length > 0) setLabTests(result.labTests);
+    if (result.radiologyOrders?.length > 0) setRadiologyOrders(result.radiologyOrders);
     if (result.advice) setAdvice(result.advice);
     if (result.followUpDays) setFollowUpDays(result.followUpDays);
     // Apply vitals if present
@@ -512,6 +522,17 @@ export default function DoctorConsultation() {
       patientName,
       doctor: user?.name || 'Dr. Doctor',
       department: patient?.department || queueEntry?.department || user?.department || 'General Medicine',
+      labTests: labTests.map((test) => ({
+        tests: test.text,
+        category: 'General',
+        priority:
+          test.priority === 'stat' ? 'Emergency' : test.priority === 'urgent' ? 'Urgent' : 'Routine',
+      })),
+      radiologyOrders: radiologyOrders.map((order) => ({
+        study: [order.type, order.bodyPart].filter(Boolean).join(' — '),
+        modality: order.type,
+        priority: order.priority === 'urgent' ? 'Urgent' : 'Routine',
+      })),
       medications: medications.map(m => ({
         drug: m.name,
         dosage: m.dosage,
@@ -765,14 +786,17 @@ export default function DoctorConsultation() {
               ) : (
                 <>
                   <ConsultationExamination findings={examFindings} onChange={setExamFindings} />
-                  {!navayuMode ? (
-                    <ConsultationDiagnosis diagnoses={diagnoses} onChange={setDiagnoses} />
-                  ) : null}
+                  <ConsultationDiagnosis diagnoses={diagnoses} onChange={setDiagnoses} />
+                  <ConsultationOrders
+                    labTests={labTests}
+                    onLabChange={setLabTests}
+                    radiologyOrders={radiologyOrders}
+                    onRadiologyChange={setRadiologyOrders}
+                    procedures={procedures}
+                    onProcedureChange={setProcedures}
+                  />
                 </>
               )}
-              {navayuMode && navayuSenior ? (
-                <ConsultationDiagnosis diagnoses={diagnoses} onChange={setDiagnoses} />
-              ) : null}
               {navayuMode ? (
                 <div className="rounded-xl border bg-card p-3 space-y-2">
                   <h3 className="text-sm font-semibold">Treatment plan</h3>
@@ -904,8 +928,8 @@ export default function DoctorConsultation() {
           complaints,
           diagnoses,
           medications,
-          labTests: [],
-          radiologyOrders: [],
+          labTests,
+          radiologyOrders,
           advice,
           followUpDays,
           followUpUnit,

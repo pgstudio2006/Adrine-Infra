@@ -9,7 +9,8 @@ export type TenantFeatureFlag =
   | 'formBuilderEnabled'
   | 'customFieldsEnabled'
   | 'workflowDesignerEnabled'
-  | 'apiAccessEnabled';
+  | 'apiAccessEnabled'
+  | 'fullHospitalDemo';
 
 export interface TenantBranding {
   platformName: string;
@@ -226,6 +227,10 @@ export const TENANT_FEATURE_LABELS: Record<TenantFeatureFlag, { label: string; d
   apiAccessEnabled: {
     label: 'API access',
     description: 'Foundation flag for exposing tenant integrations and external API access.',
+  },
+  fullHospitalDemo: {
+    label: 'Full hospital demo',
+    description: 'Show every role, lab/radiology module, LIS shortcuts, and preview screens for showcase demos.',
   },
 };
 
@@ -600,6 +605,7 @@ export const DEFAULT_TENANT_SETTINGS: TenantSettings = {
     customFieldsEnabled: true,
     workflowDesignerEnabled: true,
     apiAccessEnabled: false,
+    fullHospitalDemo: true,
   },
   registration: {
     departments: DEFAULT_REGISTRATION_DEPARTMENTS,

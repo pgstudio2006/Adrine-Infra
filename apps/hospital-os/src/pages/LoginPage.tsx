@@ -24,6 +24,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { HospitalLoginWizard } from '@/components/login/HospitalLoginWizard';
 import { isNavayuTenant } from '@/lib/navayu/navayu-forms';
+import { isFullHospitalDemoEnabled } from '@/lib/platform/full-hospital-demo';
 
 const ROLE_ICONS: Record<UserRole, React.ReactNode> = {
   admin: <Shield className="w-6 h-6" />,
@@ -116,7 +117,8 @@ export default function LoginPage() {
   const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
   const [ticketForm, setTicketForm] = useState<TicketFormState>(createInitialTicketForm());
   const openTicketDialog = () => setIsTicketDialogOpen(true);
-  const showStandaloneModules = !isNavayuTenant();
+  const showStandaloneModules =
+    !isPlatformRuntimeEnabled() || !isNavayuTenant() || isFullHospitalDemoEnabled(settings);
 
   const doctorDirectory = useMemo(() => {
     const departmentMap = new Map<string, Set<string>>();
@@ -269,7 +271,12 @@ export default function LoginPage() {
     navigate('/dashboard');
   };
 
-  const launchStandaloneModule = (module: 'lis' | 'blood-bank') => {
+  const launchStandaloneModule = (module: 'lis' | 'blood-bank' | 'ris') => {
+    if (module === 'ris') {
+      login('radiologist', 'RIS Demo');
+      navigate('/radiology');
+      return;
+    }
     login('lab_technician', module === 'lis' ? 'LIS Demo' : 'Blood Bank Demo');
     navigate(module === 'lis' ? '/lab/analyzers' : '/blood-bank');
   };
@@ -312,7 +319,7 @@ export default function LoginPage() {
         ) : (
           <>
         {showStandaloneModules && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <motion.button
             type="button"
             initial={{ opacity: 0, y: 12 }}
@@ -335,6 +342,24 @@ export default function LoginPage() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.05 }}
+            onClick={() => launchStandaloneModule('ris')}
+            className="rounded-md border border-violet-300/60 bg-violet-50/80 p-5 text-left hover:border-violet-400 hover:shadow-md transition-all"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="rounded-sm bg-violet-600 text-white p-2">
+                <ScanLine className="w-5 h-5" />
+              </div>
+              <p className="font-bold text-sm">Radiology Information System (RIS)</p>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Imaging orders, modality worklist, PACS viewer, reporting, and radiologist queue — full diagnostics workflow.
+            </p>
+          </motion.button>
+          <motion.button
+            type="button"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
             onClick={() => launchStandaloneModule('blood-bank')}
             className="rounded-md border border-rose-300/60 bg-rose-50/80 p-5 text-left hover:border-rose-400 hover:shadow-md transition-all"
           >

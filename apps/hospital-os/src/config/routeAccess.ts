@@ -70,6 +70,10 @@ export function getEffectiveTabVisibility(
   tabKey: string,
   ctx: NavUserContext,
 ): boolean {
+  if (settings.featureFlags.fullHospitalDemo) {
+    return true;
+  }
+
   const baseVisible = settings.navigation[role][tabKey]?.visible ?? false;
   const profile = resolveNavProfile(settings, ctx);
   const patchVisible = profile?.navigationPatches?.[role]?.[tabKey]?.visible;
@@ -154,7 +158,7 @@ export function canAccessRoute(
     }
   }
 
-  if (!settings.roles[ctx.role]?.enabled) {
+  if (!settings.roles[ctx.role]?.enabled && !settings.featureFlags.fullHospitalDemo) {
     return false;
   }
 
@@ -185,7 +189,7 @@ export function canAccessRoute(
     return isOperationalChildRoute(normalized, owningRole);
   }
 
-  if (isFeatureBlocked(settings, owningRole, tab)) {
+  if (!settings.featureFlags.fullHospitalDemo && isFeatureBlocked(settings, owningRole, tab)) {
     return false;
   }
 

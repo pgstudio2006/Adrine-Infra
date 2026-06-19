@@ -1,7 +1,9 @@
 import { isPlatformRuntimeEnabled } from '@/runtime/platform-session';
+import { isFullHospitalDemoEnabled } from '@/lib/platform/full-hospital-demo';
 
 /** Role-picker / one-click demo login (Vercel static demo, local dev). */
 export function allowDemoLogin(): boolean {
+  if (isFullHospitalDemoEnabled()) return true;
   if (!import.meta.env.PROD) return true;
   if (!isPlatformRuntimeEnabled()) return true;
   return import.meta.env.VITE_ALLOW_DEMO_LOGIN === 'true';

@@ -48,6 +48,10 @@ export function getEffectiveTabVisibility(
   tabKey: string,
   ctx: PackNavContext,
 ): boolean {
+  if (settings.featureFlags?.fullHospitalDemo) {
+    return true;
+  }
+
   const baseVisible = settings.navigation[role]?.[tabKey]?.visible ?? false;
   const profile = resolveNavProfile(settings, ctx);
   const patchVisible = profile?.navigationPatches?.[role]?.[tabKey]?.visible;
@@ -106,5 +110,8 @@ export function roleCanAccessModule(
 }
 
 export function listEnabledRoles(settings: BranchPackSettings): string[] {
+  if (settings.featureFlags?.fullHospitalDemo) {
+    return Object.keys(settings.roles);
+  }
   return Object.keys(settings.roles).filter((role) => isRoleEnabled(settings, role));
 }
