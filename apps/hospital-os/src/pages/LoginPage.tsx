@@ -6,7 +6,7 @@ import { UserRole } from '@/types/roles';
 import { motion } from 'framer-motion';
 import { 
   Shield, Stethoscope, Heart, UserCheck, 
-  FlaskConical, Pill, CreditCard, ScanLine, Scissors, Package, Siren, Users, CalendarClock, Droplets, HeartHandshake, GraduationCap
+  FlaskConical, Pill, CreditCard, ScanLine, Scissors, Package, Siren, Users, CalendarClock, Droplets, HeartHandshake, GraduationCap, Landmark
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useHospital } from '@/stores/hospitalStore';
@@ -43,6 +43,7 @@ const ROLE_ICONS: Record<UserRole, React.ReactNode> = {
   scheduler: <CalendarClock className="w-6 h-6" />,
   dialysis_tech: <Droplets className="w-6 h-6" />,
   crm_manager: <HeartHandshake className="w-6 h-6" />,
+  finance_manager: <Landmark className="w-6 h-6" />,
 };
 
 type TicketCategory = 'technical' | 'access' | 'billing' | 'feature_request' | 'other';

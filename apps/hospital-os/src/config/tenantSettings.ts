@@ -197,6 +197,7 @@ export const DEFAULT_ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   scheduler: 'Calendar operations, resource allocation and teleconsult setup',
   dialysis_tech: 'Dialysis sessions, machines and consumables',
   crm_manager: 'Patient relations, lifecycle, campaigns and experience management',
+  finance_manager: 'Hospital accounts, billing, ledger, treasury, tax, and MIS',
 };
 
 export const TENANT_FEATURE_LABELS: Record<TenantFeatureFlag, { label: string; description: string }> = {

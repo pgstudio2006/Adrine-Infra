@@ -23,6 +23,7 @@ import {
   HeartHandshake,
   GraduationCap,
   Loader2,
+  Landmark,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -56,6 +57,7 @@ const ROLE_ICONS: Record<string, React.ReactNode> = {
   scheduler: <CalendarClock className="w-6 h-6" />,
   dialysis_tech: <Droplets className="w-6 h-6" />,
   crm_manager: <HeartHandshake className="w-6 h-6" />,
+  finance_manager: <Landmark className="w-6 h-6" />,
 };
 
 type WizardStep = 'hospital' | 'branch' | 'module' | 'staff';

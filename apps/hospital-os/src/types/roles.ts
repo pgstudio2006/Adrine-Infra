@@ -14,7 +14,8 @@ export type UserRole =
   | 'hr_manager'
   | 'scheduler'
   | 'dialysis_tech'
-  | 'crm_manager';
+  | 'crm_manager'
+  | 'finance_manager';
 
 export interface User {
   id: string;
@@ -41,6 +42,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   scheduler: 'Scheduling',
   dialysis_tech: 'Dialysis Unit',
   crm_manager: 'CRM & Patient Relations',
+  finance_manager: 'Accounts & Finance',
 };
 
 export type ModuleKey =
@@ -115,6 +117,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, ModuleKey[]> = {
   ],
   crm_manager: [
     'dashboard', 'patients', 'appointments', 'crm', 'reports',
+  ],
+  finance_manager: [
+    'dashboard', 'billing', 'revenue', 'reports', 'settings',
   ],
 };
 

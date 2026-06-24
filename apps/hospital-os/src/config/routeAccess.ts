@@ -148,6 +148,10 @@ export function canAccessRoute(
     return false;
   }
 
+  if (ctx.role === 'admin' && normalized.startsWith('/accounts-finance')) {
+    return true;
+  }
+
   if (isNavayuTenant() && ctx.role === 'admin') {
     const hrTabKey = ADMIN_HR_ROUTE_TAB[normalized];
     if (hrTabKey) {

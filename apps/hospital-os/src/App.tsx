@@ -237,6 +237,11 @@ import {
   BillingSettlement,
 } from "@/pages/billing/BillingPlannedScreens";
 
+import {
+  ACCOUNTS_FINANCE_PAGES,
+  AccountsFinanceLayout,
+} from "@/pages/accounts-finance";
+
 // OT pages
 import OTDashboard from "@/pages/ot/OTDashboard";
 import OTBoard from "@/pages/ot/OTBoard";
@@ -538,6 +543,8 @@ const BILLING_PAGES: Record<string, React.ComponentType> = {
   "/billing-dept/scheme-billing": BillingSchemeBilling,
   "/billing-dept/settlement": BillingSettlement,
 };
+
+const ACCOUNTS_FINANCE_ROUTES = ACCOUNTS_FINANCE_PAGES;
 
 const OT_PAGES: Record<string, React.ComponentType> = {
   "/ot": OTDashboard,
@@ -896,6 +903,21 @@ function AppRoutes() {
         />
       ))}
 
+      {/* Accounts & Finance — 18-section ERP workspace */}
+      {Object.entries(ACCOUNTS_FINANCE_ROUTES).map(([path, Component]) => (
+        <Route
+          key={path}
+          path={path}
+          element={
+            <AppLayout>
+              <AccountsFinanceLayout>
+                <Component />
+              </AccountsFinanceLayout>
+            </AppLayout>
+          }
+        />
+      ))}
+
       {/* OT routes — fully built */}
       {Object.entries(OT_PAGES).map(([path, Component]) => (
         <Route
@@ -1012,7 +1034,8 @@ function AppRoutes() {
         user.role !== "hr_manager" &&
         user.role !== "scheduler" &&
         user.role !== "dialysis_tech" &&
-        user.role !== "crm_manager" && (
+        user.role !== "crm_manager" &&
+        user.role !== "finance_manager" && (
           <Route
             path={basePath}
             element={
@@ -1043,7 +1066,8 @@ function AppRoutes() {
             !HR_PAGES[t.path] &&
             !SCHEDULING_PAGES[t.path] &&
             !DIALYSIS_PAGES[t.path] &&
-            !CRM_PAGES[t.path],
+            !CRM_PAGES[t.path] &&
+            !ACCOUNTS_FINANCE_ROUTES[t.path],
         )
         .map((tab) => (
           <Route

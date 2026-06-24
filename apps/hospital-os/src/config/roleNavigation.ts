@@ -48,6 +48,11 @@ export const ROLE_TABS: Record<UserRole, RoleTab[]> = {
       path: "/admin/finance-hub",
     },
     {
+      key: "accounts-finance",
+      label: "Accounts & Finance",
+      path: "/accounts-finance",
+    },
+    {
       key: "treatment-success",
       label: "Treatment Outcomes",
       path: "/admin/treatment-success",
@@ -390,6 +395,9 @@ export const ROLE_TABS: Record<UserRole, RoleTab[]> = {
     { key: "experience", label: "Patient Experience", path: "/crm/experience" },
     { key: "reports", label: "Analytics", path: "/crm/reports" },
   ],
+  finance_manager: [
+    { key: "dashboard", label: "Accounts & Finance", path: "/accounts-finance" },
+  ],
 };
 
 export const ROLE_BASE_PATH: Record<UserRole, string> = {
@@ -409,5 +417,6 @@ export const ROLE_BASE_PATH: Record<UserRole, string> = {
   scheduler: "/scheduling",
   dialysis_tech: "/dialysis",
   crm_manager: "/crm",
+  finance_manager: "/accounts-finance",
 };
 

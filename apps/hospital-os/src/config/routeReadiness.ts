@@ -115,6 +115,7 @@ const C1_LEANING_PREFIXES: readonly string[] = [
   "/doctor/ipd/",
   "/emergency/",
   "/billing-dept/",
+  "/accounts-finance/",
   "/crm/leads",
   "/crm/lifecycle",
   "/ot/",
