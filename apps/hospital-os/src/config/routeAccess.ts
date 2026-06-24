@@ -13,6 +13,7 @@ export interface NavUserContext {
 }
 
 const PUBLIC_PATHS = new Set(['/', '/dashboard']);
+const ACCOUNTS_FINANCE_BASE = '/accounts-finance';
 
 const ADMIN_HR_ROUTE_TAB: Record<string, string> = {
   '/hr/staff': 'hr-staff',
@@ -105,8 +106,28 @@ function findTabForPath(role: UserRole, path: string): RoleTab | undefined {
   }
 
   return tabs
-    .filter((tab) => tab.path !== ROLE_BASE_PATH[role] && normalized.startsWith(`${tab.path}/`))
+    .filter((tab) => normalized.startsWith(`${tab.path}/`))
     .sort((a, b) => b.path.length - a.path.length)[0];
+}
+
+function isAccountsFinanceRoute(normalized: string): boolean {
+  return normalized === ACCOUNTS_FINANCE_BASE || normalized.startsWith(`${ACCOUNTS_FINANCE_BASE}/`);
+}
+
+function canAccessAccountsFinanceRoute(
+  settings: TenantSettings,
+  ctx: NavUserContext,
+): boolean {
+  if (ctx.role === 'admin') {
+    return true;
+  }
+  if (ctx.role !== 'finance_manager') {
+    return false;
+  }
+  if (!settings.roles.finance_manager?.enabled && !settings.featureFlags.fullHospitalDemo) {
+    return false;
+  }
+  return getEffectiveTabVisibility(settings, 'finance_manager', 'dashboard', ctx);
 }
 
 function isFeatureBlocked(settings: TenantSettings, role: UserRole, tab: RoleTab): boolean {
@@ -148,8 +169,8 @@ export function canAccessRoute(
     return false;
   }
 
-  if (ctx.role === 'admin' && normalized.startsWith('/accounts-finance')) {
-    return true;
+  if (isAccountsFinanceRoute(normalized)) {
+    return canAccessAccountsFinanceRoute(settings, ctx);
   }
 
   if (isNavayuTenant() && ctx.role === 'admin') {
