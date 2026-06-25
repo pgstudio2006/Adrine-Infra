@@ -34,7 +34,7 @@ export default function ConsultationVitals({ vitals, onChange }: Props) {
   }>;
 
   return (
-    <div className="border rounded-xl bg-card p-4">
+    <div className="border rounded-lg bg-card p-3">
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1.5 mb-3">
         <Activity className="w-3.5 h-3.5" /> Vitals
       </p>

@@ -673,7 +673,7 @@ export default function DoctorConsultation() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 w-full min-w-0">
       <PatientContextBar
         patientName={patientName}
         uhid={patientId ?? ''}
@@ -735,10 +735,10 @@ export default function DoctorConsultation() {
         </div>
       </motion.div>
 
-      {/* 3-column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(380px,1.25fr)_minmax(260px,0.75fr)_minmax(240px,0.65fr)] gap-4">
+      {/* 3-column layout — clinical column stays compact; meds + actions use remaining width */}
+      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,280px)] xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)_minmax(0,300px)] gap-3 lg:gap-4 w-full">
         {/* Left Column */}
-        <motion.div {...fadeIn(1)} className="space-y-1">
+        <motion.div {...fadeIn(1)} className="space-y-1 min-w-0 max-w-[340px] md:max-w-none">
           {/* Sub-tabs */}
           <div className="flex border rounded-lg overflow-hidden mb-3">
             <button onClick={() => setLeftTab('clinical')}
@@ -829,12 +829,12 @@ export default function DoctorConsultation() {
         </motion.div>
 
         {/* Center — Medications (compact) */}
-        <motion.div {...fadeIn(2)} className="max-h-[calc(100vh-180px)] overflow-y-auto">
+        <motion.div {...fadeIn(2)} className="min-w-0 max-h-[calc(100vh-180px)] overflow-y-auto">
           <ConsultationMedications medications={medications} onChange={setMedications} allergies={patientAllergies} />
         </motion.div>
 
         {/* Right Column */}
-        <motion.div {...fadeIn(3)} className="max-h-[calc(100vh-200px)] overflow-y-auto pr-1 space-y-3">
+        <motion.div {...fadeIn(3)} className="min-w-0 max-h-[calc(100vh-200px)] overflow-y-auto pr-1 space-y-3">
           {navayuMode ? (
             <>
               {navayuSenior ? (
