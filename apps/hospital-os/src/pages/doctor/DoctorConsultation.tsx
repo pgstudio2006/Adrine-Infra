@@ -735,10 +735,10 @@ export default function DoctorConsultation() {
         </div>
       </motion.div>
 
-      {/* 3-column layout — clinical column stays compact; meds + actions use remaining width */}
-      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,280px)] xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)_minmax(0,300px)] gap-3 lg:gap-4 w-full">
+      {/* 3-column layout — narrow left rail (~22%), wide meds center, compact right panel */}
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)_260px] xl:grid-cols-[300px_minmax(0,1fr)_280px] gap-3 lg:gap-4 w-full">
         {/* Left Column */}
-        <motion.div {...fadeIn(1)} className="space-y-1 min-w-0 max-w-[340px] md:max-w-none">
+        <motion.div {...fadeIn(1)} className="space-y-1 min-w-0 w-full lg:w-[280px] xl:w-[300px] lg:shrink-0">
           {/* Sub-tabs */}
           <div className="flex border rounded-lg overflow-hidden mb-3">
             <button onClick={() => setLeftTab('clinical')}

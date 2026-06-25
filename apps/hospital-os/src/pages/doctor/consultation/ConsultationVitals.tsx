@@ -38,7 +38,7 @@ export default function ConsultationVitals({ vitals, onChange }: Props) {
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1.5 mb-3">
         <Activity className="w-3.5 h-3.5" /> Vitals
       </p>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
         {fields.map(v => (
           <div key={v.id}>
             <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{v.label}</label>
