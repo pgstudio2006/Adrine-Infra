@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { getDemoAdminOperationalBundle } from '@/lib/admin/demo-operational-fallback';
+import { allowDemoFallback } from '@/lib/platform/demo-fallback';
 import {
   canUseAdminRuntime,
   fetchAdminOperationalBundle,
@@ -17,7 +19,11 @@ export function useAdminOperationalData(period: '24h' | '7d' = '24h') {
 
   const refresh = useCallback(async () => {
     if (!canUseAdminRuntime()) {
-      setData({ snapshot: null, analytics: null, finance: null, auditEvents: [], error: null });
+      if (allowDemoFallback()) {
+        setData(getDemoAdminOperationalBundle(period));
+      } else {
+        setData({ snapshot: null, analytics: null, finance: null, auditEvents: [], error: null });
+      }
       return;
     }
     setLoading(true);
@@ -33,5 +39,8 @@ export function useAdminOperationalData(period: '24h' | '7d' = '24h') {
     return () => clearInterval(poll);
   }, [refresh]);
 
-  return { ...data, loading, refresh, platformOn: canUseAdminRuntime() };
+  const platformOn = canUseAdminRuntime();
+  const demoMode = !platformOn && allowDemoFallback();
+
+  return { ...data, loading, refresh, platformOn, demoMode };
 }

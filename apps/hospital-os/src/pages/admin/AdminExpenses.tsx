@@ -10,13 +10,13 @@ import { Plus, Search, Receipt, TrendingDown } from 'lucide-react';
 import { useState } from 'react';
 
 const EXPENSES = [
-  { id: 'EXP001', date: '2025-03-08', category: 'Medical Supplies', description: 'Surgical gloves & masks (bulk)', amount: 'Γé╣45,000', department: 'General Surgery', status: 'approved', approver: 'Admin' },
-  { id: 'EXP002', date: '2025-03-07', category: 'Equipment Maintenance', description: 'CT Scanner annual service', amount: 'Γé╣2,50,000', department: 'Radiology', status: 'pending', approver: '' },
-  { id: 'EXP003', date: '2025-03-07', category: 'Utilities', description: 'Electricity bill ΓÇô March', amount: 'Γé╣1,80,000', department: 'Administration', status: 'approved', approver: 'Admin' },
-  { id: 'EXP004', date: '2025-03-06', category: 'Staff Training', description: 'CPR certification course', amount: 'Γé╣35,000', department: 'Nursing', status: 'approved', approver: 'Admin' },
-  { id: 'EXP005', date: '2025-03-06', category: 'Infrastructure', description: 'OPD waiting area renovation', amount: 'Γé╣5,00,000', department: 'Administration', status: 'pending', approver: '' },
-  { id: 'EXP006', date: '2025-03-05', category: 'Pharmacy Purchase', description: 'Monthly drug procurement', amount: 'Γé╣6,00,000', department: 'Pharmacy', status: 'approved', approver: 'Finance Head' },
-  { id: 'EXP007', date: '2025-03-05', category: 'IT Services', description: 'Server hosting ΓÇô Q1', amount: 'Γé╣90,000', department: 'IT', status: 'rejected', approver: 'Admin' },
+  { id: 'EXP001', date: '2025-03-08', category: 'Medical Supplies', description: 'Surgical gloves & masks (bulk)', amount: '₹45,000', department: 'General Surgery', status: 'approved', approver: 'Admin' },
+  { id: 'EXP002', date: '2025-03-07', category: 'Equipment Maintenance', description: 'CT Scanner annual service', amount: '₹2,50,000', department: 'Radiology', status: 'pending', approver: '' },
+  { id: 'EXP003', date: '2025-03-07', category: 'Utilities', description: 'Electricity bill – March', amount: '₹1,80,000', department: 'Administration', status: 'approved', approver: 'Admin' },
+  { id: 'EXP004', date: '2025-03-06', category: 'Staff Training', description: 'CPR certification course', amount: '₹35,000', department: 'Nursing', status: 'approved', approver: 'Admin' },
+  { id: 'EXP005', date: '2025-03-06', category: 'Infrastructure', description: 'OPD waiting area renovation', amount: '₹5,00,000', department: 'Administration', status: 'pending', approver: '' },
+  { id: 'EXP006', date: '2025-03-05', category: 'Pharmacy Purchase', description: 'Monthly drug procurement', amount: '₹6,00,000', department: 'Pharmacy', status: 'approved', approver: 'Finance Head' },
+  { id: 'EXP007', date: '2025-03-05', category: 'IT Services', description: 'Server hosting – Q1', amount: '₹90,000', department: 'IT', status: 'rejected', approver: 'Admin' },
 ];
 
 const CATEGORIES = ['Medical Supplies', 'Equipment Maintenance', 'Utilities', 'Staff Training', 'Infrastructure', 'Pharmacy Purchase', 'IT Services', 'Other'];
@@ -53,7 +53,7 @@ export default function AdminExpenses() {
                 </Select>
               </div>
               <div><Label>Department</Label><Input placeholder="Department" /></div>
-              <div><Label>Amount (Γé╣)</Label><Input type="number" placeholder="Amount" /></div>
+              <div><Label>Amount (₹)</Label><Input type="number" placeholder="Amount" /></div>
               <div><Label>Description</Label><Textarea placeholder="Expense details" /></div>
               <Button className="w-full">Submit for Approval</Button>
             </div>

@@ -6,13 +6,13 @@ import { CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 
 const APPROVALS = [
-  { id: 'APR001', type: 'Discount', description: 'Discount of 15% on IPD bill #INV-2024-089', requestedBy: 'Kavita Joshi', amount: 'Γé╣12,500', date: '2025-03-08', status: 'pending', rule: 'Discount >10% requires admin approval' },
-  { id: 'APR002', type: 'Refund', description: 'Refund for cancelled lab test ΓÇô patient UHID-4521', requestedBy: 'Billing Desk', amount: 'Γé╣8,500', date: '2025-03-08', status: 'pending', rule: 'Refund >Γé╣5000 requires finance approval' },
-  { id: 'APR003', type: 'Expense', description: 'CT Scanner annual maintenance', requestedBy: 'Radiology Dept', amount: 'Γé╣2,50,000', date: '2025-03-07', status: 'pending', rule: 'Expense >Γé╣1,00,000 requires admin approval' },
-  { id: 'APR004', type: 'Write-Off', description: 'Bad debt write-off ΓÇô patient UHID-3201', requestedBy: 'Finance Team', amount: 'Γé╣45,000', date: '2025-03-07', status: 'pending', rule: 'All write-offs require admin approval' },
-  { id: 'APR005', type: 'Bill Cancel', description: 'Cancel invoice INV-2024-076 (duplicate)', requestedBy: 'Kavita Joshi', amount: 'Γé╣3,200', date: '2025-03-06', status: 'approved', rule: '' },
-  { id: 'APR006', type: 'Discount', description: 'Charity discount 50% ΓÇô patient UHID-5102', requestedBy: 'Reception', amount: 'Γé╣25,000', date: '2025-03-06', status: 'approved', rule: '' },
-  { id: 'APR007', type: 'Refund', description: 'Duplicate payment refund', requestedBy: 'Billing Desk', amount: 'Γé╣1,500', date: '2025-03-05', status: 'rejected', rule: '' },
+  { id: 'APR001', type: 'Discount', description: 'Discount of 15% on IPD bill #INV-2024-089', requestedBy: 'Kavita Joshi', amount: '₹12,500', date: '2025-03-08', status: 'pending', rule: 'Discount >10% requires admin approval' },
+  { id: 'APR002', type: 'Refund', description: 'Refund for cancelled lab test – patient UHID-4521', requestedBy: 'Billing Desk', amount: '₹8,500', date: '2025-03-08', status: 'pending', rule: 'Refund >₹5000 requires finance approval' },
+  { id: 'APR003', type: 'Expense', description: 'CT Scanner annual maintenance', requestedBy: 'Radiology Dept', amount: '₹2,50,000', date: '2025-03-07', status: 'pending', rule: 'Expense >₹1,00,000 requires admin approval' },
+  { id: 'APR004', type: 'Write-Off', description: 'Bad debt write-off – patient UHID-3201', requestedBy: 'Finance Team', amount: '₹45,000', date: '2025-03-07', status: 'pending', rule: 'All write-offs require admin approval' },
+  { id: 'APR005', type: 'Bill Cancel', description: 'Cancel invoice INV-2024-076 (duplicate)', requestedBy: 'Kavita Joshi', amount: '₹3,200', date: '2025-03-06', status: 'approved', rule: '' },
+  { id: 'APR006', type: 'Discount', description: 'Charity discount 50% – patient UHID-5102', requestedBy: 'Reception', amount: '₹25,000', date: '2025-03-06', status: 'approved', rule: '' },
+  { id: 'APR007', type: 'Refund', description: 'Duplicate payment refund', requestedBy: 'Billing Desk', amount: '₹1,500', date: '2025-03-05', status: 'rejected', rule: '' },
 ];
 
 export default function AdminApprovals() {
@@ -85,7 +85,7 @@ export default function AdminApprovals() {
                     </Badge>
                   </div>
                   <p className="text-sm font-medium">{a.description}</p>
-                  <p className="text-xs text-muted-foreground">Requested by: {a.requestedBy} ΓÇó {a.date}</p>
+                  <p className="text-xs text-muted-foreground">Requested by: {a.requestedBy} • {a.date}</p>
                   {a.rule && <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1"><AlertTriangle className="h-3 w-3" />{a.rule}</p>}
                 </div>
                 <div className="text-right">

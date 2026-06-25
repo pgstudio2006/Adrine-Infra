@@ -42,11 +42,11 @@ const monthlyRevenue = [
 ];
 
 const leakagePoints = [
-  { area: 'Unbilled Procedures', amount: 'Γé╣4.2L', impact: 'high', description: '23 procedures not linked to billing' },
-  { area: 'Insurance Claim Rejections', amount: 'Γé╣8.5L', impact: 'critical', description: '45 claims rejected ΓÇö incomplete documentation' },
-  { area: 'Pharmacy Returns', amount: 'Γé╣1.8L', impact: 'medium', description: 'Unused dispensed medications not reconciled' },
-  { area: 'Late Charge Capture', amount: 'Γé╣3.1L', impact: 'high', description: 'Ward charges entered >48h after service' },
-  { area: 'Under-coded Diagnoses', amount: 'Γé╣5.7L', impact: 'high', description: 'DRG coding opportunities missed' },
+  { area: 'Unbilled Procedures', amount: '₹4.2L', impact: 'high', description: '23 procedures not linked to billing' },
+  { area: 'Insurance Claim Rejections', amount: '₹8.5L', impact: 'critical', description: '45 claims rejected — incomplete documentation' },
+  { area: 'Pharmacy Returns', amount: '₹1.8L', impact: 'medium', description: 'Unused dispensed medications not reconciled' },
+  { area: 'Late Charge Capture', amount: '₹3.1L', impact: 'high', description: 'Ward charges entered >48h after service' },
+  { area: 'Under-coded Diagnoses', amount: '₹5.7L', impact: 'high', description: 'DRG coding opportunities missed' },
 ];
 
 const payerMix = [
@@ -58,11 +58,11 @@ const payerMix = [
 ];
 
 const claimsCycle = [
-  { stage: 'Claims Submitted', count: 245, value: 'Γé╣48.2L' },
-  { stage: 'Under Processing', count: 89, value: 'Γé╣18.6L' },
-  { stage: 'Approved', count: 128, value: 'Γé╣24.8L' },
-  { stage: 'Rejected', count: 18, value: 'Γé╣3.2L' },
-  { stage: 'Settled', count: 112, value: 'Γé╣22.1L' },
+  { stage: 'Claims Submitted', count: 245, value: '₹48.2L' },
+  { stage: 'Under Processing', count: 89, value: '₹18.6L' },
+  { stage: 'Approved', count: 128, value: '₹24.8L' },
+  { stage: 'Rejected', count: 18, value: '₹3.2L' },
+  { stage: 'Settled', count: 112, value: '₹22.1L' },
 ];
 
 export default function AdminRevenueCycle() {
@@ -75,7 +75,7 @@ export default function AdminRevenueCycle() {
     const outstanding = finance.summary.outstandingCents / 100;
     return [
       { label: 'Open Invoices', value: String(finance.summary.openInvoices), change: 'Live finance API', good: true },
-      { label: 'Outstanding', value: `Γé╣${outstanding.toLocaleString('en-IN')}`, change: 'Branch ledger', good: outstanding < 500_000 },
+      { label: 'Outstanding', value: `₹${outstanding.toLocaleString('en-IN')}`, change: 'Branch ledger', good: outstanding < 500_000 },
       { label: 'Billing Blockers', value: String(finance.summary.dischargeBillingBlockers), change: 'Discharge clearance', good: finance.summary.dischargeBillingBlockers === 0 },
       { label: 'Draft Invoices', value: String(snapshot.counts.billingDraftInvoices), change: 'Command snapshot', good: true },
       { label: 'Insurance Auth', value: String(finance.summary.insuranceAuthorizations), change: 'Pending pipeline', good: true },
@@ -87,9 +87,9 @@ export default function AdminRevenueCycle() {
   };
 
   const kpiCards = liveKpis ?? [
-    { label: 'Monthly Revenue', value: `Γé╣${(192 + totalFromStore / 100).toFixed(1)}L`, change: 'Preview', good: true },
+    { label: 'Monthly Revenue', value: `₹${(192 + totalFromStore / 100).toFixed(1)}L`, change: 'Preview', good: true },
     { label: 'Collection Rate', value: '93.7%', change: 'Preview', good: true },
-    { label: 'Revenue Leakage', value: 'Γé╣23.3L', change: 'Preview', good: true },
+    { label: 'Revenue Leakage', value: '₹23.3L', change: 'Preview', good: true },
     { label: 'Avg Days to Collect', value: '32', change: 'Preview', good: true },
     { label: 'Claim Rejection Rate', value: '7.3%', change: 'Preview', good: true },
   ];
@@ -99,7 +99,7 @@ export default function AdminRevenueCycle() {
       {platformOn && (
         <PlatformConnectivityStrip
           label="Live revenue cycle signals"
-          detail={`Outstanding Γé╣${((finance?.summary.outstandingCents ?? 0) / 100).toLocaleString('en-IN')} ┬╖ ${analytics?.metrics.dischargeTurnaround ?? 0} discharges (7d)`}
+          detail={`Outstanding ₹${((finance?.summary.outstandingCents ?? 0) / 100).toLocaleString('en-IN')} · ${analytics?.metrics.dischargeTurnaround ?? 0} discharges (7d)`}
           error={error}
         />
       )}
@@ -144,7 +144,7 @@ export default function AdminRevenueCycle() {
               <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 flex items-center gap-1.5">
                 <Zap className="w-3.5 h-3.5" /> AI-Detected Revenue Leakage Points
               </p>
-              <Badge className="text-[10px] bg-amber-600">Γé╣23.3L potential recovery</Badge>
+              <Badge className="text-[10px] bg-amber-600">₹23.3L potential recovery</Badge>
             </div>
             <div className="space-y-2">
               {leakagePoints.map((l, i) => (
@@ -170,7 +170,7 @@ export default function AdminRevenueCycle() {
         <motion.div {...fadeIn(3)}>
           <Card>
             <CardContent className="p-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Revenue vs Collection Trend (Γé╣L)</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Revenue vs Collection Trend (₹L)</p>
               <ResponsiveContainer width="100%" height={200}>
                 <AreaChart data={monthlyRevenue}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -220,15 +220,15 @@ export default function AdminRevenueCycle() {
         <motion.div {...fadeIn(5)}>
           <Card>
             <CardContent className="p-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Department Revenue & Margin (Γé╣L)</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Department Revenue & Margin (₹L)</p>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={revenueByDept}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="dept" tick={{ fontSize: 9 }} stroke="hsl(var(--muted-foreground))" />
                   <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
                   <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))' }} />
-                  <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} name="Revenue (Γé╣L)" />
-                  <Bar dataKey="cost" fill="hsl(var(--muted))" radius={[2, 2, 0, 0]} name="Cost (Γé╣L)" />
+                  <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} name="Revenue (₹L)" />
+                  <Bar dataKey="cost" fill="hsl(var(--muted))" radius={[2, 2, 0, 0]} name="Cost (₹L)" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>

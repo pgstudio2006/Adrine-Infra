@@ -10,12 +10,13 @@ export function allowDemoLogin(): boolean {
 }
 
 /**
- * Demo/sample UI data is allowed only for local Vite dev without platform APIs.
- * Production and platform-runtime builds must never show fabricated rows.
+ * Demo/sample UI when platform APIs are off — Vercel full-hospital demo or local dev.
+ * Never used when platform runtime is connected (live data takes precedence).
  */
 export function allowDemoFallback(): boolean {
-  if (import.meta.env.PROD) return false;
   if (isPlatformRuntimeEnabled()) return false;
+  if (isFullHospitalDemoEnabled()) return true;
+  if (import.meta.env.PROD) return false;
   return import.meta.env.VITE_ALLOW_DEMO_DATA === 'true';
 }
 

@@ -5,35 +5,35 @@ import { TrendingUp, TrendingDown, IndianRupee, PieChart } from 'lucide-react';
 import { useState } from 'react';
 
 const REVENUE_SUMMARY = [
-  { label: 'Total Revenue (MTD)', value: 'Γé╣1,24,50,000', change: '+12%' },
-  { label: 'Total Expenses (MTD)', value: 'Γé╣78,30,000', change: '+8%' },
-  { label: 'Net Profit (MTD)', value: 'Γé╣46,20,000', change: '+18%' },
-  { label: 'Outstanding', value: 'Γé╣15,80,000', change: '-5%' },
+  { label: 'Total Revenue (MTD)', value: '₹1,24,50,000', change: '+12%' },
+  { label: 'Total Expenses (MTD)', value: '₹78,30,000', change: '+8%' },
+  { label: 'Net Profit (MTD)', value: '₹46,20,000', change: '+18%' },
+  { label: 'Outstanding', value: '₹15,80,000', change: '-5%' },
 ];
 
 const DEPT_REVENUE = [
-  { dept: 'OPD', revenue: 'Γé╣32,50,000', percentage: 26 },
-  { dept: 'IPD', revenue: 'Γé╣45,00,000', percentage: 36 },
-  { dept: 'Pharmacy', revenue: 'Γé╣18,00,000', percentage: 15 },
-  { dept: 'Laboratory', revenue: 'Γé╣15,00,000', percentage: 12 },
-  { dept: 'Radiology', revenue: 'Γé╣8,50,000', percentage: 7 },
-  { dept: 'Other', revenue: 'Γé╣5,50,000', percentage: 4 },
+  { dept: 'OPD', revenue: '₹32,50,000', percentage: 26 },
+  { dept: 'IPD', revenue: '₹45,00,000', percentage: 36 },
+  { dept: 'Pharmacy', revenue: '₹18,00,000', percentage: 15 },
+  { dept: 'Laboratory', revenue: '₹15,00,000', percentage: 12 },
+  { dept: 'Radiology', revenue: '₹8,50,000', percentage: 7 },
+  { dept: 'Other', revenue: '₹5,50,000', percentage: 4 },
 ];
 
 const COST_CENTERS = [
-  { center: 'Staff Salaries', amount: 'Γé╣42,00,000', percentage: 54 },
-  { center: 'Medical Supplies', amount: 'Γé╣12,50,000', percentage: 16 },
-  { center: 'Equipment Maintenance', amount: 'Γé╣8,00,000', percentage: 10 },
-  { center: 'Utilities', amount: 'Γé╣5,80,000', percentage: 7 },
-  { center: 'Pharmacy Purchase', amount: 'Γé╣6,00,000', percentage: 8 },
-  { center: 'Other', amount: 'Γé╣4,00,000', percentage: 5 },
+  { center: 'Staff Salaries', amount: '₹42,00,000', percentage: 54 },
+  { center: 'Medical Supplies', amount: '₹12,50,000', percentage: 16 },
+  { center: 'Equipment Maintenance', amount: '₹8,00,000', percentage: 10 },
+  { center: 'Utilities', amount: '₹5,80,000', percentage: 7 },
+  { center: 'Pharmacy Purchase', amount: '₹6,00,000', percentage: 8 },
+  { center: 'Other', amount: '₹4,00,000', percentage: 5 },
 ];
 
 const DOCTOR_REVENUE = [
-  { doctor: 'Dr. Rajesh Mehta', consultations: 145, procedures: 12, totalRevenue: 'Γé╣8,75,000', share: 'Γé╣2,62,500', sharePercent: 30 },
-  { doctor: 'Dr. Priya Sharma', consultations: 180, procedures: 5, totalRevenue: 'Γé╣6,20,000', share: 'Γé╣1,86,000', sharePercent: 30 },
-  { doctor: 'Dr. Anil Kumar', consultations: 95, procedures: 18, totalRevenue: 'Γé╣9,50,000', share: 'Γé╣3,32,500', sharePercent: 35 },
-  { doctor: 'Dr. Vikram Singh', consultations: 0, procedures: 85, totalRevenue: 'Γé╣12,00,000', share: 'Γé╣3,60,000', sharePercent: 30 },
+  { doctor: 'Dr. Rajesh Mehta', consultations: 145, procedures: 12, totalRevenue: '₹8,75,000', share: '₹2,62,500', sharePercent: 30 },
+  { doctor: 'Dr. Priya Sharma', consultations: 180, procedures: 5, totalRevenue: '₹6,20,000', share: '₹1,86,000', sharePercent: 30 },
+  { doctor: 'Dr. Anil Kumar', consultations: 95, procedures: 18, totalRevenue: '₹9,50,000', share: '₹3,32,500', sharePercent: 35 },
+  { doctor: 'Dr. Vikram Singh', consultations: 0, procedures: 85, totalRevenue: '₹12,00,000', share: '₹3,60,000', sharePercent: 30 },
 ];
 
 export default function AdminFinance() {

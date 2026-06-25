@@ -187,7 +187,7 @@ export default function AdminDataMining() {
                   <div key={i} className="flex items-center justify-between border rounded-lg p-2.5">
                     <div>
                       <p className="text-xs font-medium">{d.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{d.records} records ΓÇó Updated {d.lastUpdated}</p>
+                      <p className="text-[10px] text-muted-foreground">{d.records} records • Updated {d.lastUpdated}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       {d.anonymized ? (

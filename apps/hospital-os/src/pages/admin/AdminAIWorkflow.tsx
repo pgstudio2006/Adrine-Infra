@@ -26,7 +26,7 @@ const clinicalGuidelines = [
       'Order HbA1c, Fasting glucose, Renal function panel',
       'Initiate diabetic diet counseling',
       'Schedule ophthalmology referral for retinopathy screening',
-      'Check foot examination ΓÇö monofilament test',
+      'Check foot examination — monofilament test',
     ],
     alerts: ['Check renal function before Metformin initiation', 'Avoid in eGFR <30'],
   },
@@ -39,7 +39,7 @@ const clinicalGuidelines = [
       'Oxygen supplementation if SpO2 <94%',
       'Switch to oral antibiotics after 48h clinical improvement',
     ],
-    alerts: ['Check for drug allergies to penicillin/cephalosporins', 'Severe CAP ΓåÆ ICU referral'],
+    alerts: ['Check for drug allergies to penicillin/cephalosporins', 'Severe CAP → ICU referral'],
   },
   {
     id: 3, condition: 'Acute Coronary Syndrome', icd: 'I21.9',
@@ -56,27 +56,27 @@ const clinicalGuidelines = [
     id: 4, condition: 'Dengue Fever', icd: 'A90',
     guidelines: [
       'Serial platelet count monitoring every 12 hours',
-      'Avoid NSAIDs and Aspirin ΓÇö use Paracetamol only',
+      'Avoid NSAIDs and Aspirin — use Paracetamol only',
       'IV fluid resuscitation if warning signs present',
-      'Monitor for plasma leakage ΓÇö HCT rise >20%',
+      'Monitor for plasma leakage — HCT rise >20%',
       'Daily CBC and hematocrit tracking',
     ],
-    alerts: ['Warning signs: Abdominal pain, persistent vomiting, mucosal bleeding', 'Platelet <20,000 ΓåÆ consider transfusion'],
+    alerts: ['Warning signs: Abdominal pain, persistent vomiting, mucosal bleeding', 'Platelet <20,000 → consider transfusion'],
   },
 ];
 
 const monitoringAlerts = [
-  { id: 1, patient: 'Bed 12 ΓÇö Rajesh K.', alert: 'Creatinine rising: 1.8 ΓåÆ 2.4 mg/dL over 24h', type: 'lab', severity: 'warning', action: 'Consider nephrology consult' },
-  { id: 2, patient: 'Bed 5 ΓÇö Priya M.', alert: 'Potassium 5.8 mEq/L ΓÇö Hyperkalemia', type: 'lab', severity: 'critical', action: 'Order ECG, Calcium gluconate, Insulin+D50' },
-  { id: 3, patient: 'Bed 8 ΓÇö Anil S.', alert: 'Drug interaction: Warfarin + Metronidazole', type: 'drug', severity: 'warning', action: 'Monitor INR closely, consider dose reduction' },
-  { id: 4, patient: 'Ward 3 ΓÇö Meena D.', alert: 'No vitals documented in 8 hours', type: 'workflow', severity: 'moderate', action: 'Assign nurse for immediate assessment' },
-  { id: 5, patient: 'ICU-A2 ΓÇö Suresh P.', alert: 'Ventilator day 5 ΓÇö SAT/SBT protocol due', type: 'protocol', severity: 'info', action: 'Initiate spontaneous breathing trial' },
+  { id: 1, patient: 'Bed 12 — Rajesh K.', alert: 'Creatinine rising: 1.8 → 2.4 mg/dL over 24h', type: 'lab', severity: 'warning', action: 'Consider nephrology consult' },
+  { id: 2, patient: 'Bed 5 — Priya M.', alert: 'Potassium 5.8 mEq/L — Hyperkalemia', type: 'lab', severity: 'critical', action: 'Order ECG, Calcium gluconate, Insulin+D50' },
+  { id: 3, patient: 'Bed 8 — Anil S.', alert: 'Drug interaction: Warfarin + Metronidazole', type: 'drug', severity: 'warning', action: 'Monitor INR closely, consider dose reduction' },
+  { id: 4, patient: 'Ward 3 — Meena D.', alert: 'No vitals documented in 8 hours', type: 'workflow', severity: 'moderate', action: 'Assign nurse for immediate assessment' },
+  { id: 5, patient: 'ICU-A2 — Suresh P.', alert: 'Ventilator day 5 — SAT/SBT protocol due', type: 'protocol', severity: 'info', action: 'Initiate spontaneous breathing trial' },
 ];
 
 const suggestedNotes = [
   { trigger: 'Post-appendectomy Day 1', note: 'Patient tolerated procedure well. Vitals stable. Started on clear liquids. Surgical site clean, no signs of infection. Continue IV antibiotics for 24h. Monitor for signs of ileus.' },
   { trigger: 'Diabetic Ketoacidosis Admission', note: 'Admitted with DKA. Blood glucose 420 mg/dL, pH 7.18, HCO3 10. Started on insulin infusion protocol. Aggressive IV hydration with NS. Monitoring hourly glucose, q4h ABG, BMP.' },
-  { trigger: 'Pneumonia Day 3 Progress', note: 'Day 3 of antibiotics. Fever trending down (101┬░F ΓåÆ 99.2┬░F). WBC improving (18k ΓåÆ 12k). Cough productive but decreasing. SpO2 maintained on room air. Plan to step down to oral antibiotics if afebrile for 24h.' },
+  { trigger: 'Pneumonia Day 3 Progress', note: 'Day 3 of antibiotics. Fever trending down (101°F → 99.2°F). WBC improving (18k → 12k). Cough productive but decreasing. SpO2 maintained on room air. Plan to step down to oral antibiotics if afebrile for 24h.' },
 ];
 
 export default function AdminAIWorkflow() {
@@ -103,7 +103,7 @@ export default function AdminAIWorkflow() {
   const handleAIQuery = async () => {
     if (!customQuery.trim()) return;
     if (!canUseAIRuntime()) {
-      toast.error('Platform AI runtime is off ΓÇö enable VITE_PLATFORM_RUNTIME and sign in.');
+      toast.error('Platform AI runtime is off — enable VITE_PLATFORM_RUNTIME and sign in.');
       return;
     }
     setAiBusy(true);
@@ -180,7 +180,7 @@ export default function AdminAIWorkflow() {
                 className="text-xs min-h-[50px] resize-none flex-1"
               />
               <Button size="sm" className="self-end gap-1.5" onClick={() => void handleAIQuery()} disabled={aiBusy}>
-                <Sparkles className="w-3.5 h-3.5" /> {aiBusy ? 'RunningΓÇª' : 'Ask AI'}
+                <Sparkles className="w-3.5 h-3.5" /> {aiBusy ? 'Running…' : 'Ask AI'}
               </Button>
             </div>
             {aiAnswer && (
@@ -218,7 +218,7 @@ export default function AdminAIWorkflow() {
                     <div>
                       <p className="text-xs font-medium">{alert.patient}</p>
                       <p className="text-[10px] text-muted-foreground">{alert.alert}</p>
-                      <p className="text-[10px] text-primary font-medium mt-0.5">ΓåÆ {alert.action}</p>
+                      <p className="text-[10px] text-primary font-medium mt-0.5">→ {alert.action}</p>
                     </div>
                   </div>
                   <div className="flex gap-1.5">

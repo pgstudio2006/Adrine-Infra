@@ -66,11 +66,11 @@ const DEFAULT_SHARING_POLICIES: SharingPolicy[] = [
     doctor: 'Dr. Amit Patel',
     department: 'General Medicine',
     type: 'Fixed',
-    opdShare: 'Γé╣300',
-    ipdShare: 'Γé╣500',
-    surgeryShare: 'ΓÇö',
-    radiologyShare: 'Γé╣150',
-    referralShare: 'Γé╣100',
+    opdShare: '₹300',
+    ipdShare: '₹500',
+    surgeryShare: '—',
+    radiologyShare: '₹150',
+    referralShare: '₹100',
     status: 'Active',
     notes: 'Fixed honorarium model',
   },
@@ -92,9 +92,9 @@ const DEFAULT_SHARING_POLICIES: SharingPolicy[] = [
     doctor: 'Dr. Kavya Iyer',
     department: 'Radiology',
     type: 'Mixed',
-    opdShare: 'Γé╣250',
+    opdShare: '₹250',
     ipdShare: '20%',
-    surgeryShare: 'ΓÇö',
+    surgeryShare: '—',
     radiologyShare: '35%',
     referralShare: '8%',
     status: 'Active',
@@ -125,8 +125,8 @@ function parsePercent(value: string): number | null {
 }
 
 function parseCurrency(value: string): number | null {
-  if (!value.includes('Γé╣')) return null;
-  const parsed = Number.parseFloat(value.replace('Γé╣', '').replace(/,/g, '').trim());
+  if (!value.includes('₹')) return null;
+  const parsed = Number.parseFloat(value.replace('₹', '').replace(/,/g, '').trim());
   return Number.isFinite(parsed) ? parsed : null;
 }
 
@@ -166,7 +166,7 @@ function getServiceRowsFromPolicies(policies: SharingPolicy[]) {
     return serviceMap
       .map((service) => {
         const shareValue = policy[service.shareKey];
-        if (!shareValue || shareValue === 'ΓÇö') {
+        if (!shareValue || shareValue === '—') {
           return null;
         }
 
@@ -339,7 +339,7 @@ export default function AdminDoctorSharing() {
       policyDraft.surgeryShare,
       policyDraft.radiologyShare,
       policyDraft.referralShare,
-    ].some((value) => value.trim() && value.trim() !== 'ΓÇö');
+    ].some((value) => value.trim() && value.trim() !== '—');
 
     if (!hasAtLeastOneShare) {
       toast.error('Add at least one share value.');
@@ -388,10 +388,10 @@ export default function AdminDoctorSharing() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Doctor Payouts', value: `Γé╣${totalDoctorPayout.toLocaleString('en-IN')}`, icon: IndianRupee, sub: 'Estimated from active policies' },
+          { label: 'Total Doctor Payouts', value: `₹${totalDoctorPayout.toLocaleString('en-IN')}`, icon: IndianRupee, sub: 'Estimated from active policies' },
           { label: 'Active Policies', value: String(policies.length), icon: Users, sub: `${policies.filter((policy) => policy.status === 'Under Review').length} under review` },
           { label: 'Avg Sharing %', value: `${averageSharing.toFixed(1)}%`, icon: Percent, sub: 'Across mapped services' },
-          { label: 'TDS Deducted', value: `Γé╣${tdsTotal.toLocaleString('en-IN')}`, icon: FileText, sub: 'Q4 FY2025-26' },
+          { label: 'TDS Deducted', value: `₹${tdsTotal.toLocaleString('en-IN')}`, icon: FileText, sub: 'Q4 FY2025-26' },
         ].map((summary) => (
           <Card key={summary.label} className="p-4">
             <div className="flex items-start justify-between">
@@ -474,11 +474,11 @@ export default function AdminDoctorSharing() {
                         {policy.type}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-medium">{policy.opdShare || 'ΓÇö'}</TableCell>
-                    <TableCell className="font-medium">{policy.ipdShare || 'ΓÇö'}</TableCell>
-                    <TableCell className="font-medium">{policy.surgeryShare || 'ΓÇö'}</TableCell>
-                    <TableCell className="font-medium">{policy.radiologyShare || 'ΓÇö'}</TableCell>
-                    <TableCell className="font-medium">{policy.referralShare || 'ΓÇö'}</TableCell>
+                    <TableCell className="font-medium">{policy.opdShare || '—'}</TableCell>
+                    <TableCell className="font-medium">{policy.ipdShare || '—'}</TableCell>
+                    <TableCell className="font-medium">{policy.surgeryShare || '—'}</TableCell>
+                    <TableCell className="font-medium">{policy.radiologyShare || '—'}</TableCell>
+                    <TableCell className="font-medium">{policy.referralShare || '—'}</TableCell>
                     <TableCell>
                       <Badge variant={policy.status === 'Active' ? 'default' : 'secondary'} className="text-xs">{policy.status}</Badge>
                     </TableCell>
@@ -523,8 +523,8 @@ export default function AdminDoctorSharing() {
                     <TableCell className="text-muted-foreground text-sm">{serviceRow.doctor}</TableCell>
                     <TableCell>{serviceRow.hospitalShare}%</TableCell>
                     <TableCell className="font-medium">{serviceRow.doctorShare}%</TableCell>
-                    <TableCell className="text-right">Γé╣{serviceRow.amount.toLocaleString('en-IN')}</TableCell>
-                    <TableCell className="text-right font-medium">Γé╣{serviceRow.doctorPayout.toLocaleString('en-IN')}</TableCell>
+                    <TableCell className="text-right">₹{serviceRow.amount.toLocaleString('en-IN')}</TableCell>
+                    <TableCell className="text-right font-medium">₹{serviceRow.doctorPayout.toLocaleString('en-IN')}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -552,7 +552,7 @@ export default function AdminDoctorSharing() {
                     <TableCell className="text-muted-foreground">{referral.referred}</TableCell>
                     <TableCell>{referral.patient}</TableCell>
                     <TableCell>{referral.service}</TableCell>
-                    <TableCell className="text-right font-medium">Γé╣{referral.referralFee.toLocaleString('en-IN')}</TableCell>
+                    <TableCell className="text-right font-medium">₹{referral.referralFee.toLocaleString('en-IN')}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{referral.date}</TableCell>
                   </TableRow>
                 ))}
@@ -563,7 +563,7 @@ export default function AdminDoctorSharing() {
 
         <TabsContent value="tds" className="mt-4 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-foreground">TDS Report ΓÇö Q4 FY2025-26</h3>
+            <h3 className="text-sm font-semibold text-foreground">TDS Report — Q4 FY2025-26</h3>
             <Button variant="outline" size="sm" className="gap-1 text-xs"><Download className="w-3 h-3" />Download TDS Certificate</Button>
           </div>
           <Card>
@@ -586,10 +586,10 @@ export default function AdminDoctorSharing() {
                 ) : tdsData.map((tdsRow, index) => (
                   <TableRow key={`${tdsRow.doctor}-${index}`}>
                     <TableCell className="font-medium">{tdsRow.doctor}</TableCell>
-                    <TableCell className="text-right">Γé╣{tdsRow.grossSharing.toLocaleString('en-IN')}</TableCell>
+                    <TableCell className="text-right">₹{tdsRow.grossSharing.toLocaleString('en-IN')}</TableCell>
                     <TableCell>{tdsRow.tdsRate}</TableCell>
-                    <TableCell className="text-right text-destructive font-medium">Γé╣{tdsRow.tdsAmount.toLocaleString('en-IN')}</TableCell>
-                    <TableCell className="text-right font-bold">Γé╣{tdsRow.netPayable.toLocaleString('en-IN')}</TableCell>
+                    <TableCell className="text-right text-destructive font-medium">₹{tdsRow.tdsAmount.toLocaleString('en-IN')}</TableCell>
+                    <TableCell className="text-right font-bold">₹{tdsRow.netPayable.toLocaleString('en-IN')}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{tdsRow.quarter}</TableCell>
                   </TableRow>
                 ))}
@@ -605,10 +605,10 @@ export default function AdminDoctorSharing() {
               <BarChart data={monthlySharing}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(value) => `Γé╣${value / 1000}k`} />
+                <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(value) => `₹${value / 1000}k`} />
                 <Tooltip
                   contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
-                  formatter={(value: number) => `Γé╣${value.toLocaleString('en-IN')}`}
+                  formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`}
                 />
                 <Bar dataKey="hospital" fill="hsl(var(--foreground))" radius={[4, 4, 0, 0]} name="Hospital" />
                 <Bar dataKey="doctors" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} name="Doctors" />
@@ -677,7 +677,7 @@ export default function AdminDoctorSharing() {
                 <Input
                   value={policyDraft.opdShare}
                   onChange={(event) => setPolicyDraft((current) => ({ ...current, opdShare: event.target.value }))}
-                  placeholder="30% or Γé╣300"
+                  placeholder="30% or ₹300"
                 />
               </div>
               <div className="space-y-2">
@@ -685,7 +685,7 @@ export default function AdminDoctorSharing() {
                 <Input
                   value={policyDraft.ipdShare}
                   onChange={(event) => setPolicyDraft((current) => ({ ...current, ipdShare: event.target.value }))}
-                  placeholder="25% or Γé╣500"
+                  placeholder="25% or ₹500"
                 />
               </div>
               <div className="space-y-2">
@@ -693,7 +693,7 @@ export default function AdminDoctorSharing() {
                 <Input
                   value={policyDraft.surgeryShare}
                   onChange={(event) => setPolicyDraft((current) => ({ ...current, surgeryShare: event.target.value }))}
-                  placeholder="40% or Γé╣7000"
+                  placeholder="40% or ₹7000"
                 />
               </div>
               <div className="space-y-2">
@@ -701,7 +701,7 @@ export default function AdminDoctorSharing() {
                 <Input
                   value={policyDraft.radiologyShare}
                   onChange={(event) => setPolicyDraft((current) => ({ ...current, radiologyShare: event.target.value }))}
-                  placeholder="35% or Γé╣1500"
+                  placeholder="35% or ₹1500"
                 />
               </div>
               <div className="space-y-2">
@@ -709,7 +709,7 @@ export default function AdminDoctorSharing() {
                 <Input
                   value={policyDraft.referralShare}
                   onChange={(event) => setPolicyDraft((current) => ({ ...current, referralShare: event.target.value }))}
-                  placeholder="10% or Γé╣100"
+                  placeholder="10% or ₹100"
                 />
               </div>
             </div>

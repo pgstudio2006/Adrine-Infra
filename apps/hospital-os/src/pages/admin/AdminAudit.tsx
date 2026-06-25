@@ -30,7 +30,7 @@ function severityFromEventName(name: string): 'info' | 'warning' | 'critical' {
 export default function AdminAudit() {
   const navayuMode = isNavayuTenant();
   const { workflowEvents } = useHospital();
-  const { auditEvents, platformOn, error, loading } = useAdminOperationalData('7d');
+  const { auditEvents, platformOn, demoMode, error, loading } = useAdminOperationalData('7d');
   const [search, setSearch] = useState('');
   const [moduleFilter, setModuleFilter] = useState('all');
   const [severityFilter, setSeverityFilter] = useState('all');
@@ -112,7 +112,7 @@ export default function AdminAudit() {
           error={error}
         />
       )}
-      {!navayuMode && !platformOn && !loading && (
+      {!navayuMode && !platformOn && !demoMode && !loading && (
         <p className="text-xs text-muted-foreground rounded-lg border border-dashed px-3 py-2">
           Preview: showing local workflow events only. Enable platform runtime for domain analytics event stream.
         </p>

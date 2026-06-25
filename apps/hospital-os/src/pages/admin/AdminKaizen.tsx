@@ -32,12 +32,12 @@ const errorMetrics = [
 ];
 
 const processMetrics = [
-  { process: 'Patient Registration ΓåÆ OPD', target: '15 min', actual: '22 min', status: 'improving', improvement: '-3 min' },
-  { process: 'Lab Sample ΓåÆ Report', target: '4 hrs', actual: '5.2 hrs', status: 'warning', improvement: '-0.8 hr' },
-  { process: 'ER Triage ΓåÆ Treatment', target: '10 min', actual: '12 min', status: 'good', improvement: '-5 min' },
-  { process: 'Discharge Order ΓåÆ Release', target: '2 hrs', actual: '3.8 hrs', status: 'critical', improvement: '-0.2 hr' },
-  { process: 'Prescription ΓåÆ Dispensing', target: '20 min', actual: '18 min', status: 'achieved', improvement: '-7 min' },
-  { process: 'OT Request ΓåÆ Schedule', target: '24 hrs', actual: '28 hrs', status: 'improving', improvement: '-4 hr' },
+  { process: 'Patient Registration → OPD', target: '15 min', actual: '22 min', status: 'improving', improvement: '-3 min' },
+  { process: 'Lab Sample → Report', target: '4 hrs', actual: '5.2 hrs', status: 'warning', improvement: '-0.8 hr' },
+  { process: 'ER Triage → Treatment', target: '10 min', actual: '12 min', status: 'good', improvement: '-5 min' },
+  { process: 'Discharge Order → Release', target: '2 hrs', actual: '3.8 hrs', status: 'critical', improvement: '-0.2 hr' },
+  { process: 'Prescription → Dispensing', target: '20 min', actual: '18 min', status: 'achieved', improvement: '-7 min' },
+  { process: 'OT Request → Schedule', target: '24 hrs', actual: '28 hrs', status: 'improving', improvement: '-4 hr' },
 ];
 
 const kaizenBoard = [
@@ -50,8 +50,8 @@ const kaizenBoard = [
 ];
 
 const incidentLog = [
-  { id: 1, date: '08 Mar', type: 'Medication Error', severity: 'moderate', dept: 'Ward 3', description: 'Wrong dosage transcribed ΓÇö caught before administration', status: 'resolved', rca: 'completed' },
-  { id: 2, date: '07 Mar', type: 'Fall Incident', severity: 'minor', dept: 'Ward 5', description: 'Patient slipped near bathroom ΓÇö no injury', status: 'resolved', rca: 'completed' },
+  { id: 1, date: '08 Mar', type: 'Medication Error', severity: 'moderate', dept: 'Ward 3', description: 'Wrong dosage transcribed — caught before administration', status: 'resolved', rca: 'completed' },
+  { id: 2, date: '07 Mar', type: 'Fall Incident', severity: 'minor', dept: 'Ward 5', description: 'Patient slipped near bathroom — no injury', status: 'resolved', rca: 'completed' },
   { id: 3, date: '06 Mar', type: 'Documentation Gap', severity: 'low', dept: 'OPD', description: 'Allergy not documented in patient chart', status: 'under-review', rca: 'pending' },
   { id: 4, date: '05 Mar', type: 'Lab Delay', severity: 'moderate', dept: 'Lab', description: 'Stat CBC delayed by 45 min due to equipment issue', status: 'resolved', rca: 'completed' },
 ];
@@ -70,7 +70,7 @@ export default function AdminKaizen() {
       <motion.div {...fadeIn(0)} className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
-            <Repeat className="w-5 h-5 text-primary" /> Kaizen ΓÇö Continuous Improvement
+            <Repeat className="w-5 h-5 text-primary" /> Kaizen — Continuous Improvement
           </h1>
           <p className="text-sm text-muted-foreground">Process discipline tracking, operational error metrics & improvement initiatives</p>
         </div>
@@ -142,7 +142,7 @@ export default function AdminKaizen() {
                       } className="text-[10px]">{p.status}</Badge>
                     </div>
                     <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                      <span>Target: {p.target} ΓÇó Actual: <strong className="text-foreground">{p.actual}</strong></span>
+                      <span>Target: {p.target} • Actual: <strong className="text-foreground">{p.actual}</strong></span>
                       <span className="text-emerald-600 font-medium">{p.improvement}</span>
                     </div>
                   </div>
@@ -169,7 +169,7 @@ export default function AdminKaizen() {
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1.5">
-                      <span>{k.dept} ΓÇó {k.owner}</span>
+                      <span>{k.dept} • {k.owner}</span>
                       <Badge variant={k.impact === 'critical' ? 'destructive' : 'outline'} className="text-[8px]">{k.impact}</Badge>
                     </div>
                     <Progress value={k.progress} className="h-1.5" />

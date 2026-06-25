@@ -185,7 +185,7 @@ export default function AdminTreatmentSuccess() {
                   <div key={i} className="flex items-center justify-between border rounded-lg p-2.5">
                     <div>
                       <p className="text-xs font-medium">{s.procedure}</p>
-                      <p className="text-[10px] text-muted-foreground">{s.cases} cases ΓÇó Avg: {s.avgDuration}</p>
+                      <p className="text-[10px] text-muted-foreground">{s.cases} cases • Avg: {s.avgDuration}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="text-right">
@@ -212,7 +212,7 @@ export default function AdminTreatmentSuccess() {
                   <div key={i} className="flex items-center justify-between border rounded-lg p-2.5">
                     <div>
                       <p className="text-xs font-medium">{d.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{d.dept} ΓÇó {d.patients} patients</p>
+                      <p className="text-[10px] text-muted-foreground">{d.dept} • {d.patients} patients</p>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-center">
@@ -220,7 +220,7 @@ export default function AdminTreatmentSuccess() {
                         <p className="text-[8px] text-muted-foreground">Success</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-xs font-bold">Γ¡É {d.satisfaction}</p>
+                        <p className="text-xs font-bold">⭐ {d.satisfaction}</p>
                         <p className="text-[8px] text-muted-foreground">Rating</p>
                       </div>
                     </div>

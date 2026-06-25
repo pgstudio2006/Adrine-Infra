@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Sparkles, Monitor, Tablet, Mic, Camera, ZoomIn, ZoomOut, X as XIcon, Circle, RotateCcw, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Sparkles, Monitor, Tablet, Mic, Camera, ZoomIn, ZoomOut, X as XIcon, Circle, RotateCcw, ChevronLeft, ChevronRight, ArrowRight, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ConsultationVitals from './consultation/ConsultationVitals';
 import ConsultationComplaints, { type Complaint } from './consultation/ConsultationComplaints';
@@ -264,7 +264,7 @@ export default function DoctorConsultation() {
   const [followUpDays, setFollowUpDays] = useState('15');
   const [followUpUnit, setFollowUpUnit] = useState('Days');
   const [viewMode, setViewMode] = useState<'Digital' | 'Tablet'>('Digital');
-  const [leftTab, setLeftTab] = useState<'clinical' | 'photos'>('clinical');
+  const [leftTab, setLeftTab] = useState<'clinical' | 'orders' | 'photos'>('clinical');
   const [showPreview, setShowPreview] = useState(false);
   const [showAIScribe, setShowAIScribe] = useState(false);
   const navayuMode = isNavayuTenant();
@@ -745,6 +745,10 @@ export default function DoctorConsultation() {
               className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${leftTab === 'clinical' ? 'bg-muted text-foreground' : 'text-muted-foreground'}`}>
               Clinical
             </button>
+            <button onClick={() => setLeftTab('orders')}
+              className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors flex items-center justify-center gap-1 ${leftTab === 'orders' ? 'bg-muted text-foreground' : 'text-muted-foreground'}`}>
+              <ClipboardList className="w-3 h-3" /> Orders
+            </button>
             <button onClick={() => setLeftTab('photos')}
               className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors flex items-center justify-center gap-1 ${leftTab === 'photos' ? 'bg-muted text-foreground' : 'text-muted-foreground'}`}>
               <Camera className="w-3 h-3" /> Photos
@@ -771,30 +775,15 @@ export default function DoctorConsultation() {
               <ConsultationVitals vitals={vitals} onChange={setVitals} />
               <ConsultationComplaints complaints={complaints} onChange={setComplaints} hpiNotes={hpiNotes} onHPIChange={setHpiNotes} />
               {navayuMode && !navayuSenior ? (
-                <>
-                  <NavayuMskExamPanel
-                    bodyRegions={navayuRegistration?.bodyRegions ?? ['back']}
-                    examsByFormId={navayuMskExams}
-                    onExamChange={handleNavayuMskExamChange}
-                  />
-                  <NavayuInvestigationsPanel
-                    visitId={opdVisitId}
-                    value={navayuInvestigations}
-                    onChange={handleNavayuInvestigationsChange}
-                  />
-                </>
+                <NavayuMskExamPanel
+                  bodyRegions={navayuRegistration?.bodyRegions ?? ['back']}
+                  examsByFormId={navayuMskExams}
+                  onExamChange={handleNavayuMskExamChange}
+                />
               ) : (
                 <>
                   <ConsultationExamination findings={examFindings} onChange={setExamFindings} />
                   <ConsultationDiagnosis diagnoses={diagnoses} onChange={setDiagnoses} />
-                  <ConsultationOrders
-                    labTests={labTests}
-                    onLabChange={setLabTests}
-                    radiologyOrders={radiologyOrders}
-                    onRadiologyChange={setRadiologyOrders}
-                    procedures={procedures}
-                    onProcedureChange={setProcedures}
-                  />
                 </>
               )}
               {navayuMode ? (
@@ -815,6 +804,24 @@ export default function DoctorConsultation() {
                   — jr doctor / nurse data editable above
                 </div>
               ) : null}
+            </div>
+          ) : leftTab === 'orders' ? (
+            <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
+              {navayuMode ? (
+                <NavayuInvestigationsPanel
+                  visitId={opdVisitId}
+                  value={navayuInvestigations}
+                  onChange={handleNavayuInvestigationsChange}
+                />
+              ) : null}
+              <ConsultationOrders
+                labTests={labTests}
+                onLabChange={setLabTests}
+                radiologyOrders={radiologyOrders}
+                onRadiologyChange={setRadiologyOrders}
+                procedures={procedures}
+                onProcedureChange={setProcedures}
+              />
             </div>
           ) : (
             <DoctorPhotoViewer patientId={patientId || ''} />

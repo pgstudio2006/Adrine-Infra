@@ -12,6 +12,7 @@ import { PlatformConnectivityStrip } from '@/components/PlatformConnectivityStri
 import { PreviewSectionBadge } from '@/components/shared/PreviewSectionBadge';
 import { useAdminOperationalData } from '@/hooks/useAdminOperationalData';
 import { isNavayuTenant } from '@/lib/navayu/navayu-forms';
+import { DEMO_BED_WARDS } from '@/lib/admin/demo-operational-fallback';
 import type { OperationalSnapshotCounts } from '@adrine/hospital-operations';
 
 const fadeIn = (i: number) => ({
@@ -40,7 +41,7 @@ function deptRowsFromCounts(c: OperationalSnapshotCounts) {
 export default function AdminCommandCenter() {
   const { emergencyCases, labOrders, prescriptions } = useHospital();
   const navayuMode = isNavayuTenant();
-  const { snapshot, finance, error, loading, platformOn } = useAdminOperationalData('24h');
+  const { snapshot, finance, error, loading, platformOn, demoMode } = useAdminOperationalData('24h');
   const [clock, setClock] = useState(new Date());
 
   useEffect(() => {
@@ -52,6 +53,9 @@ export default function AdminCommandCenter() {
   const deptActivity = useMemo(() => (c ? deptRowsFromCounts(c) : []), [c]);
 
   const bedSummary = useMemo(() => {
+    if (demoMode) {
+      return DEMO_BED_WARDS;
+    }
     if (!c) return [];
     const total = c.bedsOccupied + c.bedsAvailable;
     return [
@@ -62,7 +66,7 @@ export default function AdminCommandCenter() {
         available: c.bedsAvailable,
       },
     ];
-  }, [c]);
+  }, [c, demoMode]);
 
   const staffActivityLog = useMemo(
     () =>
@@ -121,7 +125,9 @@ export default function AdminCommandCenter() {
           <p className="text-sm text-muted-foreground">
             {platformOn
               ? `Branch ${snapshot?.branchId ?? '—'} · domain command snapshot`
-              : 'Enable platform runtime for live branch snapshot'}
+              : demoMode
+                ? 'Illustrative branch operations snapshot — Adrine full-hospital demo'
+                : 'Enable platform runtime for live branch snapshot'}
           </p>
         </div>
         <div className="text-right">
@@ -151,6 +157,7 @@ export default function AdminCommandCenter() {
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
                 <Building2 className="w-3.5 h-3.5" /> Department Load Monitor
                 {platformOn && <Badge variant="outline" className="text-[9px]">Live</Badge>}
+                {demoMode && <Badge variant="secondary" className="text-[9px]">Demo</Badge>}
               </p>
               {deptActivity.length === 0 ? (
                 <p className="text-xs text-muted-foreground">No live department load until command snapshot is available.</p>
@@ -248,7 +255,7 @@ export default function AdminCommandCenter() {
         </Card>
       </motion.div>
 
-      {!navayuMode && (
+      {!navayuMode && !demoMode && (
         <motion.div {...fadeIn(5)}>
           <PreviewSectionBadge explanation="Hourly patient flow chart is not on domain analytics yet — use live KPI grid and department load above for operational decisions." />
         </motion.div>

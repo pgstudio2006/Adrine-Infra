@@ -7,12 +7,12 @@ import { Search, FileText, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { useState } from 'react';
 
 const CLAIMS = [
-  { id: 'CLM001', patient: 'Amit Shah', uhid: 'UHID-1001', provider: 'Star Health', policyNo: 'SH-2024-5678', claimAmount: 'Γé╣1,85,000', approvedAmount: 'Γé╣1,60,000', type: 'IPD', status: 'settled', submittedDate: '2025-02-15', settledDate: '2025-03-05' },
-  { id: 'CLM002', patient: 'Neha Patel', uhid: 'UHID-1023', provider: 'ICICI Lombard', policyNo: 'IL-2024-9012', claimAmount: 'Γé╣75,000', approvedAmount: '', type: 'IPD', status: 'submitted', submittedDate: '2025-03-02', settledDate: '' },
-  { id: 'CLM003', patient: 'Rajesh Kumar', uhid: 'UHID-1045', provider: 'HDFC Ergo', policyNo: 'HE-2024-3456', claimAmount: 'Γé╣45,000', approvedAmount: 'Γé╣45,000', type: 'OPD', status: 'approved', submittedDate: '2025-03-01', settledDate: '' },
-  { id: 'CLM004', patient: 'Sunita Devi', uhid: 'UHID-1067', provider: 'National Insurance', policyNo: 'NI-2024-7890', claimAmount: 'Γé╣2,20,000', approvedAmount: '', type: 'IPD', status: 'pending', submittedDate: '', settledDate: '' },
-  { id: 'CLM005', patient: 'Vikram Rathod', uhid: 'UHID-1089', provider: 'Star Health', policyNo: 'SH-2024-1234', claimAmount: 'Γé╣35,000', approvedAmount: '', type: 'OPD', status: 'rejected', submittedDate: '2025-02-20', settledDate: '' },
-  { id: 'CLM006', patient: 'Meera Desai', uhid: 'UHID-1102', provider: 'PMJAY', policyNo: 'PM-2024-5555', claimAmount: 'Γé╣3,50,000', approvedAmount: 'Γé╣3,50,000', type: 'IPD', status: 'approved', submittedDate: '2025-02-28', settledDate: '' },
+  { id: 'CLM001', patient: 'Amit Shah', uhid: 'UHID-1001', provider: 'Star Health', policyNo: 'SH-2024-5678', claimAmount: '₹1,85,000', approvedAmount: '₹1,60,000', type: 'IPD', status: 'settled', submittedDate: '2025-02-15', settledDate: '2025-03-05' },
+  { id: 'CLM002', patient: 'Neha Patel', uhid: 'UHID-1023', provider: 'ICICI Lombard', policyNo: 'IL-2024-9012', claimAmount: '₹75,000', approvedAmount: '', type: 'IPD', status: 'submitted', submittedDate: '2025-03-02', settledDate: '' },
+  { id: 'CLM003', patient: 'Rajesh Kumar', uhid: 'UHID-1045', provider: 'HDFC Ergo', policyNo: 'HE-2024-3456', claimAmount: '₹45,000', approvedAmount: '₹45,000', type: 'OPD', status: 'approved', submittedDate: '2025-03-01', settledDate: '' },
+  { id: 'CLM004', patient: 'Sunita Devi', uhid: 'UHID-1067', provider: 'National Insurance', policyNo: 'NI-2024-7890', claimAmount: '₹2,20,000', approvedAmount: '', type: 'IPD', status: 'pending', submittedDate: '', settledDate: '' },
+  { id: 'CLM005', patient: 'Vikram Rathod', uhid: 'UHID-1089', provider: 'Star Health', policyNo: 'SH-2024-1234', claimAmount: '₹35,000', approvedAmount: '', type: 'OPD', status: 'rejected', submittedDate: '2025-02-20', settledDate: '' },
+  { id: 'CLM006', patient: 'Meera Desai', uhid: 'UHID-1102', provider: 'PMJAY', policyNo: 'PM-2024-5555', claimAmount: '₹3,50,000', approvedAmount: '₹3,50,000', type: 'IPD', status: 'approved', submittedDate: '2025-02-28', settledDate: '' },
 ];
 
 export default function AdminClaims() {
@@ -83,7 +83,7 @@ export default function AdminClaims() {
                   <td className="p-3">{c.provider}</td>
                   <td className="p-3"><Badge variant="outline">{c.type}</Badge></td>
                   <td className="p-3 font-medium">{c.claimAmount}</td>
-                  <td className="p-3">{c.approvedAmount || 'ΓÇö'}</td>
+                  <td className="p-3">{c.approvedAmount || '—'}</td>
                   <td className="p-3">
                     <Badge variant={c.status === 'approved' || c.status === 'settled' ? 'default' : c.status === 'rejected' ? 'destructive' : 'secondary'}>
                       {c.status}

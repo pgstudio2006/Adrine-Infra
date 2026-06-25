@@ -401,7 +401,7 @@ export default function AdminMIS() {
       {platformOn && (
         <PlatformConnectivityStrip
           label="MIS exports + platform analytics"
-          detail={`Reports use hospitalStore rows ┬╖ platform 7d: OPD ${analytics?.metrics.opdVisitsCreated ?? 0} ┬╖ IPD census ${snapshot?.counts.ipdActiveAdmissions ?? 0}`}
+          detail={`Reports use hospitalStore rows · platform 7d: OPD ${analytics?.metrics.opdVisitsCreated ?? 0} · IPD census ${snapshot?.counts.ipdActiveAdmissions ?? 0}`}
           error={error}
         />
       )}
